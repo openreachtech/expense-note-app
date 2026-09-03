@@ -27,6 +27,16 @@ Constraint: more than one company in one deployment is **permanently** out of sc
 Note: the index on `(staff_member_id, spent_on)` is spec §9.3's own, and it serves the
       heaviest read this version has (§7). It is a requirement, not an optimization to defer
 
+Note: **the automated suites run on SQLite, not on the MariaDB the spec declares.**
+      `sequelize/config.cjs` is the boilerplate's own: `development` is SQLite at
+      `sequelize/storage/development.sqlite3`, and the `DATABASE_*` values filled into
+      `.env.development` are read only by its `production` block. That matches the house
+      convention — SQLite for dev and test, and the `mariadb:10.5.12` container for the manual
+      verification spec §8 declares — so it is not a defect. The consequence is real, though:
+      §9's types are MariaDB-shaped (`datetime(3)`, `varchar(191)`, `bigint` keys), and SQLite
+      is lax about every one of them. Verify the migrations against the container before
+      checkpoint 3 is called passed, rather than against SQLite alone
+
 Note: this feature has no `<!-- usecases -->` block, and that is correct — a data model has no
       user-facing use case of its own, and the features built on it carry them. Its
       `<!-- acceptance -->` block is what checkpoint 18 reads

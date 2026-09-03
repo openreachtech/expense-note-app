@@ -29,6 +29,19 @@ both the data model and the operation list, and it changes the pinned contract:
   operation** to renew — which would then need a kind and a caller stated in §10.1 like every
   other operation
 
+**Evidence found in the tree, which settles nothing on its own:** the backend row's
+`.env.development` already carries `AUTH_REFRESH_TOKEN_TTL_DAYS`, `AUTH_COOKIE_SECURE`,
+`AUTH_COOKIE_SAME_SITE`, `AUTH_COOKIE_PATH` and `AUTH_COOKIE_DOMAIN`, plus a comment stating
+that the access-token lifetime is a fixed 15-minute module constant. That is the two-token
+flow of the equipped cookie-authentication convention, filled in during setup.
+
+**So the environment layer has taken a position the spec has not.** This is recorded as
+evidence for whoever answers, and it is deliberately not read as the answer: which mechanism
+the product uses is intent, and intent is not inferred from a file somebody filled in
+(`../../../.claude/skills/hora/references/structure.md`, invariant 2). If the two-token flow
+is the decision, §9 still needs its token tables and §10.1 still needs a fourth operation with
+a kind and a caller.
+
 **Routed to `/hora-spec`, stage 4 (data, API and execution).** `/hora-plan` does not write a
 design decision into `specs/`.
 
@@ -115,3 +128,30 @@ The contract file marks that surface open rather than guessing at it.
 
 - [x] resolved
       Recorded. Nothing above was invented; each line traces to the spec or to the convention.
+
+## Q6. Neither implementation row has a `main` branch
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Both rows were set up with a fresh `git init` and opened straight onto `release/1.0.0`, so
+neither `expense-note-backend` nor `expense-note-frontend-staff` has a `main` branch — not
+locally, and not on origin. `origin/HEAD` points at `release/1.0.0` in both.
+
+Nothing is wrong today: branching a freshly-initialized row from its current `HEAD` is the
+documented path, and the hora repository itself does have `main`.
+
+Two consequences, both at merge time rather than now:
+
+- **the eventual merge has no target.** `release/1.0.0` merges into `main` in every declared
+  row before the hora repository may merge at all
+- **the merge-order check cannot answer.** `git -C <row> fetch origin main` errors rather than
+  returning the 0 or 1 that check reads, so "has this row been merged?" is unanswerable as
+  written. It is not the "no remote configured" case the rule covers either — the remote
+  exists and holds one branch
+
+Raised now rather than at the merge, because the fix is somebody creating `main` on each row
+(from the boilerplate commit, most likely) and that is cheapest before there is history to
+reconcile.
+
+- [ ] unresolved
