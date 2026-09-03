@@ -93,6 +93,25 @@ audience. So a new audience needs the two token tables and nothing more of this 
 audience engine adds only its own cookie name through `buildRefreshTokenCookieConfig()`. A
 maintainer changes the defaults in the base engine alone.
 
+**The row ships the orchestration and the cookie handling, and NONE of the storage.**
+`sequelize/models/` holds only `.directorykeeper.cjs`, so **the token models do not exist in
+this row.** `SessionClerk` calls `buildWithGeneratedAttributes`, `hashToken` and
+`createExpiredAt` on models that still have to be written. `SessionClerk` being present is
+easily read as implying its tables are too — it does not.
+
+**A grepped fact worth carrying, because it contradicts a comment in this row.**
+`.env.development` says the access-token lifetime is "a fixed 15-minute module constant (not
+env-driven)". **There is no such constant.** The only lifetime constant in the row is
+`DEFAULT_REFRESH_TOKEN_LIFETIME_DAYS = 14` in `server/graphql/BaseAppGraphqlServerEngine.js`,
+and nothing under `app/` or `server/` computes an access-token expiry at all. The comment is
+**upstream's, shipped by renchan-boilerplate 1.11.0** — not something this project wrote — so
+it is recorded here and **deliberately not edited: this repository does not own that file's
+comments.** A defect to raise upstream, not to patch locally.
+
+The refresh-token lifetime does resolve, and not to a flat 14:
+`refreshTokenCookieLifetimeDays` reads `env.AUTH_REFRESH_TOKEN_TTL_DAYS` and falls back to the
+14-day constant when it is absent or zero. So 14 is a code default a deployment overrides.
+
 **What this layer expects of the database is not written here.** The credential lives in a
 **five-table cluster** — the entity, a secret holding the sign-in identifier, a password hash,
 an access-token table and a refresh-token table — rather than as columns on the entity. **The
