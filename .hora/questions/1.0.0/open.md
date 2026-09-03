@@ -204,4 +204,26 @@ Two readings, neither recommended:
 
 Raised because a bypass notice that nobody reads is the same as no rule.
 
-- [ ] unresolved
+- [x] resolved
+      **The organization's process wins.** Decided by the user, in their own words: "git thì
+      vẫn theo quy trình, làm xong tạo nhánh merge release, sau đó làm PR, tin nhắn slack để
+      review thì tốt hơn."
+
+      So from here on, `.hora/` landings included:
+
+      - every change goes on its own branch, cut from `release/1.0.0`'s tip, under the names
+        `commits.md` already gives (`feature/<feature-id>`, `install/`, `update/`, `retake/`).
+        A `.hora/`-only landing at a gate boundary is named for what the gate produced
+      - a pull request into `release/1.0.0`, its body in the ORT shape — `# Why` with
+        `* Close #n` where an issue exists, then `# How` as bullets
+      - `test (20.x)` runs and a review happens. **Nothing merges through the bypass**
+      - one Slack message per pull request, handed to the user to post
+
+      This commit is the first to follow it: raised on `release/1.0.0`, then moved onto
+      `update/questions-with-q7` and opened as a pull request rather than pushed.
+
+      **One consequence worth naming.** This puts organization policy against Hora Kit's own
+      `commits.md`, which has `.hora/` committed straight to `release/<version>` at each gate
+      boundary. Policy wins here, so the kit's rule is knowingly wrong for this organization —
+      which belongs as an issue on the kit rather than a local fix. Not raised from this
+      session.
