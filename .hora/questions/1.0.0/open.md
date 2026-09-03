@@ -169,3 +169,39 @@ reconcile.
 
       Both checks now answer instead of erroring: the merge-order check returns 1 (not yet
       merged, correct) and the hotfix check returns 0 (nothing new on main) in each row.
+
+## Q7. `.hora/` commits reach `release/1.0.0` without a pull request or CI
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Pushing this session's `.hora/` commits to `release/1.0.0` made GitHub report:
+
+```
+remote: Bypassed rule violations for refs/heads/release/1.0.0:
+remote: - Changes must be made through a pull request.
+remote: - Required status check "test (20.x)" is expected.
+```
+
+**Nothing was violated.** The rules come from active organization-level rulesets on
+`openreachtech` — `Approve (Bypass for admins only)`, `Approve (Bypass for all members)`,
+`CI (Bypass for admins only)`, `Main Guard`, `Trunk` — and their names state that bypassing is
+granted to members and admins. GitHub prints "Bypassed rule violations" whenever a permitted
+actor bypasses, so this is the configuration working as set up.
+
+**What is undecided is whether it should keep happening.** The organization's default for a
+branch is a pull request plus a green `test (20.x)`, and `commits.md` has `.hora/` committed
+straight to `release/<version>` at each gate boundary. Both are deliberate, and they disagree.
+Every gate of every feature will land the same way — commits with no review and no CI run.
+
+Two readings, neither recommended:
+
+- **it is fine as it stands.** `.hora/` holds no application code, so a CI suite has nothing to
+  say about it, and a pull request per gate boundary would be review theatre
+- **it should go through a pull request like anything else.** The rulesets are organization
+  policy rather than this project's choice, and a bypass that becomes routine stops being
+  noticed
+
+Raised because a bypass notice that nobody reads is the same as no rule.
+
+- [ ] unresolved
