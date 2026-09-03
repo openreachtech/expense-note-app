@@ -154,4 +154,18 @@ Raised now rather than at the merge, because the fix is somebody creating `main`
 (from the boilerplate commit, most likely) and that is cheapest before there is history to
 reconcile.
 
-- [ ] unresolved
+- [x] resolved
+      `main` created in both rows at each boilerplate commit and pushed, in this session:
+      `ec7ec25` in the backend, `beb2fa6` in `frontend-staff`. `release/1.0.0` is exactly one
+      commit ahead of it in each, so the eventual merge fast-forwards.
+
+      **One correction to the reasoning this was fixed on.** It does not mirror the hora
+      repository, as was claimed when the fix was proposed: there, `main` is the initial commit
+      and the empty `Release 1.0.0` marker sits **after** it, on the release branch. In both
+      rows the marker is the **root** commit, so a `main` at the boilerplate commit has that
+      marker as an ancestor. Harmless — `main` is an ancestor of `release/1.0.0` either way —
+      but the branch-opening marker does not sit where `commits.md` puts it, because the
+      hand-done setup committed it before the boilerplate rather than after.
+
+      Both checks now answer instead of erroring: the merge-order check returns 1 (not yet
+      merged, correct) and the hotfix check returns 0 (nothing new on main) in each row.
