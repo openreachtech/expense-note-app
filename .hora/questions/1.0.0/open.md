@@ -228,3 +228,23 @@ Raised because a bypass notice that nobody reads is the same as no rule.
       into a trunk branch" says the merge itself is not the kit's to state, because it belongs
       to the project's own git conventions. So the pull request fills a blank the kit
       deliberately left. Nothing about the kit is wrong here, and nothing was filed.
+
+      **A work branch still prints the notice, and that is the configuration, not a failure of
+      this process.** There are three rulesets, and they do not target the same refs:
+
+      | Ruleset | Targets | Rule | Bypass |
+      |---|---|---|---|
+      | `Approve (Bypass for admins only)` | `main`, `dev`, `staging`, `release/**` | pull request | admins |
+      | `CI (Bypass for admins only)` | `main`, `dev`, `staging`, `release/**` | required status checks | admins |
+      | `Approve (Bypass for all members)` | **`~ALL`** | pull request | **all members** |
+
+      The third one covers every branch, so pushing a second commit to a work branch trips it —
+      a branch cannot be pushed to "through a pull request". Its bypass is granted to all
+      members precisely so ordinary branch work is possible. **Creating a branch does not trip
+      it; updating one does**, which is why the first push of a branch is silent and the next
+      is not.
+
+      **What the decision actually buys is the first two.** Those guard `release/**`, their
+      bypass is admin-only, and they are the ones a direct push was skipping: no review, and no
+      `test (20.x)`. Landing through a pull request satisfies both. A notice printed while
+      pushing a work branch is noise from the `~ALL` ruleset and means nothing was skipped.
