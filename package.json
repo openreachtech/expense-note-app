@@ -1,9 +1,9 @@
 {
-  "name": "TODO: fulfill here ❌️",
+  "name": "@openreachtech/expense-note",
   "version": "0.0.0",
   "private": true,
   "license": "Apache-2.0",
-  "description": "TODO: fulfill here",
+  "description": "expense-note by hora",
   "type": "module",
   "scripts": {
     "hora:init": "hora-core install && hora-skills install",
