@@ -222,8 +222,9 @@ Raised because a bypass notice that nobody reads is the same as no rule.
       This commit is the first to follow it: raised on `release/1.0.0`, then moved onto
       `update/questions-with-q7` and opened as a pull request rather than pushed.
 
-      **One consequence worth naming.** This puts organization policy against Hora Kit's own
-      `commits.md`, which has `.hora/` committed straight to `release/<version>` at each gate
-      boundary. Policy wins here, so the kit's rule is knowingly wrong for this organization —
-      which belongs as an issue on the kit rather than a local fix. Not raised from this
-      session.
+      **This is not a departure from Hora Kit, though it first looked like one.** `commits.md`
+      has `.hora/` "commit to `release/<version>` directly", which reads as *needs no
+      `feature/` branch* rather than *may bypass the trunk's own process* — and its "Merging
+      into a trunk branch" says the merge itself is not the kit's to state, because it belongs
+      to the project's own git conventions. So the pull request fills a blank the kit
+      deliberately left. Nothing about the kit is wrong here, and nothing was filed.
