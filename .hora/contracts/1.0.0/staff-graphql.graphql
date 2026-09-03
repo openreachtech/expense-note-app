@@ -1,0 +1,192 @@
+# staff-graphql — the pinned contract for 1.0.0
+#
+# Consumer: expense-note-frontend-staff (another repository), so this contract exists.
+# Derived once here, before implementation, and read by both sides. See
+# .hora/questions/1.0.0/open.md Q2-Q5 for what was derived and how.
+#
+# INCOMPLETE, ON PURPOSE: the authentication surface is blocked on Q1 (blocking: yes).
+# Nothing in the spec's data model holds a session, so whether signIn returns an access
+# token and whether a fourth operation renews one are not settled. That surface is marked
+# below rather than guessed at.
+
+################################################################################
+#### SCALARS  (001-common)
+################################################################################
+
+scalar DateTime
+
+################################################################################
+#### PAGINATION  (001-common)
+################################################################################
+
+type Pagination {
+  limit: Int!
+  offset: Int!
+  sort: Sort
+  totalRecords: Int!
+}
+
+input PaginationInput {
+  limit: Int!
+  offset: Int!
+  sort: SortInput
+}
+
+# Shape taken from the framework's own RequestSort (`key` / `direction`, DESC recognized,
+# ascending by default) rather than invented. No operation in 1.0.0 lets the caller choose a
+# sort, so this pair is declared for the convention's pagination shape and left unused.
+type Sort {
+  key: String!
+  direction: String!
+}
+
+input SortInput {
+  key: String!
+  direction: String!
+}
+
+################################################################################
+#### QUERY
+################################################################################
+
+type Query {
+  healthCheck: Boolean!
+
+  signedInStaffMember: SignedInStaffMemberResult!
+
+  expenses(input: ExpensesInput!): ExpensesResult!
+  expenseCategories: ExpenseCategoriesResult!
+
+  monthlyExpenses(input: MonthlyExpensesInput!): MonthlyExpensesResult!
+}
+
+################################################################################
+#### MUTATION
+################################################################################
+
+type Mutation {
+  signIn(input: SignInInput!): SignInResult!
+  signOut: SignOutResult!
+
+  recordExpense(input: RecordExpenseInput!): RecordExpenseResult!
+  correctExpense(input: CorrectExpenseInput!): CorrectExpenseResult!
+  removeExpense(input: RemoveExpenseInput!): RemoveExpenseResult!
+}
+
+################################################################################
+#### SIGN IN  (spec 1.0.0#sign-in-operations)
+################################################################################
+
+input SignInInput {
+  email: String!
+  password: String!
+}
+
+# OPEN — Q1. The spec declares staffMemberId and nothing else. Whether an access token
+# joins it depends on the session mechanism, which is not decided.
+type SignInResult {
+  staffMemberId: Int!
+}
+
+# The spec declares SignOutInput() — an input with no fields. The convention gives an
+# operation with no input no argument at all, so no empty input type is declared.
+
+type SignOutResult {
+  signedOut: Boolean!
+}
+
+# SignedInStaffMemberInput() likewise carries no fields — no argument, no type. The
+# operation answers about the caller and nobody else.
+
+type SignedInStaffMemberResult {
+  staffMemberId: Int!
+  name: String!
+  email: String!
+}
+
+################################################################################
+#### EXPENSE ENTRY  (spec 1.0.0#expense-entry-operations)
+################################################################################
+
+# One row type, reused by expenses and monthlyExpenses, so that a month's entries and the
+# total taken over them can never describe different shapes.
+type Expense {
+  id: Int!
+  spentOn: String!            # ISO YYYY-MM-DD. A date with no time of day — Q3
+  amount: Int!                # yen. An integer, because the yen has no minor unit — Q2
+  memo: String                # nullable: the one genuinely optional field, per spec 9.3
+  status: String!             # `recorded` in 1.0.0. The approval seam — Q4
+  expenseCategory: ExpenseCategory!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type ExpenseCategory {
+  id: Int!
+  name: String!
+  displayOrder: Int!
+}
+
+input ExpensesInput {
+  pagination: PaginationInput!
+}
+
+# Most recent first, per spec 11.2.
+type ExpensesResult {
+  expenses: [Expense!]!
+  pagination: Pagination!
+}
+
+# ExpenseCategoriesInput() likewise carries no fields — no argument, no type.
+
+type ExpenseCategoriesResult {
+  expenseCategories: [ExpenseCategory!]!
+}
+
+input RecordExpenseInput {
+  spentOn: String!
+  amount: Int!
+  expenseCategoryId: Int!
+  memo: String                # allow null: the memo is optional
+}
+
+type RecordExpenseResult {
+  expenseId: Int!
+}
+
+input CorrectExpenseInput {
+  expenseId: Int!
+  spentOn: String!
+  amount: Int!
+  expenseCategoryId: Int!
+  memo: String                # allow null: the memo is optional
+}
+
+type CorrectExpenseResult {
+  expenseId: Int!
+}
+
+input RemoveExpenseInput {
+  expenseId: Int!
+}
+
+type RemoveExpenseResult {
+  expenseId: Int!
+}
+
+################################################################################
+#### MONTHLY SUMMARY  (spec 1.0.0#monthly-summary-operations)
+################################################################################
+
+input MonthlyExpensesInput {
+  year: Int!
+  month: Int!
+}
+
+# The entries and the total come from one operation, so the two can never disagree, and so
+# that 1.2.0's export calls this rather than summing again. No pagination: spec 7 caps the
+# heaviest read at a few hundred rows.
+type MonthlyExpensesResult {
+  expenses: [Expense!]!
+  totalAmount: Int!           # yen — Q2
+}
