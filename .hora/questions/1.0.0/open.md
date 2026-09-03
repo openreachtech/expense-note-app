@@ -169,3 +169,98 @@ reconcile.
 
       Both checks now answer instead of erroring: the merge-order check returns 1 (not yet
       merged, correct) and the hotfix check returns 0 (nothing new on main) in each row.
+
+## Q7. `.hora/` commits reach `release/1.0.0` without a pull request or CI
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Pushing this session's `.hora/` commits to `release/1.0.0` made GitHub report:
+
+```
+remote: Bypassed rule violations for refs/heads/release/1.0.0:
+remote: - Changes must be made through a pull request.
+remote: - Required status check "test (20.x)" is expected.
+```
+
+**Nothing was violated.** The rules come from active organization-level rulesets on
+`openreachtech` — `Approve (Bypass for admins only)`, `Approve (Bypass for all members)`,
+`CI (Bypass for admins only)`, `Main Guard`, `Trunk` — and their names state that bypassing is
+granted to members and admins. GitHub prints "Bypassed rule violations" whenever a permitted
+actor bypasses, so this is the configuration working as set up.
+
+**What is undecided is whether it should keep happening.** The organization's default for a
+branch is a pull request plus a green `test (20.x)`, and `commits.md` has `.hora/` committed
+straight to `release/<version>` at each gate boundary. Both are deliberate, and they disagree.
+Every gate of every feature will land the same way — commits with no review and no CI run.
+
+Two readings, neither recommended:
+
+- **it is fine as it stands.** `.hora/` holds no application code, so a CI suite has nothing to
+  say about it, and a pull request per gate boundary would be review theatre
+- **it should go through a pull request like anything else.** The rulesets are organization
+  policy rather than this project's choice, and a bypass that becomes routine stops being
+  noticed
+
+Raised because a bypass notice that nobody reads is the same as no rule.
+
+- [x] resolved
+      **The organization's process wins.** Decided by the user, in their own words: "git thì
+      vẫn theo quy trình, làm xong tạo nhánh merge release, sau đó làm PR, tin nhắn slack để
+      review thì tốt hơn."
+
+      So from here on, `.hora/` landings included:
+
+      - every change goes on its own branch, cut from `release/1.0.0`'s tip, under the names
+        `commits.md` already gives (`feature/<feature-id>`, `install/`, `update/`, `retake/`).
+        A `.hora/`-only landing at a gate boundary is named for what the gate produced
+      - a pull request into `release/1.0.0`, its body in the ORT shape — `# Why` with
+        `* Close #n` where an issue exists, then `# How` as bullets
+      - `test (20.x)` runs and a review happens. **Nothing merges through the bypass**
+      - one Slack message per pull request, handed to the user to post
+
+      This commit is the first to follow it: raised on `release/1.0.0`, then moved onto
+      `update/questions-with-q7` and opened as a pull request rather than pushed.
+
+      **This is not a departure from Hora Kit, though it first looked like one.** `commits.md`
+      has `.hora/` "commit to `release/<version>` directly", which reads as *needs no
+      `feature/` branch* rather than *may bypass the trunk's own process* — and its "Merging
+      into a trunk branch" says the merge itself is not the kit's to state, because it belongs
+      to the project's own git conventions. So the pull request fills a blank the kit
+      deliberately left. Nothing about the kit is wrong here, and nothing was filed.
+
+      **A work branch still prints the notice, and that is the configuration, not a failure of
+      this process.** There are three rulesets, and they do not target the same refs:
+
+      | Ruleset | Targets | Rule | Bypass |
+      |---|---|---|---|
+      | `Approve (Bypass for admins only)` | `main`, `dev`, `staging`, `release/**` | pull request | admins |
+      | `CI (Bypass for admins only)` | `main`, `dev`, `staging`, `release/**` | required status checks | admins |
+      | `Approve (Bypass for all members)` | **`~ALL`** | pull request | **all members** |
+
+      The third one covers every branch, so pushing a second commit to a work branch trips it —
+      a branch cannot be pushed to "through a pull request". Its bypass is granted to all
+      members precisely so ordinary branch work is possible. **Creating a branch does not trip
+      it; updating one does**, which is why the first push of a branch is silent and the next
+      is not.
+
+      **What the decision actually buys is the first two.** Those guard `release/**`, their
+      bypass is admin-only, and they are the ones a direct push was skipping: no review, and no
+      `test (20.x)`. Landing through a pull request satisfies both. A notice printed while
+      pushing a work branch is noise from the `~ALL` ruleset and means nothing was skipped.
+
+      **It reaches every branch, not only a `.hora/` one.** Clarified by the user after the
+      first answer: "mỗi lần mà làm xong 1 tính năng, có thay đổi sẽ phải tách từ nhánh release
+      ra thành nhánh feature, xong tạo merge và gửi slack… nếu trong commit.md mà k nhắc gì đến
+      chứng tỏ là mình sẽ cần follow theo quy trình đó vì đấy là chung của cả công ty."
+
+      So `commits.md`'s "merged back into it" is **not** permission to merge locally and push.
+      A `feature/<feature-id>` branch reaching its gate boundary — checkpoint 9 in the backend
+      row, checkpoint 17 in a frontend row — opens a pull request into that row's
+      `release/<version>`, waits for CI and a review, and gets a Slack block handed over. The
+      same holds for an `install/`, `update/` or `retake/` branch.
+
+      **What stays the kit's, and wins wherever it speaks:** the branch names, the
+      `Release <version>` marker, the gate-boundary timing for `.hora/` (after 2, 9, 17 and
+      18), `.hora/` never sharing a commit with implementation, and app merging into `main`
+      only after every declared row has.
