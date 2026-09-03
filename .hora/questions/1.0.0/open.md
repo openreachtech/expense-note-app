@@ -248,3 +248,19 @@ Raised because a bypass notice that nobody reads is the same as no rule.
       bypass is admin-only, and they are the ones a direct push was skipping: no review, and no
       `test (20.x)`. Landing through a pull request satisfies both. A notice printed while
       pushing a work branch is noise from the `~ALL` ruleset and means nothing was skipped.
+
+      **It reaches every branch, not only a `.hora/` one.** Clarified by the user after the
+      first answer: "mỗi lần mà làm xong 1 tính năng, có thay đổi sẽ phải tách từ nhánh release
+      ra thành nhánh feature, xong tạo merge và gửi slack… nếu trong commit.md mà k nhắc gì đến
+      chứng tỏ là mình sẽ cần follow theo quy trình đó vì đấy là chung của cả công ty."
+
+      So `commits.md`'s "merged back into it" is **not** permission to merge locally and push.
+      A `feature/<feature-id>` branch reaching its gate boundary — checkpoint 9 in the backend
+      row, checkpoint 17 in a frontend row — opens a pull request into that row's
+      `release/<version>`, waits for CI and a review, and gets a Slack block handed over. The
+      same holds for an `install/`, `update/` or `retake/` branch.
+
+      **What stays the kit's, and wins wherever it speaks:** the branch names, the
+      `Release <version>` marker, the gate-boundary timing for `.hora/` (after 2, 9, 17 and
+      18), `.hora/` never sharing a commit with implementation, and app merging into `main`
+      only after every declared row has.
