@@ -4,11 +4,13 @@
 1. [x] Use cases and actors        one actor, three features, every block drafted and approved
 2. [x] The horizon                 three lists, five seams named, build order matches `depends`
 3. [x] Non-functional requirements four numbers, and the security rows stage 6 added
-4. [x] Data, API and execution     re-entered: seven tables, eight operations, no background job
+4. [x] Data, API and execution     re-entered twice: nine tables, ten operations, no background job
 5. [x] Screens and interaction     three screens, every use case walked, both directions reachable
-6. [ ] Security                    re-entered: renewAccessToken's caller, section 7's
-                                   Authentication row, and the reuse-after-sign-out criterion
-7. [ ] Whole-document review       must run again: section 9 and 10.1 changed
+6. [x] Security                    re-entered: renewAccessToken's caller stated, section 7's
+                                   Authentication row rewritten, the reuse refusal and a
+                                   rate-limiting row added
+7. [x] Whole-document review       ran four times. Findings 1-8, every one fixed by the stage
+                                   that owned it. Mechanical pass clean on the last run
 
 ## Decided in conversation
 
@@ -49,3 +51,31 @@ None. Nothing was assumed in the absence of an answer.
   and splitting is what a document does once it grows
 - No forward reference, no duplicate `id`, no operation without a kind or a caller, and every
   `Fine to leave for later` entry corresponds to an `Out of scope for now` entry
+
+## Stage 7 — review
+
+Ran four times, because each fix could contradict something a later stage had written.
+
+| # | Finding | Sent back to | Result |
+|---|---|---|---|
+| 1 | §4's reset seam named the member of staff's own row; the hash had moved | 2 | fixed |
+| 2 | §10's criterion said "neither operation" of four | 7 | fixed (wording) |
+| 3 | rate limiting was built this time and no scope list said so | 2 | fixed |
+| 4 | §6 defined none of session / access token / refresh token | 1 | fixed |
+| 5 | §6 said the access token goes on "every request"; three operations carry none | 1 | fixed |
+| 6 | §7's Security level described a one-token design | 3 | fixed |
+| 7 | §4's reset seam said "that one row"; §9.9 makes it two | 2 | fixed |
+| 8 | §9's oldest criterion forbade a shared address "in no circumstance"; §9.8 permits it | 7 | fixed (wording) |
+
+**The pattern across 1, 5, 6, 7 and 8, and worth carrying into later versions:** every one was a
+sentence that was true when written and was falsified by a change somewhere else, and nothing
+pointed back at it. Four of the five phrased something absolutely — "every request", "that one
+row", "in no circumstance", "a session cookie". §7's Authentication row was corrected three
+separate times as a second credential appeared, and now closes with "an operation added later
+states which of the two it uses, or it is not finished" so the next author is forced to decide
+rather than inherit a blanket.
+
+**What no amount of re-reading the document caught:** findings 5 and 6 came from a question
+about whether two rows were correct against the equipped convention, and the nine-table
+credential cluster came from reading two running implementations. Stage 7 checks the spec
+against itself; it cannot check it against the conventions the checkpoints build from.
