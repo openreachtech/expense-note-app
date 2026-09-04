@@ -89,9 +89,10 @@ Baseline: not applicable — nothing is inherited
 | Availability | office hours, best effort. No standby, and no uptime commitment |
 | Data retention | an expense is kept for 7 years, for bookkeeping. Nothing expires automatically. An entry its owner removes is deleted outright rather than archived — what is retained is what remains |
 | Security level | an ordinary internal business system. TLS in front, a session cookie, a one-way password hash |
-| Authentication | every operation but `signIn` requires a session, and is refused before it reads anything without one |
+| Authentication | every operation requires a session, and is refused before it reads anything without one — with two exceptions. `signIn` is how a session begins. `renewAccessToken` authenticates by the refresh-token cookie alone and is how a session continues. The access token is sent on a request header and lives fifteen minutes; the refresh token is an httpOnly cookie and never reaches a response body |
 | Authorization | every operation that touches an expense is scoped to the signed-in member of staff. Another member of staff's expense is answered as not found, never as forbidden |
 | Personal data | a member of staff's name and email address, and a memo, which may name a client. None of the three is ever written to a log line, and no operation returns a password hash |
+| Rate limiting | `signIn`, 10 **failed** attempts per 15 minutes **per email address** — keyed on the address rather than the caller's IP, because the staff sit behind one office address and an IP-keyed limit would let one person's wrong password lock out everybody. A successful sign-in counts for nothing. `renewAccessToken`, 60 per hour per refresh-token series — roughly fifteen times normal use, which is one renewal per fifteen-minute access token. These are the two operations reachable without a session, and the only two limited at 1.0.0 |
 
 
 ## 8. Manual verification
@@ -225,7 +226,7 @@ This is the table that makes §10's second use case possible: the token is persi
 | `signIn` | `SignInInput(email, password)` | `SignInResult(staffMemberId, accessToken)` | mutation | anyone. The one operation reachable without a session |
 | `signOut` | `SignOutInput()` | `SignOutResult(signedOut)` | mutation | the signed-in member of staff |
 | `signedInStaffMember` | `SignedInStaffMemberInput()` | `SignedInStaffMemberResult(staffMemberId, name, email)` | query | the signed-in member of staff, about themselves only |
-| `renewAccessToken` | `RenewAccessTokenInput()` | `RenewAccessTokenResult(accessToken)` | mutation | ← stage 6 |
+| `renewAccessToken` | `RenewAccessTokenInput()` | `RenewAccessTokenResult(accessToken)` | mutation | anyone presenting a refresh-token cookie. **Reachable without a session, by design** — it is what re-establishes one |
 
 `signedInStaffMember` exists because a session is a cookie: after a reload the screens have to ask whether they still have one, and who is holding it.
 
@@ -255,6 +256,10 @@ For: a member of staff who is not signed in. It is the one screen reachable with
 - a session survives a page reload, and stops working the moment its holder signs out
 - neither operation this feature adds returns a password or a password hash, and neither writes one into a log line
 - `signedInStaffMember` called without a session is refused, and returns nobody
+- `renewAccessToken` presented with a refresh-token cookie that is expired, revoked, or already spent is refused identically in all three cases, and the refusal reveals which of the three it was in none of them
+- a refresh token presented after it was already spent revokes every token in its series — so a stolen cookie stops working, and so does the session it was stolen from
+- `renewAccessToken` called with no refresh-token cookie at all is refused, and returns nobody
+- an eleventh failed sign-in for the same email address inside fifteen minutes is refused for being too frequent, while a first attempt for a different address in the same window is not; ten successful sign-ins in that window are refused nothing
 
 
 ## 11. Expense entry
