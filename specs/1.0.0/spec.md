@@ -114,9 +114,9 @@ Baseline: not applicable — nothing is inherited
 |---|---|---|---|
 | id | bigint | primary key | |
 | name | varchar(191) | not null | what the signed-in member of staff is shown as |
-| email | varchar(191) | not null, unique | the address the account was issued against |
-| password_hash | varchar(191) | not null | a one-way hash. Never returned, never logged |
 | created_at / updated_at | datetime(3) | not null | |
+
+The sign-in address and the password digest are **not** here — they sit in their own tables (§9.4, §9.5), one row each per member of staff. Kept apart, a query that reads somebody's name cannot carry a credential in its result set by accident. Serves §10's use cases, and every operation that names an owner.
 
 ### 9.2 expense_categories
 
@@ -144,6 +144,60 @@ Seeded, not editable in this version. A category is a row with an id from the fi
 
 Indexed on `(staff_member_id, spent_on)` — the one read that matters is one member of staff's month, and it is the heaviest operation this version has.
 
+### 9.4 staff_member_secrets
+
+| Column | Type | Constraint | Description |
+|---|---|---|---|
+| id | bigint | primary key | |
+| staff_member_id | bigint | not null, unique index | 1:1 with §9.1 |
+| email | varchar(191) | not null, unique | the address the account was issued against. The sign-in identifier, and the only thing `signIn` looks a member of staff up by |
+| created_at / updated_at | datetime(3) | not null | |
+
+Serves both of §10's use cases.
+
+### 9.5 staff_member_password_hashes
+
+| Column | Type | Constraint | Description |
+|---|---|---|---|
+| id | bigint | primary key | |
+| staff_member_id | bigint | not null, unique index | 1:1 with §9.1 |
+| password_hash | varchar(191) | not null | a one-way hash. Never returned by any operation, never written to a log line (§7) |
+| created_at / updated_at | datetime(3) | not null | |
+
+A candidate password is verified against this row and nowhere else. Serves §10's first use case, and the password reset foreseen for later (§4) — which changes this row alone.
+
+### 9.6 staff_member_access_tokens
+
+| Column | Type | Constraint | Description |
+|---|---|---|---|
+| id | bigint | primary key | |
+| staff_member_id | bigint | not null, indexed | 1:N — a member of staff may hold several |
+| access_token | varchar(191) | not null, unique | the short-lived credential, sent on a request header. **Stored as itself, not as a digest** — see below |
+| session_key | varchar(191) | not null, indexed | the series this token belongs to. Signing out revokes by it |
+| generated_at | datetime(3) | not null | |
+| expired_at | datetime(3) | not null | fifteen minutes after `generated_at`. **This project fixes the access token's life at fifteen minutes** — the figure the equipped convention is built around. Nothing in the row's code sets it, so leaving it unstated would have checkpoint 3 pick one |
+| created_at / updated_at | datetime(3) | not null | |
+
+**This table holds its token in the clear and §9.7 holds only a digest. The asymmetry is the design, not an oversight.** An access token is readable here because it lives fifteen minutes: the exposure a leaked dump buys is one lifetime, after which every row in it is useless. A refresh token lives fourteen days, so the same dump would be a set of working sessions — and §9.7 therefore stores nothing that can be presented. The lifetime is what earns the difference.
+
+An expired access token is **deleted**, not flagged — there is no `revoked_at` here, because the lifetime is the revocation. Serves both of §10's use cases.
+
+### 9.7 staff_member_refresh_tokens
+
+| Column | Type | Constraint | Description |
+|---|---|---|---|
+| id | bigint | primary key | |
+| staff_member_id | bigint | not null, indexed | 1:N |
+| token_hash | varchar(191) | not null, unique | **the digest, never the token.** A dump of this table is not a set of usable sessions |
+| session_key | varchar(191) | not null, indexed | the series a rotation keeps. Signing out revokes every row sharing it |
+| used_at | datetime(3) | null | set when the token is spent on a rotation. Presented again after this, it is a reuse |
+| revoked_at | datetime(3) | null | set on sign-out, and on a detected reuse |
+| generated_at | datetime(3) | not null | |
+| expired_at | datetime(3) | not null | `AUTH_REFRESH_TOKEN_TTL_DAYS` after `generated_at`, falling back to a 14-day default in code when unset. **A deployment's own value, not a fixed 14** |
+| created_at / updated_at | datetime(3) | not null | |
+
+This is the table that makes §10's second use case possible: the token is persisted, so signing out has something to revoke, and a reload has something to present. It reaches the browser as an httpOnly cookie and is never returned in a response body.
+
 ### Acceptance criteria
 <!-- acceptance -->
 
@@ -151,6 +205,10 @@ Indexed on `(staff_member_id, spent_on)` — the one read that matters is one me
 - two members of staff can hold the same email address in no circumstance
 - the four categories exist after the seeder runs, in their display order
 - an expense always names a member of staff who exists, and a category that exists
+- a member of staff has exactly one sign-in address and exactly one password digest, and no second row of either can be written against them
+- no refresh token is stored in a form that could be presented as one — only its digest
+- two refresh tokens cannot share a digest
+- a refresh token row records, separately, that it was spent and that it was revoked
 
 
 ## 10. Sign in
@@ -164,11 +222,14 @@ Indexed on `(staff_member_id, spent_on)` — the one read that matters is one me
 
 | schema | input | result | kind | caller |
 |---|---|---|---|---|
-| `signIn` | `SignInInput(email, password)` | `SignInResult(staffMemberId)` | mutation | anyone. The one operation reachable without a session |
+| `signIn` | `SignInInput(email, password)` | `SignInResult(staffMemberId, accessToken)` | mutation | anyone. The one operation reachable without a session |
 | `signOut` | `SignOutInput()` | `SignOutResult(signedOut)` | mutation | the signed-in member of staff |
 | `signedInStaffMember` | `SignedInStaffMemberInput()` | `SignedInStaffMemberResult(staffMemberId, name, email)` | query | the signed-in member of staff, about themselves only |
+| `renewAccessToken` | `RenewAccessTokenInput()` | `RenewAccessTokenResult(accessToken)` | mutation | ← stage 6 |
 
 `signedInStaffMember` exists because a session is a cookie: after a reload the screens have to ask whether they still have one, and who is holding it.
+
+`signIn` returns the short-lived access token in its result and puts the refresh token in an httpOnly cookie; the refresh token never appears in a response body. `renewAccessToken` reads that cookie, spends the presented refresh token, issues the next pair in the same series, and returns the fresh access token — so a member of staff whose access token has expired stays signed in without signing in again. Presenting a refresh token that was already spent is a reuse, and the whole series is revoked.
 
 ### 10.2 Screen
 <!-- id: sign-in-screen -->
