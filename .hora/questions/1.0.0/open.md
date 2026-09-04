@@ -264,3 +264,75 @@ Raised because a bypass notice that nobody reads is the same as no rule.
       `Release <version>` marker, the gate-boundary timing for `.hora/` (after 2, 9, 17 and
       18), `.hora/` never sharing a commit with implementation, and app merging into `main`
       only after every declared row has.
+
+## Q8. §9's credential cluster is stricter than the equipped skill, on purpose
+<!-- spec: data-model -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+**Read this before "correcting" §9 against `hor-cookie-authentication`.** The equipped skill and
+§9 disagree, the skill is the incomplete one, and a later session reading a published skill
+against a spec somebody wrote will resolve it the wrong way round unless told otherwise.
+
+### What the equipped skill (0.1.0) gets wrong
+
+- `references/migrations.md` lists four tables and **omits `<actor>_secrets` and
+  `<actor>_secrets_bk` entirely**
+- `references/token-models.md` names `<Actor>Secret` in the cluster list but does not say it
+  takes the backup mixin, gives it no columns, and shows no code for it
+- so `signIn`'s own sample calls `findPasswordHashByEmail({ email })` while no table the
+  reference lists holds an `email` column
+
+Reading the two references against each other made `<Actor>Secret` look like a phantom. It is
+not: it is real, every actor has one, and it takes the backup mixin like the password hash.
+
+### Where §9's nine tables actually came from
+
+**Two running implementations, not the reference** — `hora-simple-crm-jiro-backend` and
+`simple-file-management-backend`, both of which carry `customer_secrets`, `customer_secrets_bk`,
+`admin_secrets` and `admin_secrets_bk` with models to match. `<actor>_secrets` there is
+`<actor>_id` BIGINT not null, `email` STRING(191) not null, `saved_at` DATE(3) not null, plus
+`id` and the timestamps from the migration factory.
+
+**That is also what settled `saved_at`.** It sits *beside* `created_at` / `updated_at` rather
+than replacing them — the real migration spreads the factory's timestamps right after it. The
+reference's column lists name auth-specific columns only, which is why `id` never appears in
+them either.
+
+### The two places §9 is deliberately stricter, and must stay
+
+| | The running projects | §9 | Why §9 wins |
+|---|---|---|---|
+| `staff_member_secrets.staff_member_id` | plain index | **unique** | the table is 1:1 — its history is in §9.8 — and this project's foreign-key rule gives a 1:1 satellite a unique index |
+| `staff_member_secrets.email` | **no index at all** | **unique** | §9's own acceptance criterion says two members of staff can hold the same address in no circumstance. Only an index makes that true. In those two projects, that criterion would be false |
+
+**Neither is a mistake to reconcile toward the implementation.** Both are written into §9 as
+decisions with their reasons, so the migration checkpoint 3 writes will differ from the CRM's
+on purpose.
+
+### Fixed upstream, not yet published
+
+`hora-skills-ort-renchan` issue **#36**, fixed by **PR #37**, merged into that repository's
+`release/0.2.0`. Its diff adds both secrets tables to the migration list, gives `<Actor>Secret`
+its own section declaring the mixin, and states the rule the reference had never written down:
+**both credential tables take a backup mixin; the token tables take none**, because a token is
+deleted or revoked rather than rewritten. That last line is why §9.6 and §9.7 have no `_bk`.
+
+**This project pins `^0.1.0`, so none of that is equipped yet.** Until the pin moves:
+
+- **the spec is the authority on the credential cluster, and the equipped skill is known
+  incomplete on this point.** A checkpoint finding them in disagreement must not rewrite the
+  spec
+- checkpoints implement from `specs/`, not from the skill, so nothing is blocked by the delay
+
+### Follow-up, once 0.2.0 is published
+
+Move this project's pin from `^0.1.0` to `^0.2.0`, and **delete this question's "not yet
+published" and "stricter than the skill" halves** rather than leaving them to confuse — the
+omission will be gone, and only the two deliberate index divergences will still be worth
+recording. Tracked on the reviewing session's side as well as here, so it does not live in one
+head.
+
+- [x] resolved
+      Recorded. §9 carries the nine tables; the divergences are deliberate and written as
+      decisions in §9 itself.
