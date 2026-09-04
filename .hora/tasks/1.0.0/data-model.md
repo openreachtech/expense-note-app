@@ -74,8 +74,8 @@ Note: this feature has no `<!-- usecases -->` block, and that is correct — a d
       `<!-- acceptance -->` block is what checkpoint 18 reads
 
 ## Spec gate
-- [ ] 1. Draft or confirm the specification
-- [ ] 2. Verify the use cases can be met
+- [x] 1. Draft or confirm the specification  <!-- skills: hoc-requirement-definition; digests: none taken — an interactive checkpoint, run by the main session, hands no agent a digest. Matched against hora-skills-ort-core 0.2.0 -->
+- [x] 2. Verify the use cases can be met  <!-- skills: hoc-requirement-definition; digests: none taken — interactive, no agent. Matched against hora-skills-ort-core 0.2.0. GAP: the checkpoint delegates to "the shared UI/UX project context", and the only equipped skill covering that is frontend-surface (hof-), out of surface for a backend-only feature. Ran without it -->
 
 ## Backend gate
 - [ ] 3. DB and API schemas
@@ -98,3 +98,30 @@ Note: this feature has no `<!-- usecases -->` block, and that is correct — a d
 
 ## Acceptance gate
 - [ ] 18. Acceptance (E2E and unit both)
+
+## Checkpoint 2 — the walk
+
+`#data-model` states no use cases of its own, and that is correct: a data model has none, and
+the features built on it carry them (`../../../.claude/skills/hora/references/spec-format.md`).
+**Passing on that alone would have been vacuous**, so what was walked instead is the one thing
+this feature can still get wrong — whether §9's nine tables can represent every state the
+seven dependent use cases need.
+
+| Use case | What it needs of §9 | Held by |
+|---|---|---|
+| signs in Monday morning, and every screen after knows who they are | a name to show, an address to look up by, a digest to verify, a token pair to issue | §9.1, §9.4, §9.5, §9.6, §9.7 |
+| signs out on a shared machine; the next person is asked to sign in | a way to revoke a whole series, not one token | §9.7's `revoked_at` + `session_key`; §9.6 deleted |
+| records a 1,200 yen fare with date, amount, category, memo | all five fields, and an owner | §9.3 |
+| corrects 12,000 to 1,200, and sees the corrected one from then on | update in place, with no history expected | §9.3. **No `_bk` for expenses, and none wanted** — §11's criterion says the entry count must not change, and §7 keeps what remains rather than what was |
+| removes a duplicate lunch, and it is gone from every later read | a hard delete | §9.3. §7 deletes outright rather than archiving, so no `deleted_at` |
+| picks a month, reads the total, writes it on a claim form | a month's rows for one owner, summable | §9.3, on the `(staff_member_id, spent_on)` index §7 calls the heaviest read |
+| switches to the previous month and reads its entries | the same read, by a different month | as above |
+
+**All seven are representable, and nothing in §9 is unused by them** except the two `_bk` tables
+and `status`, each of which §9 already states is there for a later version rather than this one.
+
+**One thing the walk confirmed rather than assumed:** `expenses` has no backup table, and must
+not gain one. Two of the three expense use cases turn on a correction or a removal being
+final — §11's criterion that the entry count does not change, and §7's rule that what is
+retained is what remains. Adding a history table for expenses out of symmetry with §9.8 and
+§9.9 would contradict both.
