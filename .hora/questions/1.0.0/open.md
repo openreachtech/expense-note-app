@@ -336,3 +336,34 @@ head.
 - [x] resolved
       Recorded. §9 carries the nine tables; the divergences are deliberate and written as
       decisions in §9 itself.
+
+## Q9. §9's referential-integrity criterion is the model's work, not the resolver's
+<!-- spec: data-model -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#data-model`'s checkpoint 1, reading §9's criteria closely enough to build from.
+
+**"an expense always names a member of staff who exists, and a category that exists"** cannot be
+met by a migration. This project forbids DB-level `references` constraints — a foreign key is a
+plain `BIGINT` with an index, and integrity is enforced in application code
+(`hor-cookie-authentication`'s `migrations.md` restates it for the credential cluster). So the
+criterion needs code, and which code decided whether checkpoint 1 could pass at all:
+
+- **the model's** — then a test can assert a bad id is refused with only `#data-model` built,
+  and the criterion is checkable at its own feature's gate
+- **the resolver's** (`recordExpense`, `#expense-entry`) — then it is unobservable until a
+  feature built later exists, which is a `forward-reference` and would have gone back to
+  `/hora-spec` at stage 2
+
+- [x] resolved
+      Decided in conversation: **the model validates it.** The `Expense` model checks on write
+      that the owner and the category exist, so §9's criterion stays where it is and is tested
+      at checkpoint 6 against `#data-model`'s own code.
+
+      Two consequences worth having on record. There is an existence query on every expense
+      write — accepted at this size (§7: 20 members of staff, 50 foreseen). And a
+      both-places option was offered and declined: having the resolver re-check what the model
+      already refuses states one rule twice, which is what the charter's one-piece-of-
+      information rule exists to discourage. `#expense-entry`'s resolver surfaces the model's
+      refusal rather than repeating the check.
