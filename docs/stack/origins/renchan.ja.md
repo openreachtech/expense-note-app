@@ -2,6 +2,8 @@
 
 # Origin `renchan` — backend リポジトリ
 
+*[English](./renchan.md)*
+
 宣言された origin が `renchan` の行についてリポジトリを作り初期化するために、`/hora-setup` が知る必要のあること。git の扱いそのもの — 最新タグの取得、履歴の破棄、リポジトリがどのブランチで始まるか — は kit 自身のもので、ここには書き直しません。
 
 ## どこから来るか
@@ -158,10 +160,10 @@ COMPOSE_PROFILES=minio
 
 | スキル | コピーする理由 |
 |---|---|
-| `hb-bank-id` | このリポジトリ内で排他的な行 id プレフィックスを割り当てる。backend で直接作業するセッションから呼び出せ、安全に編集もできる必要がある — だから行自身の `.claude/skills/` に置く |
+| `hor-bank-id` | このリポジトリ内で排他的な行 id プレフィックスを割り当てる。backend で直接作業するセッションから呼び出せ、安全に編集もできる必要がある — だから行自身の `.claude/skills/` に置く |
 
 ```bash
-cp -r .claude/skills/hb-bank-id <myproject>-backend/.claude/skills/hb-bank-id
+cp -r .claude/skills/hor-bank-id <myproject>-backend/.claude/skills/hor-bank-id
 ```
 
 **既存のコピーは決して上書きしない** — コピー先が存在するならこのコピー自体を丸ごとスキップします。人間が自分の backend リポジトリの中でカスタマイズしているかもしれません。
