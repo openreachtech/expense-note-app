@@ -7,7 +7,8 @@ was read off the tree. This is a cache; on any disagreement the tree wins and th
 ## Directory layout
 
 ```
-app/                globals (`_.js`, `env.js`, `require.js`, `root-path.js`), constants, tools
+app/                `globals/` (`_.js`, `env.js`, `require.js`, `root-path.js`), `constants/`,
+                    `session/` (the session classes — see "The session and cookie layer")
 constants/          shared `*.cjs` constants
 sequelize/          `_.js` (the activator), `config.cjs`, models/, migrations/, seeders/
 server/             index.js, graphql/, restfulapi/
@@ -26,8 +27,8 @@ Empty directories are held open by `.directorykeeper.cjs`, not `.gitkeep`.
 | Server | Engine | Endpoint | Port |
 |---|---|---|---|
 | customer GraphQL | `CustomerGraphqlServerEngine` | `/graphql-customer` | 3900 |
-| admin GraphQL | `AdminGraphqlServerEngine` | `/graphql-admin` | read from the engine |
-| REST | `AppRestfulApiServerEngine` | `/v1`, `/v2` renderers | read from the engine |
+| admin GraphQL | `AdminGraphqlServerEngine` | `/graphql-admin` | 5800 |
+| REST | `AppRestfulApiServerEngine` | `/v1`, `/v2` renderers | 8001 |
 
 Every server binds `127.0.0.1` — they sit behind a reverse proxy. `pm2.config.cjs` runs one app,
 `GraphQL API` → `./server/index.js`.
@@ -56,6 +57,69 @@ to, so no checkpoint has to touch a shared list. A post-worker directory has to 
 
 **One `.graphql` file per audience**, at `server/graphql/schemas/<audience>.graphql` — not a numbered
 directory of files. Both shipped files declare a `healthCheck` query and nothing else.
+
+## The session and cookie layer
+
+**This is the part the first pass missed, and stage 4 of the spec is what needed it.** The row
+already ships the two-token cookie session — a short-lived access token plus a rotating refresh
+token — so the convention exists here rather than having to be invented.
+
+```
+app/session/
+  SessionClerk.js               the single window onto a session's tables. Every find / save /
+                                update / delete across the access-token and refresh-token
+                                tables goes through it, and callers depend on nothing else
+  SessionCredentialGenerator.js generates the session key and the tokens
+  BaseSessionResult.js          the base of the two result objects below
+  SavingSessionResult.js        the outcome of starting or rotating a session — never throws
+  RevokingSessionResult.js      the outcome of revoking one
+
+server/graphql/contexts/
+  BaseAppGraphqlContext.js      a plain DTO. It exposes `cookieHeader` and the engine config,
+                                and deliberately holds no cookie logic
+  tools/RefreshTokenExpressCookieClerk.js
+                                every bit of cookie logic — reading, setting and clearing the
+                                refresh-token cookie. A session resolver builds one from the
+                                context it is handed; every other resolver never touches it
+```
+
+**`SessionClerk` takes its tables injected, not imported** — `AccessTokenModel` and
+`RefreshTokenModel` are constructor arguments, which is how one implementation serves every
+audience. So a new audience needs the two token tables and nothing more of this layer.
+
+**The cookie's name, lifetime and `Secure` flag are composed in one place.**
+`BaseAppGraphqlServerEngine` holds `refreshTokenCookieConfig` (lifetime from
+`refreshTokenCookieLifetimeDays`, `secure` from `usesSecureRefreshTokenCookie`), and each
+audience engine adds only its own cookie name through `buildRefreshTokenCookieConfig()`. A
+maintainer changes the defaults in the base engine alone.
+
+**The row ships the orchestration and the cookie handling, and NONE of the storage.**
+`sequelize/models/` holds only `.directorykeeper.cjs`, so **the token models do not exist in
+this row.** `SessionClerk` calls `buildWithGeneratedAttributes`, `hashToken` and
+`createExpiredAt` on models that still have to be written. `SessionClerk` being present is
+easily read as implying its tables are too — it does not.
+
+**A grepped fact worth carrying, because it contradicts a comment in this row.**
+`.env.development` says the access-token lifetime is "a fixed 15-minute module constant (not
+env-driven)". **There is no such constant.** The only lifetime constant in the row is
+`DEFAULT_REFRESH_TOKEN_LIFETIME_DAYS = 14` in `server/graphql/BaseAppGraphqlServerEngine.js`,
+and nothing under `app/` or `server/` computes an access-token expiry at all. The comment is
+**upstream's, shipped by renchan-boilerplate 1.11.0** — not something this project wrote — so
+it is recorded here and **deliberately not edited: this repository does not own that file's
+comments.** A defect to raise upstream, not to patch locally.
+
+The refresh-token lifetime does resolve, and not to a flat 14:
+`refreshTokenCookieLifetimeDays` reads `env.AUTH_REFRESH_TOKEN_TTL_DAYS` and falls back to the
+14-day constant when it is absent or zero. So 14 is a code default a deployment overrides.
+
+**What this layer expects of the database is not written here.** The credential lives in a
+**five-table cluster** — the entity, a secret holding the sign-in identifier, a password hash,
+an access-token table and a refresh-token table — rather than as columns on the entity. **The
+column shapes come from the equipped cookie-authentication skill's own token-model reference,
+not from reading `SessionClerk`**: the clerk shows which fields it passes
+(`sessionKey`, `generatedAt`, `tokenHash`), and the skill is what states nullability, the
+unique constraints and the rotation columns (`usedAt`, `revokedAt`, `expiredAt`). Read the
+skill before designing against this layer.
 
 ## Naming conventions
 
