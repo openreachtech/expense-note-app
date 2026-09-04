@@ -4,10 +4,9 @@
 # Derived once here, before implementation, and read by both sides. See
 # .hora/questions/1.0.0/open.md Q2-Q5 for what was derived and how.
 #
-# INCOMPLETE, ON PURPOSE: the authentication surface is blocked on Q1 (blocking: yes).
-# Nothing in the spec's data model holds a session, so whether signIn returns an access
-# token and whether a fourth operation renews one are not settled. That surface is marked
-# below rather than guessed at.
+# The authentication surface is settled: Q1 is closed, the spec holds the nine-table
+# credential cluster, and section 10.1 states renewAccessToken with its caller. Nothing here
+# is marked open any more.
 
 ################################################################################
 #### SCALARS  (001-common)
@@ -67,6 +66,7 @@ type Query {
 type Mutation {
   signIn(input: SignInInput!): SignInResult!
   signOut: SignOutResult!
+  renewAccessToken: RenewAccessTokenResult!
 
   recordExpense(input: RecordExpenseInput!): RecordExpenseResult!
   correctExpense(input: CorrectExpenseInput!): CorrectExpenseResult!
@@ -82,10 +82,17 @@ input SignInInput {
   password: String!
 }
 
-# OPEN — Q1. The spec declares staffMemberId and nothing else. Whether an access token
-# joins it depends on the session mechanism, which is not decided.
+# Returns the short-lived access token in the body; the refresh token goes into an httpOnly
+# cookie and never appears in a response (spec 10.1).
 type SignInResult {
   staffMemberId: Int!
+  accessToken: String!
+}
+
+# RenewAccessTokenInput() carries no fields — no argument, no type. The refresh-token cookie
+# carries everything it needs, which is why this operation is reachable without a session.
+type RenewAccessTokenResult {
+  accessToken: String!
 }
 
 # The spec declares SignOutInput() — an input with no fields. The convention gives an

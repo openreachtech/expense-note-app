@@ -1,6 +1,29 @@
-# #data-model  The three tables, and the four seeded categories
-<!-- spec: data-model @ sha256:aed4f9e90c4b7b39 -->
+# #data-model  The nine tables, and the four seeded categories
+<!-- spec: data-model @ sha256:621aa4f9caa62742 -->
 <!-- repositories: backend -->
+
+Scope: **nine tables, and all nine are this checkpoint's to write.** Three are the domain's
+       (§9.1 `staff_members`, §9.2 `expense_categories`, §9.3 `expenses`) and six are the
+       credential cluster (§9.4 `staff_member_secrets`, §9.5 `staff_member_password_hashes`,
+       §9.6 `staff_member_access_tokens`, §9.7 `staff_member_refresh_tokens`, §9.8
+       `staff_member_secrets_bk`, §9.9 `staff_member_password_hashes_bk`).
+
+       **Nothing is inherited.** The backend row ships the session orchestration —
+       `SessionClerk`, the cookie clerk, the engine cookie config — and `sequelize/models/`
+       ships EMPTY. `SessionClerk` taking its models injected reads as though its tables
+       exist; they do not (`.hora/tree/expense-note-backend.md`).
+
+Constraint: **§9.4 and §9.5 are stricter than the running implementations, deliberately.**
+            §9.4's foreign key is a UNIQUE index and its `email` is UNIQUE. The reference
+            projects use a plain FK index and no index on `email` at all. Both are decisions
+            written into §9 with their reasons — do not reconcile them toward the other
+            projects, and do not copy the unique constraints into §9.8, where a plain 1:N
+            index is what lets a history table hold more than one change (Q8)
+
+Constraint: **the equipped `hor-cookie-authentication` 0.1.0 is known incomplete here.** Its
+            `migrations.md` omits the two secrets tables entirely. **The spec is the authority;
+            a disagreement with the skill must not rewrite §9** (Q8,
+            `../../questions/1.0.0/open.md`). Fixed upstream, unpublished
 
 Constraint: approval by a manager is out of scope **for now** (1.1.0, spec §4). `expenses`
             carries `status` from this first migration, holding `recorded` and nothing else.
@@ -26,6 +49,15 @@ Constraint: more than one company in one deployment is **permanently** out of sc
 
 Note: the index on `(staff_member_id, spent_on)` is spec §9.3's own, and it serves the
       heaviest read this version has (§7). It is a requirement, not an optimization to defer
+
+Note: `saved_at` on §9.4, §9.5, §9.8 and §9.9 sits BESIDE `created_at` / `updated_at`, never
+      instead of them — `created_at` is when the row appeared, `saved_at` is when that address
+      or digest was set. The convention's column lists name auth-specific columns only, which
+      is why `id` never appears in them either
+
+Note: the foreign-key attribute is PascalCase over a snake_case field — `StaffMemberId` →
+      `staff_member_id`. That is this project's foreign-key rule, and the reference migrations
+      carry a comment saying so
 
 Note: **the automated suites run on SQLite, not on the MariaDB the spec declares.**
       `sequelize/config.cjs` is the boilerplate's own: `development` is SQLite at

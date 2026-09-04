@@ -17,7 +17,12 @@ Identifiers are English, and were checked against `@openreachtech/eslint-config`
 | own entry | scoping by `StaffMemberId` | rule | backend | not a name of its own. Every read and every write is scoped to the signed-in member of staff |
 | total | `totalAmount` | value | backend / frontend | yen, an integer. Never `total` alone — it does not say of what |
 | status | `status` | field | backend | `recorded` in 1.0.0. The seam 1.1.0's approval is built on |
-| session | **undecided** | — | backend / frontend | **blocked on Q1.** The mechanism is not chosen, so nothing is named for it yet |
+| session | scoping by `sessionKey` | value | backend | the series a token pair belongs to. Not a class: signing out revokes every row sharing the key |
+| access token | `StaffMemberAccessToken` | entity | backend | table: `staff_member_access_tokens`. Fifteen minutes, sent on a request header |
+| refresh token | `StaffMemberRefreshToken` | entity | backend | table: `staff_member_refresh_tokens`. Stored as `tokenHash` only, delivered as an httpOnly cookie |
+| sign-in address | `StaffMemberSecret` | entity | backend | table: `staff_member_secrets`. Named for what the convention calls it, not for `email` — the model holds the identifier, whatever it later becomes |
+| a superseded credential | `StaffMemberSecretsBk`, `StaffMemberPasswordHashesBk` | entity | backend | tables: `staff_member_secrets_bk`, `staff_member_password_hashes_bk`. **`Bk` is the framework's own suffix for a backup table** — not an abbreviation this project chose, and not one to expand |
+| password digest | `StaffMemberPasswordHash` | entity | backend | table: `staff_member_password_hashes`. Never `password` alone: the column holds a hash, and naming it for the plaintext invites returning it |
 
 ## Names avoided, and why
 
@@ -38,6 +43,9 @@ is enforced rather than remembered.
 | `ExpenseManager`, `ExpenseHelper` | `manager` and `helper` are prohibited: both invite a god class | name the actual responsibility — `MonthlyExpenseCollector`, `ExpenseOwnershipInspector` |
 | `ExpenseUtil` | `util` adds no information about the responsibility | as above |
 | `load()`, `read()` on an instance | a single-word instance method wastes the reader's mental map | `loadMonthlyExpenses()`, `readOwnExpenses()` |
+| `token`, `secret` as a bare property | neither says which of the four credential kinds it is, and two of them must never be logged | `accessToken`, `tokenHash`, `passwordHash` |
+| `StaffMemberEmail` for the secrets table | names the column rather than the concept, so a later identifier change makes the class name a lie | `StaffMemberSecret`, as the convention calls it |
+| `StaffMemberPasswordHashBackup` | `Bk` is the framework's suffix and the backup mixin resolves `<Model>Bk` by name; spelling it out breaks that lookup | `StaffMemberPasswordHashesBk` |
 | `Category`, `Expense` as a *class* name in app code | a single-word class name is avoided wherever it can be | the model keeps `Expense`; app-side classes are compound (`ExpenseRecorder`) |
 
 **Recording the reason is the point.** Without it somebody later restores the naive name, and

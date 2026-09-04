@@ -33,11 +33,23 @@ writing, not a lock.
 |---|---|---|
 | the staff audience's SDL | #sign-in, #expense-entry, #monthly-summary | the backend row ships **one `.graphql` file per audience** (`.hora/tree/expense-note-backend.md`), while the equipped schema convention wants numbered per-domain files. Checkpoint 3 of #sign-in reconciles the two; whichever shape wins, the scalars / `Pagination` / `Sort` block is written once and the later two features append beside it |
 | the staff audience's GraphQL type declarations under `types/` | #sign-in, #expense-entry, #monthly-summary | every operation's `Input` / `Result` is mirrored there, so all three append |
-| `server/index.js`, plus the staff engine and context pair | #sign-in | `server/index.js` starts its servers **by hand — no scanning**, so the staff audience is added once. #sign-in is the first feature with operations, so it opens the server; the later two add resolver files only |
+| `server/index.js`, plus the staff engine and context pair | #sign-in | `server/index.js` starts its servers **by hand — no scanning**, so the staff audience is added once. #sign-in is the first feature with operations, so it opens the server; the later two add resolver files only. The engine also carries the refresh-token cookie config and the skip-filter list, both of which are #sign-in's |
 
 **Resolvers and frontend operation classes need no mark.** The backend registers a resolver by
 **directory scanning** and Nuxt auto-registers a component, so neither has an aggregation file
 for a feature to append to.
+
+## What the session mechanism changed
+
+`#data-model` and `#sign-in` both moved when Q1 was settled; `#expense-entry` and
+`#monthly-summary` did not, and their digests are unchanged. Nothing was cleared, because no
+checkpoint of either had been marked — the change landed before any of them ran.
+
+| | Was | Is |
+|---|---|---|
+| `#data-model` | three tables | **nine.** Six are the credential cluster, and all nine are checkpoint 3's to write |
+| `#sign-in` | three operations | **four.** `renewAccessToken`, plus `accessToken` on `SignInResult` |
+| the version's own criteria | 3 | 3, unchanged — the sweep entry stands as written |
 
 ## Where the version's own criteria are checked
 
