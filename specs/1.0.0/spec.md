@@ -44,6 +44,7 @@ There is no second actor. Accounts are created by whoever operates the deploymen
 - signing in and signing out
 - recording an expense, correcting it, removing it, and reading back one's own entries
 - a chosen month's entries with their total
+- refusing sign-ins and token renewals that come too fast
 
 ### Out of scope for now (to be built later)
 
@@ -51,7 +52,7 @@ There is no second actor. Accounts are created by whoever operates the deploymen
 - exporting a month for a claim form (CSV) → planned for 1.2.0. **Seam:** a month's entries and its total are produced by one operation, which an export calls rather than re-deriving
 - a photograph of the receipt on an expense → needs object storage, which this version does not declare. **Seam:** nothing in the model assumes an expense has exactly one representation; an attachment is a child table added later, not a column added to `expenses`
 - categories an operator can edit → **seam:** a category is already a row with an id, seeded, never an enum written into the code
-- signing up, and resetting a password by mail → needs a mail sender, which this version does not declare. **Seam:** the password is already a one-way hash on the member of staff's own row, so a reset changes that row and touches nothing else
+- signing up, and resetting a password by mail → needs a mail sender, which this version does not declare. **Seam:** the password is already a one-way hash in a table of its own (§9.5), so a reset changes that one row and touches neither the member of staff nor their session
 
 ### Permanently out of scope
 
@@ -76,6 +77,9 @@ Baseline: not applicable — nothing is inherited
 | category | the fixed set an expense is filed under — transport, meals, supplies, other |
 | month | the calendar month an expense's date falls in. The unit a list and a total are taken over |
 | own entry | an expense recorded by the member of staff who is signed in. Nobody sees anybody else's |
+| session | a member of staff's signed-in state, held by two tokens rather than one — a short-lived access token the client sends, and a refresh token the browser keeps as a cookie. Signing out ends it |
+| access token | the credential sent on every request, living fifteen minutes (§9.6). Held in memory by the client, never in a cookie |
+| refresh token | the long-lived half, kept as an httpOnly cookie and stored only as a digest (§9.7). It buys a new access token and is spent doing so |
 
 
 ## 7. Non-functional requirements
@@ -254,7 +258,7 @@ For: a member of staff who is not signed in. It is the one screen reachable with
 
 - an address with no account and a correct address with the wrong password are refused identically, and neither refusal says which of the two it was
 - a session survives a page reload, and stops working the moment its holder signs out
-- neither operation this feature adds returns a password or a password hash, and neither writes one into a log line
+- no operation this feature adds returns a password or a password hash, and none writes one into a log line
 - `signedInStaffMember` called without a session is refused, and returns nobody
 - `renewAccessToken` presented with a refresh-token cookie that is expired, revoked, or already spent is refused identically in all three cases, and the refusal reveals which of the three it was in none of them
 - a refresh token presented after it was already spent revokes every token in its series — so a stolen cookie stops working, and so does the session it was stolen from
