@@ -6,19 +6,20 @@
   "description": "expense-note by hora",
   "type": "module",
   "scripts": {
-    "hora:init": "hora-core install && hora-skills install",
+    "hora:init": "hora-core install && hora-skills-ort-core install && hora-skills-ort-renchan install && hora-skills-ort-furo install && hora-skills-ort-support install && node kit/scripts/equip-own-skills.mjs",
     "l": "npm run lint",
     "lint": "eslint .",
     "lint:docs-pairs": "node scripts/check-docs-pairs.mjs",
     "postinstall": "npm run hora:init"
   },
-  "dependencies": {
-  },
   "devDependencies": {
     "@openreachtech/eslint-config": "^4.5.0",
-    "@openreachtech/hora": "^0.2.1",
-    "@openreachtech/hora-ecosystem": "^0.0.0",
-    "@openreachtech/hora-skills": "^0.2.1",
+    "@openreachtech/hora": "^0.7.0",
+    "@openreachtech/hora-ecosystem": "^0.1.0",
+    "@openreachtech/hora-skills-ort-core": "^0.2.0",
+    "@openreachtech/hora-skills-ort-furo": "^0.1.0",
+    "@openreachtech/hora-skills-ort-renchan": "^0.1.0",
+    "@openreachtech/hora-skills-ort-support": "^0.2.0",
     "eslint": "^9.39.5"
   }
 }
