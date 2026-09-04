@@ -78,7 +78,7 @@ Baseline: not applicable — nothing is inherited
 | month | the calendar month an expense's date falls in. The unit a list and a total are taken over |
 | own entry | an expense recorded by the member of staff who is signed in. Nobody sees anybody else's |
 | session | a member of staff's signed-in state, held by two tokens rather than one — a short-lived access token the client sends, and a refresh token the browser keeps as a cookie. Signing out ends it |
-| access token | the credential sent on every request, living fifteen minutes (§9.6). Held in memory by the client, never in a cookie |
+| access token | the credential the client sends on a request header, and what proves a session for every operation except the three §7 names — `signIn`, `signOut` and `renewAccessToken`. Lives fifteen minutes (§9.6). Held in memory, never in a cookie |
 | refresh token | the long-lived half, kept as an httpOnly cookie and stored only as a digest (§9.7). It buys a new access token and is spent doing so |
 
 
@@ -92,8 +92,8 @@ Baseline: not applicable — nothing is inherited
 | Response time | a month's entries and its total return in under one second at the foreseen size |
 | Availability | office hours, best effort. No standby, and no uptime commitment |
 | Data retention | an expense is kept for 7 years, for bookkeeping. Nothing expires automatically. An entry its owner removes is deleted outright rather than archived — what is retained is what remains |
-| Security level | an ordinary internal business system. TLS in front, a session cookie, a one-way password hash |
-| Authentication | every operation requires a session, and is refused before it reads anything without one — with two exceptions. `signIn` is how a session begins. `renewAccessToken` authenticates by the refresh-token cookie alone and is how a session continues. The access token is sent on a request header and lives fifteen minutes; the refresh token is an httpOnly cookie and never reaches a response body |
+| Security level | an ordinary internal business system. TLS in front, and two credentials rather than one: an access token on a request header living fifteen minutes (§9.6), and a refresh token as an httpOnly cookie living `AUTH_REFRESH_TOKEN_TTL_DAYS` with a 14-day default (§9.7). A password is a one-way hash and is never stored, returned or logged in any other form |
+| Authentication | **every operation authenticates by one of two credentials, and which one is part of adding it.** The access token, sent on a request header, is what proves a session — every operation uses it except the three named here. `signIn` uses neither: it is how a session begins. `signOut` and `renewAccessToken` use the refresh-token cookie instead, because both have to work once the access token has expired. An operation added later states which of the two it uses, or it is not finished |
 | Authorization | every operation that touches an expense is scoped to the signed-in member of staff. Another member of staff's expense is answered as not found, never as forbidden |
 | Personal data | a member of staff's name and email address, and a memo, which may name a client. None of the three is ever written to a log line, and no operation returns a password hash |
 | Rate limiting | `signIn`, 10 **failed** attempts per 15 minutes **per email address** — keyed on the address rather than the caller's IP, because the staff sit behind one office address and an IP-keyed limit would let one person's wrong password lock out everybody. A successful sign-in counts for nothing. `renewAccessToken`, 60 per hour per refresh-token series — roughly fifteen times normal use, which is one renewal per fifteen-minute access token. These are the two operations reachable without a session, and the only two limited at 1.0.0 |
@@ -271,6 +271,8 @@ For: a member of staff who is not signed in. It is the one screen reachable with
 |---|---|---|
 | `signIn` | mutation | on submitting the address and password |
 | `signedInStaffMember` | query | on opening, to send an already-signed-in person on rather than asking twice |
+
+`renewAccessToken` is **not** a call any screen makes. It belongs to the GraphQL client layer, which calls it when an access token has expired, transparently, on whatever screen happens to be open — so it appears in no screen's table here or in §11.2 and §12.2. It is named here because a client that never renews leaves every session dying after fifteen minutes with nothing on screen to explain it.
 
 ### Use cases
 <!-- usecases -->
