@@ -52,7 +52,7 @@ There is no second actor. Accounts are created by whoever operates the deploymen
 - exporting a month for a claim form (CSV) → planned for 1.2.0. **Seam:** a month's entries and its total are produced by one operation, which an export calls rather than re-deriving
 - a photograph of the receipt on an expense → needs object storage, which this version does not declare. **Seam:** nothing in the model assumes an expense has exactly one representation; an attachment is a child table added later, not a column added to `expenses`
 - categories an operator can edit → **seam:** a category is already a row with an id, seeded, never an enum written into the code
-- signing up, and resetting a password by mail → needs a mail sender, which this version does not declare. **Seam:** the password is already a one-way hash in a table of its own (§9.5), so a reset changes that one row and touches neither the member of staff nor their session
+- signing up, and resetting a password by mail → needs a mail sender, which this version does not declare. **Seam:** the password is already a one-way hash in a table of its own (§9.5) with its history beside it (§9.9), so a reset writes those two rows and touches neither the member of staff nor their session
 
 ### Permanently out of scope
 
@@ -231,7 +231,7 @@ Both mirror their source's columns exactly and add nothing — §9.4 and §9.5 h
 <!-- acceptance -->
 
 - an expense row cannot be written without an owner, a category, a date and an amount
-- two members of staff can hold the same email address in no circumstance
+- two members of staff can hold the same **current** sign-in address in no circumstance; a released address may appear in another member of staff's history (§9.8)
 - the four categories exist after the seeder runs, in their display order
 - an expense always names a member of staff who exists, and a category that exists
 - a member of staff has exactly one sign-in address and exactly one password digest, and no second row of either can be written against them
