@@ -154,11 +154,12 @@ Indexed on `(staff_member_id, spent_on)` — the one read that matters is one me
 | Column | Type | Constraint | Description |
 |---|---|---|---|
 | id | bigint | primary key | |
-| staff_member_id | bigint | not null, unique index | 1:1 with §9.1 |
-| email | varchar(191) | not null, unique | the address the account was issued against. The sign-in identifier, and the only thing `signIn` looks a member of staff up by |
+| staff_member_id | bigint | not null, unique index | 1:1 with §9.1. **Unique by decision, not by precedent:** the running projects index this plainly. It is unique here because the table is 1:1 — its history lives in §9.8 — which is what this project's foreign-key rule asks for |
+| email | varchar(191) | not null, unique | the address the account was issued against. The sign-in identifier, and the only thing `signIn` looks a member of staff up by. **Unique by decision:** §9's own acceptance criterion says two members of staff can hold the same address in no circumstance, and only an index makes that true. The running projects have no index on this column at all |
+| saved_at | datetime(3) | not null | when this address was set — since when this is the sign-in identifier. Distinct from `created_at`, which is when the row appeared |
 | created_at / updated_at | datetime(3) | not null | |
 
-Serves both of §10's use cases.
+Serves both of §10's use cases. The table takes a backup mixin: a changed address is copied to §9.8 rather than overwritten.
 
 ### 9.5 staff_member_password_hashes
 
@@ -167,9 +168,10 @@ Serves both of §10's use cases.
 | id | bigint | primary key | |
 | staff_member_id | bigint | not null, unique index | 1:1 with §9.1 |
 | password_hash | varchar(191) | not null | a one-way hash. Never returned by any operation, never written to a log line (§7) |
+| saved_at | datetime(3) | not null | when this digest was set — since when this is the password. Distinct from `created_at`, which is when the row appeared |
 | created_at / updated_at | datetime(3) | not null | |
 
-A candidate password is verified against this row and nowhere else. Serves §10's first use case, and the password reset foreseen for later (§4) — which changes this row alone.
+A candidate password is verified against this row and nowhere else. It holds only the current digest: the table takes a backup mixin, so a superseded one is copied to §9.9 rather than overwritten. Serves §10's first use case, and the password reset foreseen for later (§4).
 
 ### 9.6 staff_member_access_tokens
 
@@ -203,6 +205,28 @@ An expired access token is **deleted**, not flagged — there is no `revoked_at`
 
 This is the table that makes §10's second use case possible: the token is persisted, so signing out has something to revoke, and a reload has something to present. It reaches the browser as an httpOnly cookie and is never returned in a response body.
 
+### 9.8 staff_member_secrets_bk
+
+| Column | Type | Constraint | Description |
+|---|---|---|---|
+| id | bigint | primary key | |
+| staff_member_id | bigint | not null, indexed | 1:N — one row per address this member of staff has had |
+| email | varchar(191) | not null | a superseded address. Personal data (§7) |
+| saved_at | datetime(3) | not null | when the address this row copies was set |
+| created_at / updated_at | datetime(3) | not null | |
+
+### 9.9 staff_member_password_hashes_bk
+
+| Column | Type | Constraint | Description |
+|---|---|---|---|
+| id | bigint | primary key | |
+| staff_member_id | bigint | not null, indexed | 1:N — one row per digest this member of staff has had |
+| password_hash | varchar(191) | not null | a superseded digest. Never returned by any operation, never written to a log line (§7) |
+| saved_at | datetime(3) | not null | when the digest this row copies was set |
+| created_at / updated_at | datetime(3) | not null | |
+
+Both mirror their source's columns exactly and add nothing — §9.4 and §9.5 hold the current value, these hold the ones they replaced. The foreign key is 1:N and plainly indexed here: a history table is the one place a member of staff has many rows, so neither the FK nor `email` is unique in §9.8. **§9.6 and §9.7 have no backup table on purpose** — a token is deleted or revoked, never rewritten, so there is no prior value to keep. **Nothing in 1.0.0 reads either table**; they exist because the two credential models carry the mixin.
+
 ### Acceptance criteria
 <!-- acceptance -->
 
@@ -214,6 +238,7 @@ This is the table that makes §10's second use case possible: the token is persi
 - no refresh token is stored in a form that could be presented as one — only its digest
 - two refresh tokens cannot share a digest
 - a refresh token row records, separately, that it was spent and that it was revoked
+- changing a sign-in address or resetting a password leaves the previous value in its backup table rather than overwriting it, and the member of staff still has exactly one current address and one current digest
 
 
 ## 10. Sign in
