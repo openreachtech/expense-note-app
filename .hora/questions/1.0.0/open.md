@@ -526,3 +526,48 @@ on Windows has this, on every shell script its boilerplate ships.**
 
       Also recorded in `.hora/tree/expense-note-backend.md`, since that file lists these
       scripts and a reader would otherwise have no reason to suspect them.
+
+## Q14. A test that says "when the env value is unset" never unsets it
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: upstream-defect -->
+
+Found when PR #3 restored the executable bit and six previously-invisible test failures
+appeared. Two defects, stacked, and one had been hiding the other.
+
+### Ours, and fixed
+
+`2705bfb` changed `.env.development` from `AUTH_COOKIE_SECURE=` to `AUTH_COOKIE_SECURE=false`.
+The engine's getter reads `env.AUTH_COOKIE_SECURE !== 'false'`, so that turns the flag off, and
+six boilerplate tests across three engine suites assert it stays on. Restored to the upstream
+value (backend PR #5).
+
+**Decided under the authority granted for implementation choices**, on three grounds: the
+engine's own comment says *"Turning it off is for plain-HTTP verification hosts alone"* and
+local development is not one, since browsers treat `http://localhost` as a secure context and
+accept `Secure` cookies there; §7 puts TLS in front and asks nowhere for the flag off; and
+`tests/__tests__/` is 14 suites and 139 tests green with the value restored.
+
+**What was deliberately not done: changing the assertion to `false`.** That would convert a
+test of the contract into a test of whatever the env file happens to say.
+
+### Upstream's, recorded not fixed
+
+The test's `describe` reads *"to keep the secure flag on when the env value is unset"* — and
+**the test never unsets anything.** No `AUTH_COOKIE_SECURE` reference, no `process.env`, no
+spy. It reads the ambient `.env.development` and depends on that file leaving the value blank.
+
+So the assertion is true only by coincidence of configuration. **Any project created from
+renchan-boilerplate that legitimately sets `AUTH_COOKIE_SECURE` breaks six tests in files it
+did not write**, and the failure message points at the engine rather than at the env that
+caused it. The honest form stubs the value inside the test.
+
+- [x] resolved **for this repository**, and left open upstream
+      This is a defect in renchan-boilerplate 1.11.0 whatever this project chooses, and it sits
+      beside Q13: both are the same shape — **the boilerplate is correct on the machine it was
+      written on**, and breaks elsewhere for reasons its own error messages do not name. Q13 is
+      the executable bit lost on Windows; this is a test that reads ambient configuration and
+      calls it "unset".
+
+      Neither is this project's to fix upstream, and both are worth carrying to whoever owns
+      the boilerplate.
