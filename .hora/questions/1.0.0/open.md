@@ -571,3 +571,44 @@ caused it. The honest form stubs the value inside the test.
 
       Neither is this project's to fix upstream, and both are worth carrying to whoever owns
       the boilerplate.
+
+## Q15. The npm scripts cannot run on Windows as written
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: lacked-environment -->
+
+Found at `#data-model`'s checkpoint 5, initializing the local database so the seeder's test
+could run.
+
+`npm run db:refresh` fails with `'export' is not recognized as an internal or external
+command`. The script begins `export NODE_ENV=development; ...`, and npm on Windows spawns
+`cmd.exe`, which has no `export`. **The same applies to `dev`, `test` and `test:live`** — every
+one of them opens with `export`.
+
+So on Windows, none of the following work as documented: refreshing the database, starting the
+development server, or running either test suite through npm.
+
+**Same family as Q13.** The row was created on Windows and its scripts assume a POSIX shell,
+exactly as Q13's shell scripts assumed a POSIX file mode. Neither is visible on the machine
+that wrote them: on Windows `export` fails loudly but only when somebody runs it, and the
+executable bit failed silently until CI.
+
+- [x] resolved **as a workaround, not a fix**
+      The local SQLite database was initialized by running the underlying commands through
+      bash directly — `rm -f sequelize/storage/*.sqlite3`, then `npx sequelize-cli db:migrate`,
+      then `db:seed:all` against `dev-master/` and `development/` in turn, with `NODE_ENV`
+      exported in the bash session rather than by the script. That works because this session
+      has a POSIX shell available; it is not a fix for anyone whose only shell is `cmd.exe`.
+
+      **The real options, and the choice is not this project's to make** — the scripts come
+      from the boilerplate:
+
+      - **`cross-env`**, or the equivalent, so a script sets its variable portably. One
+        dependency, and every script keeps its shape
+      - **`"script-shell": "bash"`** in `.npmrc`, which makes npm use bash on every platform.
+        No dependency, but it requires bash to be installed and silently changes how every
+        script in the project is interpreted
+      - **leave it**, and document that this row is developed on POSIX only
+
+      Worth carrying to whoever owns the boilerplate alongside Q13 and Q14. All three are the
+      same shape: **correct on the machine they were written on.**

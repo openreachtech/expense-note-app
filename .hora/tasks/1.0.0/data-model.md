@@ -86,8 +86,8 @@ Note: this feature has no `<!-- usecases -->` block, and that is correct — a d
 
 ## Backend gate
 - [x] 3. DB and API schemas  <!-- skills: hor-database-design, hor-sequelize-migration, hor-sequelize-model, hor-type-interface, hor-constant-definition, hor-cookie-authentication, hoc-naming, hoc-jsdoc; digests: hora-skills-ort-renchan 0.1.0 and hora-skills-ort-core 0.2.0 -->
-- [ ] 4. Stub API
-- [ ] 5. The modules the implementation needs
+- [x] 4. Stub API  <!-- n/a: this feature adds no API operation at all. §9 declares nine tables and zero operations — verified, no operation table and no schema/input/result header anywhere in the section. §10.1, §11.1 and §12.1 hold this version's ten operations and belong to #sign-in, #expense-entry and #monthly-summary, each of which will stub its own -->
+- [x] 5. The modules the implementation needs  <!-- skills: hor-sequelize-seeder; digests: hora-skills-ort-renchan 0.1.0. Catalog checked first, once, for the whole feature -->
 - [ ] 6. Actual API
 - [ ] 7. Worker
 - [ ] 8. Security audit
@@ -173,3 +173,56 @@ touched** — CI publishes 3306, and the repository has to match CI.
 **Tests exist but were not run, and that is per the checkpoint.** Only checkpoints 6, 16 and 18
 name tests in their exit conditions. Units 3 and 5 wrote seven test files covering four of
 §9's criteria; they first run at checkpoint 6.
+
+## Checkpoint 5 — one module, and what the catalog check found
+
+**The catalog check ran first, once for the feature, as the rule requires.**
+`@openreachtech/hora-ecosystem` tracks 33 packages; the only candidate touching this work is
+`renchan-sequelize`, already a dependency. **Nothing was installed and nothing was
+reinvented** — the whole feature runs on catalog packages already present:
+`TimestampSeedsSupplier` and `MigrationAttributeFactory` for the migrations and the seeder,
+`ModelAttributeFactory` and `RenchanModel` for the models, `SequelizeActivator` for the
+bootstrap.
+
+**One module: the category seeder**, which §9's criterion "the four categories exist after the
+seeder runs, in their display order" requires. Written as **two files**, and that is the part
+worth knowing:
+
+`package.json`'s `db:seed:master` points at `sequelize/seeders/**dev-master**`, and **nothing in
+this repository loads `sequelize/seeders/master/` at all** — there is no `db:seed:prod`. So the
+canonical file sits in `master/` and a re-export under the identical filename sits in
+`dev-master/`, which is what dev and CI actually read. Placed in `master/` alone the seeder
+would never run, and §9's criterion would fail at acceptance with a correct seeder sitting in
+plain sight.
+
+**Row ids use the allocated `100` prefix** — `10000001` to `10000004` — and the seeder skill's
+**master-data exemption was deliberately not taken.** That exemption would have used small
+sequential ids or ids from `app/constants`; `/hora-build`'s rule says a seeder's explicit ids
+come from the allocated prefix "in any table" with no exemption, and §9.2 forbids these four
+categories ever becoming a code enum, so nothing will reference them by literal id. The four
+strings now live in exactly one place in the repository.
+
+**Verified against real MariaDB, then reverted.** The four rows read back in `display_order`
+1–4 with ids `10000001`–`10000004`; `AUTO_INCREMENT` advanced to `10000005`, so `int(11)`
+holds the prefix comfortably. `db:seed:undo:all` removed exactly those four. The database was
+left as found.
+
+**`PasswordEncipher` is not this feature's module.** Unit 5 of checkpoint 3 asked checkpoint 5
+for it, but §9's criteria never mention password verification and §10's do — the model takes
+it injected and its tests stub it, so `#data-model` needs nothing. It belongs to `#sign-in`'s
+checkpoint 5.
+
+### Two environment facts this checkpoint established
+
+**The npm database scripts cannot run on Windows as written.** `db:refresh`, `dev`, `test` and
+`test:live` all begin with `export`, a POSIX shell builtin, and npm on Windows spawns
+`cmd.exe`: `'export' is not recognized as an internal or external command`. The local SQLite
+database was initialized by running the underlying `sequelize-cli` commands through bash
+instead. **Same family as Q13** — the row was created on Windows and its scripts assume a
+POSIX shell (Q15).
+
+**The local test picture, run after initializing the database:** `tests/_orders/` is 2 suites
+and 21 tests, all passing. `tests/__tests__/` is 18 suites and 171 tests with **6 failing**,
+and all six are the known `AUTH_COOKIE_SECURE` failures — this branch still carries `=false`,
+and the fix is backend PR #5, unmerged. **Nothing this checkpoint wrote is implicated**, and
+the four suites covering this feature's own models and seeder are 32 tests, all green.
