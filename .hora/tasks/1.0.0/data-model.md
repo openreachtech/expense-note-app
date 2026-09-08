@@ -50,6 +50,13 @@ Constraint: more than one company in one deployment is **permanently** out of sc
 Note: the index on `(staff_member_id, spent_on)` is spec §9.3's own, and it serves the
       heaviest read this version has (§7). It is a requirement, not an optimization to defer
 
+Constraint: **where an equipped skill and an always-on ORT rule disagree, the rule wins** (Q10).
+            Three cases reach this checkpoint: indexes are added with **sequential `await`s,
+            never `Promise.all`**; index names are built from an **abbreviated
+            `SHORT_COLUMN_NAME`**, always, not from the full column name; and a subclass's
+            JSDoc uses **`@augments`**, not `@extends`. The migration skill's own examples show
+            the opposite of the first two — do not follow them, and do not "fix" these back
+
 Note: `saved_at` on §9.4, §9.5, §9.8 and §9.9 sits BESIDE `created_at` / `updated_at`, never
       instead of them — `created_at` is when the row appeared, `saved_at` is when that address
       or digest was set. The convention's column lists name auth-specific columns only, which
@@ -78,7 +85,7 @@ Note: this feature has no `<!-- usecases -->` block, and that is correct — a d
 - [x] 2. Verify the use cases can be met  <!-- skills: hoc-requirement-definition; digests: none taken — interactive, no agent. Matched against hora-skills-ort-core 0.2.0. GAP: the checkpoint delegates to "the shared UI/UX project context", and the only equipped skill covering that is frontend-surface (hof-), out of surface for a backend-only feature. Ran without it -->
 
 ## Backend gate
-- [ ] 3. DB and API schemas
+- [x] 3. DB and API schemas  <!-- skills: hor-database-design, hor-sequelize-migration, hor-sequelize-model, hor-type-interface, hor-constant-definition, hor-cookie-authentication, hoc-naming, hoc-jsdoc; digests: hora-skills-ort-renchan 0.1.0 and hora-skills-ort-core 0.2.0 -->
 - [ ] 4. Stub API
 - [ ] 5. The modules the implementation needs
 - [ ] 6. Actual API
@@ -125,3 +132,44 @@ not gain one. Two of the three expense use cases turn on a correction or a remov
 final — §11's criterion that the entry count does not change, and §7's rule that what is
 retained is what remains. Adding a history table for expenses out of symmetry with §9.8 and
 §9.9 would contradict both.
+
+## Checkpoint 3 — what was built, and what verified it
+
+Nine tables, nine migrations, nine models, nine type declarations under `types/models/`, the
+expense-status constant pair, the shared `BaseAppRenchanModel`, and seven test files. Seven
+implementer agents, one per table except the two backup pairs, which stayed whole because the
+`_bk` half must declare `tableName` explicitly and the body half must keep
+`super.setupHooks?.()` — both failures are silent, and splitting the pair puts the link between
+them in two prompts.
+
+**No API surface.** §9 declares no operations, so that half of the exit condition is not
+applicable here; §10.1's operations are `#sign-in`'s.
+
+**Verified against real MariaDB 10.5.12, not SQLite.** Re-run in this session rather than taken
+from another session's report, because the evidence had been cleaned up and could not be
+reproduced from the tree:
+
+- all nine migrated clean, then `db:migrate:undo:all` reverted all ten and left zero tables
+- types are what §9 declares: `bigint(20)` keys, `int(11)` on `expense_categories`,
+  `datetime(3)` throughout, `varchar(191)` for name / email / memo / the digests, `date` for
+  `spent_on`, `varchar(32)` for `status`, `used_at` nullable and `expired_at` not
+- **Q8's two strictnesses hold**: `staff_member_secrets` carries UNIQUE on `staff_member_id`
+  AND UNIQUE on `email`, while both `_bk` tables carry a plain FK index — which is what lets a
+  history table hold more than one row per person
+- **Q10's amended naming came out as intended**: composites abbreviated (`smi`, `eci`,
+  `smi_so`, `at`, `sk`, `th`), single words left whole (`name`, `email`)
+- `information_schema.key_column_usage` reports **zero** DB-level foreign-key constraints
+
+**Why that check mattered.** The suites run on SQLite, which reads a `bigint` key back as
+`INTEGER` and every `datetime(3)` as bare `DATETIME`. Every one of the types above would have
+passed locally whatever the migration said.
+
+**One thing about this machine, not about the code.** Port 3306 is held by a MariaDB inside
+WSL, relayed by `wslrelay.exe`, so the committed compose file cannot bind it. The verification
+ran on 3307 through an override kept outside the repository, with a throwaway config that is
+the repo's own `live` block with the port changed. **The committed 3306 is correct and was not
+touched** — CI publishes 3306, and the repository has to match CI.
+
+**Tests exist but were not run, and that is per the checkpoint.** Only checkpoints 6, 16 and 18
+name tests in their exit conditions. Units 3 and 5 wrote seven test files covering four of
+§9's criteria; they first run at checkpoint 6.

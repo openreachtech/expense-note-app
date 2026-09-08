@@ -367,3 +367,162 @@ criterion needs code, and which code decided whether checkpoint 1 could pass at 
       already refuses states one rule twice, which is what the charter's one-piece-of-
       information rule exists to discourage. `#expense-entry`'s resolver surfaces the model's
       refusal rather than repeating the check.
+
+## Q10. Where the equipped skills and the always-on ORT rules disagree, the rules win
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#data-model`'s checkpoint 3, from the digests of the matched skills. Three direct
+contradictions between `hora-skills-ort-*` and the always-on rules in `D:\ORT\rules\`. Both are
+ORT-authored, so neither is self-evidently the mistake.
+
+| | The equipped skill | The always-on rule |
+|---|---|---|
+| several `addIndex` calls | `hor-sequelize-migration`: "One index: `await` it directly. Multiple: wrap them in `Promise.all([...])`" | `migrations-and-seeders.md`: "**Indexes: sequential `await queryInterface.addIndex(...)` — never `Promise.all`**" |
+| index names | keep the full `COLUMN_NAME`, shorten only past ~50 characters | always build from an abbreviated `SHORT_COLUMN_NAME` |
+| a subclass's JSDoc | `hoc-jsdoc` uses `@extends` | `jsdoc.md` uses `@augments` |
+
+- [x] resolved
+      Decided in conversation: **the always-on rules win.** They are this machine's standing
+      standard, loaded into every session, and stated as overriding. So this project writes
+      sequential `await`s, abbreviated index names, and `@augments`.
+
+      **Recorded because the consequence is a false-looking mismatch.** Anyone comparing these
+      nine migrations against `hor-sequelize-migration`'s own examples will see `Promise.all`
+      there and sequential awaits here, and the natural conclusion is that ours is wrong. It is
+      not. The same holds for the index names.
+
+      **Amended at the first unit, because "always" turned out to have a reach nobody
+      intended.** Unit 2 applied the rule literally and produced
+      `expense_categories_n_unique` — the single-word column `name` abbreviated to `n` — then
+      flagged it rather than deviating quietly. Every example the rule gives is a long
+      composite (`customer_cart_id` → `cci`, `path_group_close_status_target_value_id` →
+      `pgcstvi`), and the rule states its own purpose: it "keeps index names within the DB
+      identifier length limit". A one-letter abbreviation serves that purpose not at all, and
+      the equipped skill names this exact outcome a mistake.
+
+      **So: abbreviate a composite column name, and leave a single word whole.**
+      `staff_member_id` → `smi`; `name`, `email` and `status` stay as they are. That reads
+      "always, for the reason given" rather than "always, literally", and it is recorded here
+      so nobody re-litigates it as a deviation from Q10 rather than part of it.
+
+      Two further divergences the digests found, neither acted on here because neither reaches
+      `#data-model`:
+
+      - `hoc-jsdoc` carries no Sequelize `/** @type {*} */` cast idiom, and the `@typedef`
+        placement and `<Class>Params` naming rules exist in it only under headings marked
+        *frontend only*. All three live in the always-on `jsdoc.md` instead, which is what this
+        project follows
+      - `hor-type-interface` declares resolver types in `graphql.<category>` under
+        `types/resolvers/`, while the always-on `graphql-resolvers.md` uses
+        `server.graphql.<audience>` in `types/<Audience>GraphQL.d.ts`. **This one lands on
+        `#sign-in`'s checkpoint 3, not here**, and is left for that feature to settle
+
+## Q11. §9.2 omits two columns the master-table convention asks for
+<!-- spec: data-model -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found by unit 2 of `#data-model`'s checkpoint 3, reading `hor-database-design` against §9.2.
+
+The convention says a reference master table carries `id`, `name`, `display_name`,
+`display_order` and `is_active` — `name` being the machine-facing system key and `display_name`
+the user-facing label, free to reword or localize without touching logic. **§9.2 declares only
+`name` and `display_order`.**
+
+Two consequences, and the second is the one that matters:
+
+- with no `is_active`, retiring a category means deleting a row that expenses still point at
+- with no `display_name`, `name` holds `transport / meals / supplies / other` and **the label a
+  member of staff sees has to come from somewhere other than the database** — in practice four
+  hard-coded strings in the frontend
+
+**That last point sits awkwardly against §9.2's own seam claim**, which says making categories
+operator-editable later "adds a screen and changes no other table". Adding a display label later
+*would* change this table, so the claim is overstated as written.
+
+- [x] resolved
+      Decided in conversation: **raise it, do not fix it now.** Checkpoint 3 builds what the
+      spec says — two columns — and this entry is the record.
+
+      **Where it bites is the frontend gate**, when a screen needs four labels and finds none in
+      the database. It can be settled before then with the finding already on record, and
+      deciding it now would cost a stage 4 re-entry, a spec pull request and unit 2's three
+      files redone, for a gap that changes nothing about the backend.
+
+      Note for whoever settles it: the honest options are to add both columns, or to correct
+      §9.2's seam sentence so it stops claiming more than the design delivers. Leaving both as
+      they are means the sentence stays wrong.
+
+## Q12. The backend row ships no base model class, and every model needs one
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found by unit 2 of `#data-model`'s checkpoint 3, and it blocked the checkpoint for every unit
+at once.
+
+`hor-sequelize-model` is unambiguous: a model extends **`BaseAppRenchanModel`** at
+`sequelize/baseModel/BaseAppRenchanModel.js`, which extends `RenchanModel` from
+`@openreachtech/renchan-sequelize` — and *"a model must never extend Sequelize's `Model`
+directly, nor even `RenchanModel` directly"*, because routing every model through one app-level
+base is what lets shared behavior be added in one place.
+
+**renchan-boilerplate 1.11.0 ships no `sequelize/baseModel/` directory at all.** Nothing in
+`.hora/tree/expense-note-backend.md` recorded its absence, and no unit was assigned it — so
+without this, all nine models fail to resolve their import and `sequelize/_.js` fails at
+activation.
+
+- [x] resolved
+      **The implementer reported it rather than creating it, which is correct** — a shared
+      ancestor class is the conflict-proof case, not something a unit writes on its own
+      (`hora-build`'s "Conflict-proof files are reported, not written directly"). The main
+      session created it: `RenchanModel` subclass, empty body, nothing shared to put in it yet.
+
+      Recorded for two reasons. It is a gap in the **boilerplate** rather than in this project,
+      so the next row created from renchan-boilerplate 1.11.0 hits it identically. And
+      `.hora/tree/expense-note-backend.md` says `sequelize/models/` ships empty without
+      mentioning that the base class those models must extend is missing too — worth adding
+      when that record is next rewritten.
+
+## Q13. A row created on Windows loses the executable bit on every shell script
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: lacked-environment -->
+
+Found when CI failed on every branch of `expense-note-backend`, including branches whose only
+change was a YAML comment.
+
+`package.json` invokes `./test.sh` and `./test-live.sh` directly, and on a Linux runner the
+mode bit decides whether that is permitted. Both test jobs died at
+`sh: 1: ./test.sh: Permission denied`, exit code 126; only ESLint passed.
+
+**The boilerplate is not at fault.** `renchan-boilerplate` records `100755` for both test
+scripts. This repository recorded `100644` from its initial commit, because `core.fileMode` is
+`false` here — git's **default on Windows**, where git can neither see nor record an executable
+bit. `docker.sh`, written later by hora on the same machine, never had it either.
+
+**What makes this worth a general entry rather than a local fix.** Nothing looks wrong on the
+machine that creates the row: on Windows the bit is meaningless, every script runs, and the
+tree looks correct. The failure appears only on the runner, in a job whose error names a
+permission rather than a missing setup step — a long way from the cause. **Any hora row created
+on Windows has this, on every shell script its boilerplate ships.**
+
+- [x] resolved **for this repository**
+      `git update-index --chmod=+x test.sh test-live.sh docker.sh` — it writes the index
+      directly rather than reading the filesystem, which is why it works while `core.fileMode`
+      stays `false`. Backend PR #3, on its own branch off `release/1.0.0` because it blocks
+      every other branch. `git ls-files -s` now reports `100755` for all three.
+
+      **Unresolved in general, and this is the half worth carrying.** A `.gitattributes` cannot
+      fix it — git has no attribute for the executable bit. So one of two things has to change,
+      and the choice belongs to whoever owns the row-creation step rather than to this project:
+
+      - **row creation sets the mode explicitly** after cloning a boilerplate, for every `.sh`
+        it ships. Fixes it once, at the source, for every future row
+      - **CI invokes the scripts as `bash test.sh`** rather than `./test.sh`. Makes the mode
+        irrelevant, but has to be done in every repository's workflows rather than once
+
+      Also recorded in `.hora/tree/expense-note-backend.md`, since that file lists these
+      scripts and a reader would otherwise have no reason to suspect them.
