@@ -325,9 +325,15 @@ deleted or revoked rather than rewritten. That last line is why §9.6 and §9.7 
   spec
 - checkpoints implement from `specs/`, not from the skill, so nothing is blocked by the delay
 
-### Follow-up, once 0.2.0 is published
+### Follow-up, once 0.2.0 is INSTALLABLE — which is later than published
 
-Move this project's pin from `^0.1.0` to `^0.2.0`, and **delete this question's "not yet
+**0.2.0 was published on 2026-09-07, and this project still cannot pin it.** `.npmrc` sets
+`min-release-age = 7`, so npm refuses a version until it is seven days old — **2026-09-14** for
+this one. The original wording of this follow-up said "once 0.2.0 is published", which is the
+wrong condition and would have had somebody try the bump and read npm's refusal as a broken
+registry rather than as the quarantine working. The condition is **published plus seven days**.
+
+Move this project's pin from `^0.1.0` to `^0.2.0` then, and **delete this question's "not yet
 published" and "stricter than the skill" halves** rather than leaving them to confuse — the
 omission will be gone, and only the two deliberate index divergences will still be worth
 recording. Tracked on the reviewing session's side as well as here, so it does not live in one
