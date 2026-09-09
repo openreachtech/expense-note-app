@@ -774,3 +774,48 @@ one-off walk, a data-inspection script, a manual reproduction.
       Worth knowing before somebody spends an hour on it: the failure names a URL scheme, so it
       reads as a problem with the script rather than with the loader's treatment of a drive
       letter.
+
+## Q20. The backend row carries seven high-or-critical advisories, and nothing gates on them
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found starting `#sign-in`, checking the tree was clean before writing code.
+
+`npm audit` in `expense-note-backend` reports **16 vulnerabilities: 1 critical, 6 high, 7
+moderate, 2 low.** The app repository's `lint.yml` runs `npm audit` and gates on it; **the
+backend row's three workflows — eslint, sqlite, mariadb — do not run it at all.** So none of
+these fails a pull request, which is why every backend PR so far passed green with them
+present.
+
+**They split into three groups, and only one of them reaches a deployed product.**
+
+| | What | Fix |
+|---|---|---|
+| **five, including the one critical** | `sqlite3`, and `tar` / `cacache` / `node-gyp` / `make-fetch-happen` beneath it. `tar`'s is arbitrary file creation via hardlink | **`sqlite3@6.0.1`, a semver-major bump.** `sqlite3` is a **devDependency** — the dev and test dialect — so none of these ships |
+| **one, and it is the one that matters** | **`multer` 2.2.0, high: denial of service via a crafted multipart field name.** Reached transitively through `@openreachtech/renchan@2.9.2`, which is a **runtime** dependency | **not fixable from this project's own ranges.** It needs renchan to bump multer, or an `overrides` entry here |
+| one | `js-yaml`, high, CPU use on empty merge sources. Transitive, dev-reachable | in range |
+
+**The `js-yaml` advisory is the same one that was fixed in the app repository** (its PR #11).
+It is still here, in the backend, unfixed — fixing it in one repository does not reach the
+other.
+
+- [ ] unresolved
+      **Not fixed here, and deliberately not fixed mid-feature.** A dependency change is its
+      own `install/` or `update/` branch (`commits.md`), and two of the three groups are
+      decisions rather than mechanics:
+
+      - **`sqlite3` to 6.0.1 is semver-major on the test database driver.** It is what every
+        suite runs against, so the bump is a decision with a real blast radius, not a lockfile
+        nudge. Worth doing — the critical is in that group — but worth doing deliberately, with
+        the suites as the check
+      - **`multer` cannot be fixed from here.** The honest options are an `overrides` entry
+        pinning a patched multer under renchan, or renchan itself bumping. The second is right
+        and the first is available if waiting is not acceptable. **This is the only one of the
+        seven that a deployed product is exposed to**, since `sqlite3` is dev-only
+      - `js-yaml` is a three-line lockfile move, the same one already made in the app repository
+
+      **The reason to record rather than carry silently:** the whole-version sweep points the
+      security audit at the repository entire, not at one feature's change set, and its
+      dependency check will raise all of this. Better dated now, with the dev-versus-runtime
+      split already worked out, than discovered at the gate before a release.
