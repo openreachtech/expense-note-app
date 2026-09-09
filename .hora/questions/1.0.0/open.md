@@ -733,3 +733,38 @@ order that would have been `no-param-reassign` (tier 3) rather than `no-restrict
       code solution existed, so reaching for the exception would have spent a rule-disable on a
       problem that had an answer. Recorded so the absence of an `eslint-exception` entry here
       reads as a decision rather than an oversight.
+
+## Q19. The Sequelize activator cannot be driven from plain node on Windows
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: lacked-environment -->
+
+Found at `#data-model`'s checkpoint 9, trying to walk the use cases through the real models.
+
+`SequelizeActivator` loads each model by dynamic-importing the path `rootPath.to()` returns — a
+bare Windows absolute path like `D:\ORT\...`. Node's ESM loader refuses it:
+
+```
+ERR_UNSUPPORTED_ESM_URL_SCHEME: On Windows, absolute paths must be valid file:// URLs.
+Received protocol 'd:'
+```
+
+**Jest resolves it and the entire 242-test suite runs**, so nothing is broken for the tests.
+What cannot work is any **standalone script** that activates Sequelize outside jest — a
+one-off walk, a data-inspection script, a manual reproduction.
+
+- [x] resolved **by going around it, not through it**
+      Checkpoint 9's walk ran in SQL against the migrated database (via the `sqlite3` driver
+      under CommonJS, which the loader restriction does not touch) rather than through the
+      models. That covers the data requirements the walk exists to check; the model-layer
+      behaviours were already covered by the test suite, which is the environment that does
+      resolve those imports. **The split is stated in the checkpoint's own record rather than
+      implied**, so nobody reads one run as having done both.
+
+      **Fifth of the family after Q13, Q14, Q15 and Q17** — and the second whose cause is
+      Windows specifically. A fix would be `pathToFileURL()` around the path before the dynamic
+      import, in `renchan-sequelize`; that is the package's to make, not this project's.
+
+      Worth knowing before somebody spends an hour on it: the failure names a URL scheme, so it
+      reads as a problem with the script rather than with the loader's treatment of a drive
+      letter.

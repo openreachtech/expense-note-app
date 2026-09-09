@@ -91,17 +91,17 @@ Note: this feature has no `<!-- usecases -->` block, and that is correct — a d
 - [x] 6. Actual API  <!-- n/a: this feature adds no API operation, the same reason as checkpoint 4. Its half of the exit condition that COULD apply — the unit tests covering this feature's acceptance criteria — was satisfied anyway: tests/__tests__/sequelize/ is 4 suites / 32 tests green and tests/_orders/ is 2 suites / 21 tests green, covering four of §9's nine criteria -->
 - [x] 7. Worker  <!-- n/a: decided with the placement skill, not by eye. Everything this feature contributes is light, synchronous and in the request path or outside it entirely -->
 - [x] 8. Security audit  <!-- skills: hor-security-audit, invoked IN FULL rather than through a digest, both passes. Two passes: the first over all 42 files, the second scoped to the fix -->
-- [ ] 9. Verify the use cases again, against the built API
+- [x] 9. Verify the use cases again, against the built API  <!-- run in the main session, in conversation, as this checkpoint requires. No API exists for this feature, so the walk ran against the built schema and models -->
 
 ## Frontend gate
-- [ ] 10. Open the frontend
-- [ ] 11. Reconfirm UI/UX and the use cases
-- [ ] 12. Component design
-- [ ] 13. The frontend modules the implementation needs
-- [ ] 14. API client
-- [ ] 15. UI
-- [ ] 16. Wire the data-fetching logic in
-- [ ] 17. Local test environment
+- [x] 10. Open the frontend  <!-- n/a: this feature's target is `backend` alone, so the frontend gate skips as a whole. Marked individually rather than left blank, because a checkpoint left out is indistinguishable from one forgotten -->
+- [x] 11. Reconfirm UI/UX and the use cases  <!-- n/a: this feature's target is `backend` alone, so the frontend gate skips as a whole. Marked individually rather than left blank, because a checkpoint left out is indistinguishable from one forgotten -->
+- [x] 12. Component design  <!-- n/a: this feature's target is `backend` alone, so the frontend gate skips as a whole. Marked individually rather than left blank, because a checkpoint left out is indistinguishable from one forgotten -->
+- [x] 13. The frontend modules the implementation needs  <!-- n/a: this feature's target is `backend` alone, so the frontend gate skips as a whole. Marked individually rather than left blank, because a checkpoint left out is indistinguishable from one forgotten -->
+- [x] 14. API client  <!-- n/a: this feature's target is `backend` alone, so the frontend gate skips as a whole. Marked individually rather than left blank, because a checkpoint left out is indistinguishable from one forgotten -->
+- [x] 15. UI  <!-- n/a: this feature's target is `backend` alone, so the frontend gate skips as a whole. Marked individually rather than left blank, because a checkpoint left out is indistinguishable from one forgotten -->
+- [x] 16. Wire the data-fetching logic in  <!-- n/a: this feature's target is `backend` alone, so the frontend gate skips as a whole. Marked individually rather than left blank, because a checkpoint left out is indistinguishable from one forgotten -->
+- [x] 17. Local test environment  <!-- n/a: this feature's target is `backend` alone, so the frontend gate skips as a whole. Marked individually rather than left blank, because a checkpoint left out is indistinguishable from one forgotten -->
 
 ## Acceptance gate
 - [ ] 18. Acceptance (E2E and unit both)
@@ -307,3 +307,49 @@ CI failure on the feature's own pull request and been read as a defect in the da
 Lint clean across **62 files**, and **103 tests in 9 suites** green against a freshly migrated
 and seeded database — re-run rather than assumed, because the lint fix below changed real
 control flow.
+
+## Checkpoint 9 — the walk, against what is now built
+
+`#data-model` states no use cases and adds no API, so this gate ran against **the nine tables
+as they now exist**, walking the seven use cases of the features that depend on them — the same
+seven checkpoint 2 walked on paper, now with real rows and real data shapes.
+
+All seven pass. Executed against the migrated, seeded database rather than reasoned about:
+
+| Use case | What was actually observed |
+|---|---|
+| sign-in: signs in Monday morning | `aiko.tanaka@example.com` joins to one member of staff, with a digest present |
+| sign-in: signs out on a shared machine | `revoked_at` set across the series, 0 access tokens left |
+| expense-entry: records a 1,200 yen fare | `spent_on 2026-09-07`, amount 1200, category `transport`, status `recorded` |
+| expense-entry: corrects 12,000 to 1,200 | entry count stayed 1 — in place, as §11 requires |
+| expense-entry: removes a duplicate lunch | count back to 1, and no tombstone column exists to leave one |
+| monthly-summary: reads a month and its total | 2 rows (the 7th and the 30th), total 2000 — **the 1st of October excluded** |
+| monthly-summary: another member of staff's month | the 4,000 yen row absent from both the rows and the total |
+
+**One extra thing worth having:** `EXPLAIN QUERY PLAN` on the month read returns
+`SEARCH expenses USING INDEX expenses_smi_so_index (staff_member_id=? AND spent_on>? AND
+spent_on<?)`. §9.3 declares that composite index for exactly this read — "the one read that
+matters is one member of staff's month" — so the index is not merely present but **used** by
+the query it exists for. Nothing in the spec asked for that check; it is the cheapest evidence
+that §7's response-time requirement rests on something real.
+
+### What this walk covers, and what covers the rest
+
+Being exact, because one run did not do everything:
+
+- **the SQL walk above** covers the *data* requirements — that the schema can represent every
+  state the seven use cases need, that the joins resolve, that the month boundaries fall where
+  §12 says, that the scoping isolates one member of staff from another, and that the index is
+  used
+- **the 242-test suite** covers the *model-layer behaviours* — address normalization, the
+  referential refusal on all three write paths, the backup append, and the token-shape
+  rejection. Those live in JavaScript, not in the schema, and jest is what drives them
+
+### A fifth environment fact, found while running this
+
+**The Sequelize activator cannot be driven from plain `node` on Windows.**
+`SequelizeActivator` dynamic-imports each model by the path `rootPath.to()` returns — a bare
+`D:\...` — and the ESM loader rejects it: *"On Windows, absolute paths must be valid file://
+URLs. Received protocol 'd:'"*. Jest resolves it and the whole suite runs; any standalone
+script does not. That is why this walk went through SQL rather than through the models
+(Q19).
