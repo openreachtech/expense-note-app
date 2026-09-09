@@ -5,7 +5,7 @@ Order taken from spec §13 (Implementation plan, Milestone 1) and from each sect
 
 ## Features
 
-1. [ ] #data-model         backend                                depends: none
+1. [x] #data-model         backend                                depends: none
 2. [ ] #sign-in            backend, frontend-staff                depends: data-model
 3. [ ] #expense-entry      backend, frontend-staff                depends: sign-in
 4. [ ] #monthly-summary    backend, frontend-staff                depends: expense-entry

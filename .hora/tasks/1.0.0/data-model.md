@@ -104,7 +104,7 @@ Note: this feature has no `<!-- usecases -->` block, and that is correct — a d
 - [x] 17. Local test environment  <!-- n/a: this feature's target is `backend` alone, so the frontend gate skips as a whole. Marked individually rather than left blank, because a checkpoint left out is indistinguishable from one forgotten -->
 
 ## Acceptance gate
-- [ ] 18. Acceptance (E2E and unit both)
+- [x] 18. Acceptance (E2E and unit both)  <!-- /hora-accept, feature-gate form. reach: scoped, live: no. Record: ../../acceptance/1.0.0/data-model.md -->
 
 ## Checkpoint 2 — the walk
 
