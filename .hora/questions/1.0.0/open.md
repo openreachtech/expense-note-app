@@ -612,3 +612,124 @@ executable bit failed silently until CI.
 
       Worth carrying to whoever owns the boilerplate alongside Q13 and Q14. All three are the
       same shape: **correct on the machine they were written on.**
+
+## Q16. `.env.live` is tracked in git, and it is the file production values go into
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found by `#data-model`'s checkpoint 8 audit, in files **outside** the change set it was auditing.
+Recorded so that checkpoint's clean result is not read as a clean bill for the repository.
+
+`git ls-files` reports both `.env.development` and `.env.live` as **tracked**, and
+`.gitignore:5` carries only a bare `.env`, which matches neither variant.
+
+**No secret is exposed today, and saying otherwise would overstate it.** `.env.development`
+holds local-container values (`password` as a database password against a container published
+on `127.0.0.1`), and `.env.live` ships with **every value empty** — verified. Both are
+templates, and tracking a development env file with local-only values is a common and
+defensible choice.
+
+**The exposure is latent, and it is `.env.live` specifically.** That is the file a deployment
+fills with real production credentials, and it is tracked — so the first person to fill it in
+commits them, with nothing in `.gitignore` to stop it and no error to warn them. The failure
+mode is a single ordinary `git add`.
+
+Alongside it: `sequelize/config.cjs` carries hardcoded credentials in its `live` and `staging`
+blocks and declares no `ssl` / `tls` option on any non-local connection. The `live` values are
+the local container's and match `docker-compose.development.yml`; `staging` points at a
+placeholder host. Neither is a production secret today, and the `live` block is what this
+project's own MariaDB verification connects through.
+
+- [ ] unresolved
+      **Not this feature's to fix** — `#data-model` touches neither file, and both come from the
+      boilerplate. Recorded because the audit's "no HIGH, no MEDIUM" verdict covers the 42
+      files it was handed and nothing else, and a reader could take it more broadly.
+
+      What would resolve it, for whoever owns the server and config surface:
+
+      - **`.env.live` untracked**, with a `.env.live.example` holding the empty keys instead —
+        the shape stays in the repository, the values cannot be committed
+      - or `.gitignore` widened to `.env*` with the example file force-added, which is the same
+        thing said the other way round
+      - and, separately, a decision on TLS for non-local connections, which §7's "TLS in front"
+        addresses for the client edge but not for the database hop
+
+      Left open rather than resolved, because unlike Q13 / Q14 / Q15 nobody has decided it yet.
+
+## Q17. An eslint selector enforces more than its own message describes
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: upstream-defect -->
+
+Found at `#data-model`'s checkpoint 8, linting the audit fixes.
+
+`@openreachtech/eslint-config` declares:
+
+```js
+{
+  selector: 'IfStatement[test] AwaitExpression',
+  message: 'Do not use await in if condition',
+}
+```
+
+**That is a descendant selector, so it matches an `await` anywhere inside an `if` statement —
+including its body — not only in the `test` the message names.** Two ordinary guarded awaits
+tripped it:
+
+```js
+if (staffMemberId !== null) {
+  await this.verifyStaffMember({ ... })   // <- flagged, and there is no await in the condition
+}
+```
+
+`await` inside an if-block body is unremarkable code. Any project on this config hits this the
+first time it guards an asynchronous call, and the message sends the reader looking at a
+condition that is already fine.
+
+**A selector matching only the condition would be `IfStatement > .test AwaitExpression`** — the
+child combinator scoping it to the `test` node the message is about.
+
+- [x] resolved **in this project, by restructuring rather than by disabling**
+      `no-restricted-syntax` is the most protected rule in the disable order — never disabled
+      over the others — so the code moved instead: the null guards left the hook bodies and
+      became early returns inside `verifyStaffMember` / `verifyExpenseCategory`. The result is
+      arguably better (one responsibility per method, no branching around the await), but it
+      was **forced by a rule whose message describes something narrower than what it enforces**,
+      not chosen.
+
+      **Fourth of the same family as Q13, Q14 and Q15** — correct on the machine it was written
+      on. This one differs in that nothing is environment-specific: the selector is simply
+      wider than intended, everywhere, for everyone.
+
+      Worth carrying to whoever owns `@openreachtech/eslint-config`, alongside the other three.
+
+## Q18. Two prohibitions collided, and the disable procedure was not used
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at the same point, and recorded because the outcome was *not* to take the sanctioned
+escape hatch.
+
+Sequelize **requires** a `beforeBulkUpdate` hook to rewrite `options.attributes` in place — it
+reads the values back out of that same object (`node_modules/sequelize/lib/model.js:1939-1943`,
+verified). But:
+
+- `no-param-reassign` (`props: true`) forbids assigning to a parameter's property
+- `no-restricted-properties` forbids `Object.assign` outright — "Never use `Object.assign()`"
+
+`/hora-build` has a procedure for exactly this shape: cut an `adhoc/` branch, disable the
+lower-ranked rule for that one file, and raise an `eslint-exception` question. By the protection
+order that would have been `no-param-reassign` (tier 3) rather than `no-restricted-properties`
+(tier 2).
+
+- [x] resolved **without an exception, because one was not warranted**
+      `Reflect.set(attributes, 'email', ...)` satisfies both rules and is not a workaround for
+      either: it mutates in place, which is what the framework's contract requires, and it is a
+      standard way to set a property. A comment states why the obvious two forms are unavailable.
+
+      **The disable procedure is for when no version of the code satisfies both rules.** A
+      code solution existed, so reaching for the exception would have spent a rule-disable on a
+      problem that had an answer. Recorded so the absence of an `eslint-exception` entry here
+      reads as a decision rather than an oversight.

@@ -88,9 +88,9 @@ Note: this feature has no `<!-- usecases -->` block, and that is correct — a d
 - [x] 3. DB and API schemas  <!-- skills: hor-database-design, hor-sequelize-migration, hor-sequelize-model, hor-type-interface, hor-constant-definition, hor-cookie-authentication, hoc-naming, hoc-jsdoc; digests: hora-skills-ort-renchan 0.1.0 and hora-skills-ort-core 0.2.0 -->
 - [x] 4. Stub API  <!-- n/a: this feature adds no API operation at all. §9 declares nine tables and zero operations — verified, no operation table and no schema/input/result header anywhere in the section. §10.1, §11.1 and §12.1 hold this version's ten operations and belong to #sign-in, #expense-entry and #monthly-summary, each of which will stub its own -->
 - [x] 5. The modules the implementation needs  <!-- skills: hor-sequelize-seeder; digests: hora-skills-ort-renchan 0.1.0. Catalog checked first, once, for the whole feature -->
-- [ ] 6. Actual API
-- [ ] 7. Worker
-- [ ] 8. Security audit
+- [x] 6. Actual API  <!-- n/a: this feature adds no API operation, the same reason as checkpoint 4. Its half of the exit condition that COULD apply — the unit tests covering this feature's acceptance criteria — was satisfied anyway: tests/__tests__/sequelize/ is 4 suites / 32 tests green and tests/_orders/ is 2 suites / 21 tests green, covering four of §9's nine criteria -->
+- [x] 7. Worker  <!-- n/a: decided with the placement skill, not by eye. Everything this feature contributes is light, synchronous and in the request path or outside it entirely -->
+- [x] 8. Security audit  <!-- skills: hor-security-audit, invoked IN FULL rather than through a digest, both passes. Two passes: the first over all 42 files, the second scoped to the fix -->
 - [ ] 9. Verify the use cases again, against the built API
 
 ## Frontend gate
@@ -226,3 +226,84 @@ and 21 tests, all passing. `tests/__tests__/` is 18 suites and 171 tests with **
 and all six are the known `AUTH_COOKIE_SECURE` failures — this branch still carries `=false`,
 and the fix is backend PR #5, unmerged. **Nothing this checkpoint wrote is implicated**, and
 the four suites covering this feature's own models and seeder are 32 tests, all green.
+
+## Checkpoint 7 — the placement decision, made with the skill
+
+The checkpoint says to decide this **with the placement skill, not by eye**, so its decision
+flow was walked over everything this feature contributes:
+
+| What this feature contributes | Where the flow puts it |
+|---|---|
+| the nine migrations | **not request processing at all** — invoked by `db:migrate` from the CLI |
+| the category seeder | the same — invoked by `db:seed` |
+| the nine models | passive definitions; they have no placement of their own |
+| `Expense`'s `beforeSave` existence check | **request path.** Two indexed primary-key lookups, and it has to be synchronous because it gates the write |
+| the backup mixin's `afterSave` on the two credential tables | **request path.** One insert, synchronous, because the history is the point |
+
+Nothing here is heavy, time-consuming or dependent on anything outside the process, so step 3
+of the flow never fires; there is no side effect to defer past a response, and nothing
+time-triggered. **The spec says the same independently:** §8 declares no Redis "because this
+version runs no background job — every write finishes inside its own request, and nothing here
+leaves the process."
+
+So the checkpoint is not applicable, and the reason is a decision rather than an absence of
+one.
+
+## Checkpoint 8 — two audit passes, and what each found
+
+**The audit skill was invoked in full both times, never through a digest** — a step whose skill
+*is* the criteria runs the skill whole, because the missing check is the one nobody thinks to
+ask about.
+
+### First pass: 0 HIGH, 0 MEDIUM, 3 LOW, 2 INFO — verdict `met`
+
+**All three LOW findings were fixed anyway, and the reason is the same in each case: the §9
+criterion they bear on is worded absolutely, and the code did not deliver that absolute.**
+
+| Finding | The word that forced it |
+|---|---|
+| `Expense`'s referential hook missed `bulkCreate` and static `update` | §9: an expense **always** names an owner and category that exist — and this hook is the entire control, since the project declares no DB foreign key |
+| `email` uniqueness depended on a collation nobody pinned | §9: two members of staff can share a current address **in no circumstance** — and on SQLite, the dialect the suites run on, `UNIQUE` on `TEXT` is case-sensitive, so it was **false where it is tested** |
+| `hashToken` digested an empty string | §9.7: **no** refresh token is stored in a form that could be presented as one |
+
+**The second was fixed by normalizing rather than by pinning a collation**, deliberately:
+pinning corrects MariaDB and leaves the tests running on a dialect where the criterion still
+fails. Normalization holds underneath any dialect. Its stated limit: it holds for writes
+through the model, so raw SQL or `queryInterface` would bypass it — the durable answer is a
+collation **plus** normalization, not either alone.
+
+### Second pass, scoped to the fix: all three resolved, one new LOW, verdict `met`
+
+The re-audit confirmed each fix against the installed Sequelize with line numbers rather than
+from memory — including that `options.attributes` **is** the caller's values object by
+reference (`lib/model.js:1939-1943`), which is what makes the in-place rewrite work.
+
+**The new LOW: `upsert()` runs `beforeUpsert` alone**, so it reaches both tables with no hook
+and would bypass both guarantees. Zero callers in tracked source, and no operation exists to
+add one.
+
+**Decided: not fixed, but the docstrings that overclaimed were corrected.** Adding
+`beforeUpsert` hooks would state the same rule in a third place for a path nothing can reach.
+What was actually wrong is that both JSDoc blocks claimed exhaustiveness — "on every write
+path", "a value reaches this table three ways" — and that claim was wider than the code. Both
+now name `upsert` as unsupported and say what adding a caller would require first. **The same
+class of sentence this spec has been bitten by five times: true when written, and nothing
+points back at it when the design moves.**
+
+**The backup mixin's `afterSave` has the identical bulk-path gap**, and it is accepted on the
+same grounds: no operation in 1.0.0 reaches those paths, and 1.0.0 has no address-change
+operation at all. Fixing it would mean reimplementing framework mixin behavior in our model.
+
+### A pre-existing flake the fix had to clear first
+
+`tests/_orders/` was **already failing 4 of 8 parallel runs before any of this work**, and the
+cause was auto-increment fixture ids landing on explicit `100006xx` ids inserted by a parallel
+worker. Nothing in `tests/_orders/` now relies on auto-increment for `staff_members` or
+`expense_categories`, and 8 consecutive runs pass. **It would have surfaced as an intermittent
+CI failure on the feature's own pull request and been read as a defect in the data model.**
+
+### Verified independently before marking this passed
+
+Lint clean across **62 files**, and **103 tests in 9 suites** green against a freshly migrated
+and seeded database — re-run rather than assumed, because the lint fix below changed real
+control flow.
