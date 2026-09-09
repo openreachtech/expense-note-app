@@ -325,9 +325,15 @@ deleted or revoked rather than rewritten. That last line is why §9.6 and §9.7 
   spec
 - checkpoints implement from `specs/`, not from the skill, so nothing is blocked by the delay
 
-### Follow-up, once 0.2.0 is published
+### Follow-up, once 0.2.0 is INSTALLABLE — which is later than published
 
-Move this project's pin from `^0.1.0` to `^0.2.0`, and **delete this question's "not yet
+**0.2.0 was published on 2026-09-07, and this project still cannot pin it.** `.npmrc` sets
+`min-release-age = 7`, so npm refuses a version until it is seven days old — **2026-09-14** for
+this one. The original wording of this follow-up said "once 0.2.0 is published", which is the
+wrong condition and would have had somebody try the bump and read npm's refusal as a broken
+registry rather than as the quarantine working. The condition is **published plus seven days**.
+
+Move this project's pin from `^0.1.0` to `^0.2.0` then, and **delete this question's "not yet
 published" and "stricter than the skill" halves** rather than leaving them to confuse — the
 omission will be gone, and only the two deliberate index divergences will still be worth
 recording. Tracked on the reviewing session's side as well as here, so it does not live in one
@@ -367,3 +373,404 @@ criterion needs code, and which code decided whether checkpoint 1 could pass at 
       already refuses states one rule twice, which is what the charter's one-piece-of-
       information rule exists to discourage. `#expense-entry`'s resolver surfaces the model's
       refusal rather than repeating the check.
+
+## Q10. Where the equipped skills and the always-on ORT rules disagree, the rules win
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#data-model`'s checkpoint 3, from the digests of the matched skills. Three direct
+contradictions between `hora-skills-ort-*` and the always-on rules in `D:\ORT\rules\`. Both are
+ORT-authored, so neither is self-evidently the mistake.
+
+| | The equipped skill | The always-on rule |
+|---|---|---|
+| several `addIndex` calls | `hor-sequelize-migration`: "One index: `await` it directly. Multiple: wrap them in `Promise.all([...])`" | `migrations-and-seeders.md`: "**Indexes: sequential `await queryInterface.addIndex(...)` — never `Promise.all`**" |
+| index names | keep the full `COLUMN_NAME`, shorten only past ~50 characters | always build from an abbreviated `SHORT_COLUMN_NAME` |
+| a subclass's JSDoc | `hoc-jsdoc` uses `@extends` | `jsdoc.md` uses `@augments` |
+
+- [x] resolved
+      Decided in conversation: **the always-on rules win.** They are this machine's standing
+      standard, loaded into every session, and stated as overriding. So this project writes
+      sequential `await`s, abbreviated index names, and `@augments`.
+
+      **Recorded because the consequence is a false-looking mismatch.** Anyone comparing these
+      nine migrations against `hor-sequelize-migration`'s own examples will see `Promise.all`
+      there and sequential awaits here, and the natural conclusion is that ours is wrong. It is
+      not. The same holds for the index names.
+
+      **Amended at the first unit, because "always" turned out to have a reach nobody
+      intended.** Unit 2 applied the rule literally and produced
+      `expense_categories_n_unique` — the single-word column `name` abbreviated to `n` — then
+      flagged it rather than deviating quietly. Every example the rule gives is a long
+      composite (`customer_cart_id` → `cci`, `path_group_close_status_target_value_id` →
+      `pgcstvi`), and the rule states its own purpose: it "keeps index names within the DB
+      identifier length limit". A one-letter abbreviation serves that purpose not at all, and
+      the equipped skill names this exact outcome a mistake.
+
+      **So: abbreviate a composite column name, and leave a single word whole.**
+      `staff_member_id` → `smi`; `name`, `email` and `status` stay as they are. That reads
+      "always, for the reason given" rather than "always, literally", and it is recorded here
+      so nobody re-litigates it as a deviation from Q10 rather than part of it.
+
+      Two further divergences the digests found, neither acted on here because neither reaches
+      `#data-model`:
+
+      - `hoc-jsdoc` carries no Sequelize `/** @type {*} */` cast idiom, and the `@typedef`
+        placement and `<Class>Params` naming rules exist in it only under headings marked
+        *frontend only*. All three live in the always-on `jsdoc.md` instead, which is what this
+        project follows
+      - `hor-type-interface` declares resolver types in `graphql.<category>` under
+        `types/resolvers/`, while the always-on `graphql-resolvers.md` uses
+        `server.graphql.<audience>` in `types/<Audience>GraphQL.d.ts`. **This one lands on
+        `#sign-in`'s checkpoint 3, not here**, and is left for that feature to settle
+
+## Q11. §9.2 omits two columns the master-table convention asks for
+<!-- spec: data-model -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found by unit 2 of `#data-model`'s checkpoint 3, reading `hor-database-design` against §9.2.
+
+The convention says a reference master table carries `id`, `name`, `display_name`,
+`display_order` and `is_active` — `name` being the machine-facing system key and `display_name`
+the user-facing label, free to reword or localize without touching logic. **§9.2 declares only
+`name` and `display_order`.**
+
+Two consequences, and the second is the one that matters:
+
+- with no `is_active`, retiring a category means deleting a row that expenses still point at
+- with no `display_name`, `name` holds `transport / meals / supplies / other` and **the label a
+  member of staff sees has to come from somewhere other than the database** — in practice four
+  hard-coded strings in the frontend
+
+**That last point sits awkwardly against §9.2's own seam claim**, which says making categories
+operator-editable later "adds a screen and changes no other table". Adding a display label later
+*would* change this table, so the claim is overstated as written.
+
+- [x] resolved
+      Decided in conversation: **raise it, do not fix it now.** Checkpoint 3 builds what the
+      spec says — two columns — and this entry is the record.
+
+      **Where it bites is the frontend gate**, when a screen needs four labels and finds none in
+      the database. It can be settled before then with the finding already on record, and
+      deciding it now would cost a stage 4 re-entry, a spec pull request and unit 2's three
+      files redone, for a gap that changes nothing about the backend.
+
+      Note for whoever settles it: the honest options are to add both columns, or to correct
+      §9.2's seam sentence so it stops claiming more than the design delivers. Leaving both as
+      they are means the sentence stays wrong.
+
+## Q12. The backend row ships no base model class, and every model needs one
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found by unit 2 of `#data-model`'s checkpoint 3, and it blocked the checkpoint for every unit
+at once.
+
+`hor-sequelize-model` is unambiguous: a model extends **`BaseAppRenchanModel`** at
+`sequelize/baseModel/BaseAppRenchanModel.js`, which extends `RenchanModel` from
+`@openreachtech/renchan-sequelize` — and *"a model must never extend Sequelize's `Model`
+directly, nor even `RenchanModel` directly"*, because routing every model through one app-level
+base is what lets shared behavior be added in one place.
+
+**renchan-boilerplate 1.11.0 ships no `sequelize/baseModel/` directory at all.** Nothing in
+`.hora/tree/expense-note-backend.md` recorded its absence, and no unit was assigned it — so
+without this, all nine models fail to resolve their import and `sequelize/_.js` fails at
+activation.
+
+- [x] resolved
+      **The implementer reported it rather than creating it, which is correct** — a shared
+      ancestor class is the conflict-proof case, not something a unit writes on its own
+      (`hora-build`'s "Conflict-proof files are reported, not written directly"). The main
+      session created it: `RenchanModel` subclass, empty body, nothing shared to put in it yet.
+
+      Recorded for two reasons. It is a gap in the **boilerplate** rather than in this project,
+      so the next row created from renchan-boilerplate 1.11.0 hits it identically. And
+      `.hora/tree/expense-note-backend.md` says `sequelize/models/` ships empty without
+      mentioning that the base class those models must extend is missing too — worth adding
+      when that record is next rewritten.
+
+## Q13. A row created on Windows loses the executable bit on every shell script
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: lacked-environment -->
+
+Found when CI failed on every branch of `expense-note-backend`, including branches whose only
+change was a YAML comment.
+
+`package.json` invokes `./test.sh` and `./test-live.sh` directly, and on a Linux runner the
+mode bit decides whether that is permitted. Both test jobs died at
+`sh: 1: ./test.sh: Permission denied`, exit code 126; only ESLint passed.
+
+**The boilerplate is not at fault.** `renchan-boilerplate` records `100755` for both test
+scripts. This repository recorded `100644` from its initial commit, because `core.fileMode` is
+`false` here — git's **default on Windows**, where git can neither see nor record an executable
+bit. `docker.sh`, written later by hora on the same machine, never had it either.
+
+**What makes this worth a general entry rather than a local fix.** Nothing looks wrong on the
+machine that creates the row: on Windows the bit is meaningless, every script runs, and the
+tree looks correct. The failure appears only on the runner, in a job whose error names a
+permission rather than a missing setup step — a long way from the cause. **Any hora row created
+on Windows has this, on every shell script its boilerplate ships.**
+
+- [x] resolved **for this repository**
+      `git update-index --chmod=+x test.sh test-live.sh docker.sh` — it writes the index
+      directly rather than reading the filesystem, which is why it works while `core.fileMode`
+      stays `false`. Backend PR #3, on its own branch off `release/1.0.0` because it blocks
+      every other branch. `git ls-files -s` now reports `100755` for all three.
+
+      **Unresolved in general, and this is the half worth carrying.** A `.gitattributes` cannot
+      fix it — git has no attribute for the executable bit. So one of two things has to change,
+      and the choice belongs to whoever owns the row-creation step rather than to this project:
+
+      - **row creation sets the mode explicitly** after cloning a boilerplate, for every `.sh`
+        it ships. Fixes it once, at the source, for every future row
+      - **CI invokes the scripts as `bash test.sh`** rather than `./test.sh`. Makes the mode
+        irrelevant, but has to be done in every repository's workflows rather than once
+
+      Also recorded in `.hora/tree/expense-note-backend.md`, since that file lists these
+      scripts and a reader would otherwise have no reason to suspect them.
+
+## Q14. A test that says "when the env value is unset" never unsets it
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: upstream-defect -->
+
+Found when PR #3 restored the executable bit and six previously-invisible test failures
+appeared. Two defects, stacked, and one had been hiding the other.
+
+### Ours, and fixed
+
+`2705bfb` changed `.env.development` from `AUTH_COOKIE_SECURE=` to `AUTH_COOKIE_SECURE=false`.
+The engine's getter reads `env.AUTH_COOKIE_SECURE !== 'false'`, so that turns the flag off, and
+six boilerplate tests across three engine suites assert it stays on. Restored to the upstream
+value (backend PR #5).
+
+**Decided under the authority granted for implementation choices**, on three grounds: the
+engine's own comment says *"Turning it off is for plain-HTTP verification hosts alone"* and
+local development is not one, since browsers treat `http://localhost` as a secure context and
+accept `Secure` cookies there; §7 puts TLS in front and asks nowhere for the flag off; and
+`tests/__tests__/` is 14 suites and 139 tests green with the value restored.
+
+**What was deliberately not done: changing the assertion to `false`.** That would convert a
+test of the contract into a test of whatever the env file happens to say.
+
+### Upstream's, recorded not fixed
+
+The test's `describe` reads *"to keep the secure flag on when the env value is unset"* — and
+**the test never unsets anything.** No `AUTH_COOKIE_SECURE` reference, no `process.env`, no
+spy. It reads the ambient `.env.development` and depends on that file leaving the value blank.
+
+So the assertion is true only by coincidence of configuration. **Any project created from
+renchan-boilerplate that legitimately sets `AUTH_COOKIE_SECURE` breaks six tests in files it
+did not write**, and the failure message points at the engine rather than at the env that
+caused it. The honest form stubs the value inside the test.
+
+- [x] resolved **for this repository**, and left open upstream
+      This is a defect in renchan-boilerplate 1.11.0 whatever this project chooses, and it sits
+      beside Q13: both are the same shape — **the boilerplate is correct on the machine it was
+      written on**, and breaks elsewhere for reasons its own error messages do not name. Q13 is
+      the executable bit lost on Windows; this is a test that reads ambient configuration and
+      calls it "unset".
+
+      Neither is this project's to fix upstream, and both are worth carrying to whoever owns
+      the boilerplate.
+
+## Q15. The npm scripts cannot run on Windows as written
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: lacked-environment -->
+
+Found at `#data-model`'s checkpoint 5, initializing the local database so the seeder's test
+could run.
+
+`npm run db:refresh` fails with `'export' is not recognized as an internal or external
+command`. The script begins `export NODE_ENV=development; ...`, and npm on Windows spawns
+`cmd.exe`, which has no `export`. **The same applies to `dev`, `test` and `test:live`** — every
+one of them opens with `export`.
+
+So on Windows, none of the following work as documented: refreshing the database, starting the
+development server, or running either test suite through npm.
+
+**Same family as Q13.** The row was created on Windows and its scripts assume a POSIX shell,
+exactly as Q13's shell scripts assumed a POSIX file mode. Neither is visible on the machine
+that wrote them: on Windows `export` fails loudly but only when somebody runs it, and the
+executable bit failed silently until CI.
+
+- [x] resolved **as a workaround, not a fix**
+      The local SQLite database was initialized by running the underlying commands through
+      bash directly — `rm -f sequelize/storage/*.sqlite3`, then `npx sequelize-cli db:migrate`,
+      then `db:seed:all` against `dev-master/` and `development/` in turn, with `NODE_ENV`
+      exported in the bash session rather than by the script. That works because this session
+      has a POSIX shell available; it is not a fix for anyone whose only shell is `cmd.exe`.
+
+      **The real options, and the choice is not this project's to make** — the scripts come
+      from the boilerplate:
+
+      - **`cross-env`**, or the equivalent, so a script sets its variable portably. One
+        dependency, and every script keeps its shape
+      - **`"script-shell": "bash"`** in `.npmrc`, which makes npm use bash on every platform.
+        No dependency, but it requires bash to be installed and silently changes how every
+        script in the project is interpreted
+      - **leave it**, and document that this row is developed on POSIX only
+
+      Worth carrying to whoever owns the boilerplate alongside Q13 and Q14. All three are the
+      same shape: **correct on the machine they were written on.**
+
+## Q16. `.env.live` is tracked in git, and it is the file production values go into
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found by `#data-model`'s checkpoint 8 audit, in files **outside** the change set it was auditing.
+Recorded so that checkpoint's clean result is not read as a clean bill for the repository.
+
+`git ls-files` reports both `.env.development` and `.env.live` as **tracked**, and
+`.gitignore:5` carries only a bare `.env`, which matches neither variant.
+
+**No secret is exposed today, and saying otherwise would overstate it.** `.env.development`
+holds local-container values (`password` as a database password against a container published
+on `127.0.0.1`), and `.env.live` ships with **every value empty** — verified. Both are
+templates, and tracking a development env file with local-only values is a common and
+defensible choice.
+
+**The exposure is latent, and it is `.env.live` specifically.** That is the file a deployment
+fills with real production credentials, and it is tracked — so the first person to fill it in
+commits them, with nothing in `.gitignore` to stop it and no error to warn them. The failure
+mode is a single ordinary `git add`.
+
+Alongside it: `sequelize/config.cjs` carries hardcoded credentials in its `live` and `staging`
+blocks and declares no `ssl` / `tls` option on any non-local connection. The `live` values are
+the local container's and match `docker-compose.development.yml`; `staging` points at a
+placeholder host. Neither is a production secret today, and the `live` block is what this
+project's own MariaDB verification connects through.
+
+- [ ] unresolved
+      **Not this feature's to fix** — `#data-model` touches neither file, and both come from the
+      boilerplate. Recorded because the audit's "no HIGH, no MEDIUM" verdict covers the 42
+      files it was handed and nothing else, and a reader could take it more broadly.
+
+      What would resolve it, for whoever owns the server and config surface:
+
+      - **`.env.live` untracked**, with a `.env.live.example` holding the empty keys instead —
+        the shape stays in the repository, the values cannot be committed
+      - or `.gitignore` widened to `.env*` with the example file force-added, which is the same
+        thing said the other way round
+      - and, separately, a decision on TLS for non-local connections, which §7's "TLS in front"
+        addresses for the client edge but not for the database hop
+
+      Left open rather than resolved, because unlike Q13 / Q14 / Q15 nobody has decided it yet.
+
+## Q17. An eslint selector enforces more than its own message describes
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: upstream-defect -->
+
+Found at `#data-model`'s checkpoint 8, linting the audit fixes.
+
+`@openreachtech/eslint-config` declares:
+
+```js
+{
+  selector: 'IfStatement[test] AwaitExpression',
+  message: 'Do not use await in if condition',
+}
+```
+
+**That is a descendant selector, so it matches an `await` anywhere inside an `if` statement —
+including its body — not only in the `test` the message names.** Two ordinary guarded awaits
+tripped it:
+
+```js
+if (staffMemberId !== null) {
+  await this.verifyStaffMember({ ... })   // <- flagged, and there is no await in the condition
+}
+```
+
+`await` inside an if-block body is unremarkable code. Any project on this config hits this the
+first time it guards an asynchronous call, and the message sends the reader looking at a
+condition that is already fine.
+
+**A selector matching only the condition would be `IfStatement > .test AwaitExpression`** — the
+child combinator scoping it to the `test` node the message is about.
+
+- [x] resolved **in this project, by restructuring rather than by disabling**
+      `no-restricted-syntax` is the most protected rule in the disable order — never disabled
+      over the others — so the code moved instead: the null guards left the hook bodies and
+      became early returns inside `verifyStaffMember` / `verifyExpenseCategory`. The result is
+      arguably better (one responsibility per method, no branching around the await), but it
+      was **forced by a rule whose message describes something narrower than what it enforces**,
+      not chosen.
+
+      **Fourth of the same family as Q13, Q14 and Q15** — correct on the machine it was written
+      on. This one differs in that nothing is environment-specific: the selector is simply
+      wider than intended, everywhere, for everyone.
+
+      Worth carrying to whoever owns `@openreachtech/eslint-config`, alongside the other three.
+
+## Q18. Two prohibitions collided, and the disable procedure was not used
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at the same point, and recorded because the outcome was *not* to take the sanctioned
+escape hatch.
+
+Sequelize **requires** a `beforeBulkUpdate` hook to rewrite `options.attributes` in place — it
+reads the values back out of that same object (`node_modules/sequelize/lib/model.js:1939-1943`,
+verified). But:
+
+- `no-param-reassign` (`props: true`) forbids assigning to a parameter's property
+- `no-restricted-properties` forbids `Object.assign` outright — "Never use `Object.assign()`"
+
+`/hora-build` has a procedure for exactly this shape: cut an `adhoc/` branch, disable the
+lower-ranked rule for that one file, and raise an `eslint-exception` question. By the protection
+order that would have been `no-param-reassign` (tier 3) rather than `no-restricted-properties`
+(tier 2).
+
+- [x] resolved **without an exception, because one was not warranted**
+      `Reflect.set(attributes, 'email', ...)` satisfies both rules and is not a workaround for
+      either: it mutates in place, which is what the framework's contract requires, and it is a
+      standard way to set a property. A comment states why the obvious two forms are unavailable.
+
+      **The disable procedure is for when no version of the code satisfies both rules.** A
+      code solution existed, so reaching for the exception would have spent a rule-disable on a
+      problem that had an answer. Recorded so the absence of an `eslint-exception` entry here
+      reads as a decision rather than an oversight.
+
+## Q19. The Sequelize activator cannot be driven from plain node on Windows
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: lacked-environment -->
+
+Found at `#data-model`'s checkpoint 9, trying to walk the use cases through the real models.
+
+`SequelizeActivator` loads each model by dynamic-importing the path `rootPath.to()` returns — a
+bare Windows absolute path like `D:\ORT\...`. Node's ESM loader refuses it:
+
+```
+ERR_UNSUPPORTED_ESM_URL_SCHEME: On Windows, absolute paths must be valid file:// URLs.
+Received protocol 'd:'
+```
+
+**Jest resolves it and the entire 242-test suite runs**, so nothing is broken for the tests.
+What cannot work is any **standalone script** that activates Sequelize outside jest — a
+one-off walk, a data-inspection script, a manual reproduction.
+
+- [x] resolved **by going around it, not through it**
+      Checkpoint 9's walk ran in SQL against the migrated database (via the `sqlite3` driver
+      under CommonJS, which the loader restriction does not touch) rather than through the
+      models. That covers the data requirements the walk exists to check; the model-layer
+      behaviours were already covered by the test suite, which is the environment that does
+      resolve those imports. **The split is stated in the checkpoint's own record rather than
+      implied**, so nobody reads one run as having done both.
+
+      **Fifth of the family after Q13, Q14, Q15 and Q17** — and the second whose cause is
+      Windows specifically. A fix would be `pathToFileURL()` around the path before the dynamic
+      import, in `renchan-sequelize`; that is the package's to make, not this project's.
+
+      Worth knowing before somebody spends an hour on it: the failure names a URL scheme, so it
+      reads as a problem with the script rather than with the loader's treatment of a drive
+      letter.

@@ -148,7 +148,15 @@ lint / l       ESLint
 db:setup  db:seed:master  db:seed:dev  db:refresh  db:drop  db:teardown
 ```
 
-`test.sh` and `test-live.sh` sit at the root beside them.
+`test.sh` and `test-live.sh` sit at the root beside them, and `package.json` invokes both
+**directly** (`./test.sh`), not through `bash`.
+
+**Their executable bit was lost when this row was created, and CI is the only place it shows.**
+`core.fileMode` is `false` here — git's default on Windows — so git could neither see nor record
+the bit, and all three shell scripts (`test.sh`, `test-live.sh`, `docker.sh`) were committed
+`100644` while the boilerplate records `100755`. On Windows that means nothing; on the Linux
+runner both test jobs die at `Permission denied`, exit 126. Restored with
+`git update-index --chmod=+x`, which writes the index rather than reading the filesystem (Q13).
 
 ## A local end-to-end environment
 

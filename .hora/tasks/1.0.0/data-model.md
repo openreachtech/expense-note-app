@@ -50,6 +50,13 @@ Constraint: more than one company in one deployment is **permanently** out of sc
 Note: the index on `(staff_member_id, spent_on)` is spec §9.3's own, and it serves the
       heaviest read this version has (§7). It is a requirement, not an optimization to defer
 
+Constraint: **where an equipped skill and an always-on ORT rule disagree, the rule wins** (Q10).
+            Three cases reach this checkpoint: indexes are added with **sequential `await`s,
+            never `Promise.all`**; index names are built from an **abbreviated
+            `SHORT_COLUMN_NAME`**, always, not from the full column name; and a subclass's
+            JSDoc uses **`@augments`**, not `@extends`. The migration skill's own examples show
+            the opposite of the first two — do not follow them, and do not "fix" these back
+
 Note: `saved_at` on §9.4, §9.5, §9.8 and §9.9 sits BESIDE `created_at` / `updated_at`, never
       instead of them — `created_at` is when the row appeared, `saved_at` is when that address
       or digest was set. The convention's column lists name auth-specific columns only, which
@@ -78,26 +85,26 @@ Note: this feature has no `<!-- usecases -->` block, and that is correct — a d
 - [x] 2. Verify the use cases can be met  <!-- skills: hoc-requirement-definition; digests: none taken — interactive, no agent. Matched against hora-skills-ort-core 0.2.0. GAP: the checkpoint delegates to "the shared UI/UX project context", and the only equipped skill covering that is frontend-surface (hof-), out of surface for a backend-only feature. Ran without it -->
 
 ## Backend gate
-- [ ] 3. DB and API schemas
-- [ ] 4. Stub API
-- [ ] 5. The modules the implementation needs
-- [ ] 6. Actual API
-- [ ] 7. Worker
-- [ ] 8. Security audit
-- [ ] 9. Verify the use cases again, against the built API
+- [x] 3. DB and API schemas  <!-- skills: hor-database-design, hor-sequelize-migration, hor-sequelize-model, hor-type-interface, hor-constant-definition, hor-cookie-authentication, hoc-naming, hoc-jsdoc; digests: hora-skills-ort-renchan 0.1.0 and hora-skills-ort-core 0.2.0 -->
+- [x] 4. Stub API  <!-- n/a: this feature adds no API operation at all. §9 declares nine tables and zero operations — verified, no operation table and no schema/input/result header anywhere in the section. §10.1, §11.1 and §12.1 hold this version's ten operations and belong to #sign-in, #expense-entry and #monthly-summary, each of which will stub its own -->
+- [x] 5. The modules the implementation needs  <!-- skills: hor-sequelize-seeder; digests: hora-skills-ort-renchan 0.1.0. Catalog checked first, once, for the whole feature -->
+- [x] 6. Actual API  <!-- n/a: this feature adds no API operation, the same reason as checkpoint 4. Its half of the exit condition that COULD apply — the unit tests covering this feature's acceptance criteria — was satisfied anyway: tests/__tests__/sequelize/ is 4 suites / 32 tests green and tests/_orders/ is 2 suites / 21 tests green, covering four of §9's nine criteria -->
+- [x] 7. Worker  <!-- n/a: decided with the placement skill, not by eye. Everything this feature contributes is light, synchronous and in the request path or outside it entirely -->
+- [x] 8. Security audit  <!-- skills: hor-security-audit, invoked IN FULL rather than through a digest, both passes. Two passes: the first over all 42 files, the second scoped to the fix -->
+- [x] 9. Verify the use cases again, against the built API  <!-- run in the main session, in conversation, as this checkpoint requires. No API exists for this feature, so the walk ran against the built schema and models -->
 
 ## Frontend gate
-- [ ] 10. Open the frontend
-- [ ] 11. Reconfirm UI/UX and the use cases
-- [ ] 12. Component design
-- [ ] 13. The frontend modules the implementation needs
-- [ ] 14. API client
-- [ ] 15. UI
-- [ ] 16. Wire the data-fetching logic in
-- [ ] 17. Local test environment
+- [x] 10. Open the frontend  <!-- n/a: this feature's target is `backend` alone, so the frontend gate skips as a whole. Marked individually rather than left blank, because a checkpoint left out is indistinguishable from one forgotten -->
+- [x] 11. Reconfirm UI/UX and the use cases  <!-- n/a: this feature's target is `backend` alone, so the frontend gate skips as a whole. Marked individually rather than left blank, because a checkpoint left out is indistinguishable from one forgotten -->
+- [x] 12. Component design  <!-- n/a: this feature's target is `backend` alone, so the frontend gate skips as a whole. Marked individually rather than left blank, because a checkpoint left out is indistinguishable from one forgotten -->
+- [x] 13. The frontend modules the implementation needs  <!-- n/a: this feature's target is `backend` alone, so the frontend gate skips as a whole. Marked individually rather than left blank, because a checkpoint left out is indistinguishable from one forgotten -->
+- [x] 14. API client  <!-- n/a: this feature's target is `backend` alone, so the frontend gate skips as a whole. Marked individually rather than left blank, because a checkpoint left out is indistinguishable from one forgotten -->
+- [x] 15. UI  <!-- n/a: this feature's target is `backend` alone, so the frontend gate skips as a whole. Marked individually rather than left blank, because a checkpoint left out is indistinguishable from one forgotten -->
+- [x] 16. Wire the data-fetching logic in  <!-- n/a: this feature's target is `backend` alone, so the frontend gate skips as a whole. Marked individually rather than left blank, because a checkpoint left out is indistinguishable from one forgotten -->
+- [x] 17. Local test environment  <!-- n/a: this feature's target is `backend` alone, so the frontend gate skips as a whole. Marked individually rather than left blank, because a checkpoint left out is indistinguishable from one forgotten -->
 
 ## Acceptance gate
-- [ ] 18. Acceptance (E2E and unit both)
+- [x] 18. Acceptance (E2E and unit both)  <!-- /hora-accept, feature-gate form. reach: scoped, live: no. Record: ../../acceptance/1.0.0/data-model.md -->
 
 ## Checkpoint 2 — the walk
 
@@ -125,3 +132,224 @@ not gain one. Two of the three expense use cases turn on a correction or a remov
 final — §11's criterion that the entry count does not change, and §7's rule that what is
 retained is what remains. Adding a history table for expenses out of symmetry with §9.8 and
 §9.9 would contradict both.
+
+## Checkpoint 3 — what was built, and what verified it
+
+Nine tables, nine migrations, nine models, nine type declarations under `types/models/`, the
+expense-status constant pair, the shared `BaseAppRenchanModel`, and seven test files. Seven
+implementer agents, one per table except the two backup pairs, which stayed whole because the
+`_bk` half must declare `tableName` explicitly and the body half must keep
+`super.setupHooks?.()` — both failures are silent, and splitting the pair puts the link between
+them in two prompts.
+
+**No API surface.** §9 declares no operations, so that half of the exit condition is not
+applicable here; §10.1's operations are `#sign-in`'s.
+
+**Verified against real MariaDB 10.5.12, not SQLite.** Re-run in this session rather than taken
+from another session's report, because the evidence had been cleaned up and could not be
+reproduced from the tree:
+
+- all nine migrated clean, then `db:migrate:undo:all` reverted all ten and left zero tables
+- types are what §9 declares: `bigint(20)` keys, `int(11)` on `expense_categories`,
+  `datetime(3)` throughout, `varchar(191)` for name / email / memo / the digests, `date` for
+  `spent_on`, `varchar(32)` for `status`, `used_at` nullable and `expired_at` not
+- **Q8's two strictnesses hold**: `staff_member_secrets` carries UNIQUE on `staff_member_id`
+  AND UNIQUE on `email`, while both `_bk` tables carry a plain FK index — which is what lets a
+  history table hold more than one row per person
+- **Q10's amended naming came out as intended**: composites abbreviated (`smi`, `eci`,
+  `smi_so`, `at`, `sk`, `th`), single words left whole (`name`, `email`)
+- `information_schema.key_column_usage` reports **zero** DB-level foreign-key constraints
+
+**Why that check mattered.** The suites run on SQLite, which reads a `bigint` key back as
+`INTEGER` and every `datetime(3)` as bare `DATETIME`. Every one of the types above would have
+passed locally whatever the migration said.
+
+**One thing about this machine, not about the code.** Port 3306 is held by a MariaDB inside
+WSL, relayed by `wslrelay.exe`, so the committed compose file cannot bind it. The verification
+ran on 3307 through an override kept outside the repository, with a throwaway config that is
+the repo's own `live` block with the port changed. **The committed 3306 is correct and was not
+touched** — CI publishes 3306, and the repository has to match CI.
+
+**Tests exist but were not run, and that is per the checkpoint.** Only checkpoints 6, 16 and 18
+name tests in their exit conditions. Units 3 and 5 wrote seven test files covering four of
+§9's criteria; they first run at checkpoint 6.
+
+## Checkpoint 5 — one module, and what the catalog check found
+
+**The catalog check ran first, once for the feature, as the rule requires.**
+`@openreachtech/hora-ecosystem` tracks 33 packages; the only candidate touching this work is
+`renchan-sequelize`, already a dependency. **Nothing was installed and nothing was
+reinvented** — the whole feature runs on catalog packages already present:
+`TimestampSeedsSupplier` and `MigrationAttributeFactory` for the migrations and the seeder,
+`ModelAttributeFactory` and `RenchanModel` for the models, `SequelizeActivator` for the
+bootstrap.
+
+**One module: the category seeder**, which §9's criterion "the four categories exist after the
+seeder runs, in their display order" requires. Written as **two files**, and that is the part
+worth knowing:
+
+`package.json`'s `db:seed:master` points at `sequelize/seeders/**dev-master**`, and **nothing in
+this repository loads `sequelize/seeders/master/` at all** — there is no `db:seed:prod`. So the
+canonical file sits in `master/` and a re-export under the identical filename sits in
+`dev-master/`, which is what dev and CI actually read. Placed in `master/` alone the seeder
+would never run, and §9's criterion would fail at acceptance with a correct seeder sitting in
+plain sight.
+
+**Row ids use the allocated `100` prefix** — `10000001` to `10000004` — and the seeder skill's
+**master-data exemption was deliberately not taken.** That exemption would have used small
+sequential ids or ids from `app/constants`; `/hora-build`'s rule says a seeder's explicit ids
+come from the allocated prefix "in any table" with no exemption, and §9.2 forbids these four
+categories ever becoming a code enum, so nothing will reference them by literal id. The four
+strings now live in exactly one place in the repository.
+
+**Verified against real MariaDB, then reverted.** The four rows read back in `display_order`
+1–4 with ids `10000001`–`10000004`; `AUTO_INCREMENT` advanced to `10000005`, so `int(11)`
+holds the prefix comfortably. `db:seed:undo:all` removed exactly those four. The database was
+left as found.
+
+**`PasswordEncipher` is not this feature's module.** Unit 5 of checkpoint 3 asked checkpoint 5
+for it, but §9's criteria never mention password verification and §10's do — the model takes
+it injected and its tests stub it, so `#data-model` needs nothing. It belongs to `#sign-in`'s
+checkpoint 5.
+
+### Two environment facts this checkpoint established
+
+**The npm database scripts cannot run on Windows as written.** `db:refresh`, `dev`, `test` and
+`test:live` all begin with `export`, a POSIX shell builtin, and npm on Windows spawns
+`cmd.exe`: `'export' is not recognized as an internal or external command`. The local SQLite
+database was initialized by running the underlying `sequelize-cli` commands through bash
+instead. **Same family as Q13** — the row was created on Windows and its scripts assume a
+POSIX shell (Q15).
+
+**The local test picture, run after initializing the database:** `tests/_orders/` is 2 suites
+and 21 tests, all passing. `tests/__tests__/` is 18 suites and 171 tests with **6 failing**,
+and all six are the known `AUTH_COOKIE_SECURE` failures — this branch still carries `=false`,
+and the fix is backend PR #5, unmerged. **Nothing this checkpoint wrote is implicated**, and
+the four suites covering this feature's own models and seeder are 32 tests, all green.
+
+## Checkpoint 7 — the placement decision, made with the skill
+
+The checkpoint says to decide this **with the placement skill, not by eye**, so its decision
+flow was walked over everything this feature contributes:
+
+| What this feature contributes | Where the flow puts it |
+|---|---|
+| the nine migrations | **not request processing at all** — invoked by `db:migrate` from the CLI |
+| the category seeder | the same — invoked by `db:seed` |
+| the nine models | passive definitions; they have no placement of their own |
+| `Expense`'s `beforeSave` existence check | **request path.** Two indexed primary-key lookups, and it has to be synchronous because it gates the write |
+| the backup mixin's `afterSave` on the two credential tables | **request path.** One insert, synchronous, because the history is the point |
+
+Nothing here is heavy, time-consuming or dependent on anything outside the process, so step 3
+of the flow never fires; there is no side effect to defer past a response, and nothing
+time-triggered. **The spec says the same independently:** §8 declares no Redis "because this
+version runs no background job — every write finishes inside its own request, and nothing here
+leaves the process."
+
+So the checkpoint is not applicable, and the reason is a decision rather than an absence of
+one.
+
+## Checkpoint 8 — two audit passes, and what each found
+
+**The audit skill was invoked in full both times, never through a digest** — a step whose skill
+*is* the criteria runs the skill whole, because the missing check is the one nobody thinks to
+ask about.
+
+### First pass: 0 HIGH, 0 MEDIUM, 3 LOW, 2 INFO — verdict `met`
+
+**All three LOW findings were fixed anyway, and the reason is the same in each case: the §9
+criterion they bear on is worded absolutely, and the code did not deliver that absolute.**
+
+| Finding | The word that forced it |
+|---|---|
+| `Expense`'s referential hook missed `bulkCreate` and static `update` | §9: an expense **always** names an owner and category that exist — and this hook is the entire control, since the project declares no DB foreign key |
+| `email` uniqueness depended on a collation nobody pinned | §9: two members of staff can share a current address **in no circumstance** — and on SQLite, the dialect the suites run on, `UNIQUE` on `TEXT` is case-sensitive, so it was **false where it is tested** |
+| `hashToken` digested an empty string | §9.7: **no** refresh token is stored in a form that could be presented as one |
+
+**The second was fixed by normalizing rather than by pinning a collation**, deliberately:
+pinning corrects MariaDB and leaves the tests running on a dialect where the criterion still
+fails. Normalization holds underneath any dialect. Its stated limit: it holds for writes
+through the model, so raw SQL or `queryInterface` would bypass it — the durable answer is a
+collation **plus** normalization, not either alone.
+
+### Second pass, scoped to the fix: all three resolved, one new LOW, verdict `met`
+
+The re-audit confirmed each fix against the installed Sequelize with line numbers rather than
+from memory — including that `options.attributes` **is** the caller's values object by
+reference (`lib/model.js:1939-1943`), which is what makes the in-place rewrite work.
+
+**The new LOW: `upsert()` runs `beforeUpsert` alone**, so it reaches both tables with no hook
+and would bypass both guarantees. Zero callers in tracked source, and no operation exists to
+add one.
+
+**Decided: not fixed, but the docstrings that overclaimed were corrected.** Adding
+`beforeUpsert` hooks would state the same rule in a third place for a path nothing can reach.
+What was actually wrong is that both JSDoc blocks claimed exhaustiveness — "on every write
+path", "a value reaches this table three ways" — and that claim was wider than the code. Both
+now name `upsert` as unsupported and say what adding a caller would require first. **The same
+class of sentence this spec has been bitten by five times: true when written, and nothing
+points back at it when the design moves.**
+
+**The backup mixin's `afterSave` has the identical bulk-path gap**, and it is accepted on the
+same grounds: no operation in 1.0.0 reaches those paths, and 1.0.0 has no address-change
+operation at all. Fixing it would mean reimplementing framework mixin behavior in our model.
+
+### A pre-existing flake the fix had to clear first
+
+`tests/_orders/` was **already failing 4 of 8 parallel runs before any of this work**, and the
+cause was auto-increment fixture ids landing on explicit `100006xx` ids inserted by a parallel
+worker. Nothing in `tests/_orders/` now relies on auto-increment for `staff_members` or
+`expense_categories`, and 8 consecutive runs pass. **It would have surfaced as an intermittent
+CI failure on the feature's own pull request and been read as a defect in the data model.**
+
+### Verified independently before marking this passed
+
+Lint clean across **62 files**, and **103 tests in 9 suites** green against a freshly migrated
+and seeded database — re-run rather than assumed, because the lint fix below changed real
+control flow.
+
+## Checkpoint 9 — the walk, against what is now built
+
+`#data-model` states no use cases and adds no API, so this gate ran against **the nine tables
+as they now exist**, walking the seven use cases of the features that depend on them — the same
+seven checkpoint 2 walked on paper, now with real rows and real data shapes.
+
+All seven pass. Executed against the migrated, seeded database rather than reasoned about:
+
+| Use case | What was actually observed |
+|---|---|
+| sign-in: signs in Monday morning | `aiko.tanaka@example.com` joins to one member of staff, with a digest present |
+| sign-in: signs out on a shared machine | `revoked_at` set across the series, 0 access tokens left |
+| expense-entry: records a 1,200 yen fare | `spent_on 2026-09-07`, amount 1200, category `transport`, status `recorded` |
+| expense-entry: corrects 12,000 to 1,200 | entry count stayed 1 — in place, as §11 requires |
+| expense-entry: removes a duplicate lunch | count back to 1, and no tombstone column exists to leave one |
+| monthly-summary: reads a month and its total | 2 rows (the 7th and the 30th), total 2000 — **the 1st of October excluded** |
+| monthly-summary: another member of staff's month | the 4,000 yen row absent from both the rows and the total |
+
+**One extra thing worth having:** `EXPLAIN QUERY PLAN` on the month read returns
+`SEARCH expenses USING INDEX expenses_smi_so_index (staff_member_id=? AND spent_on>? AND
+spent_on<?)`. §9.3 declares that composite index for exactly this read — "the one read that
+matters is one member of staff's month" — so the index is not merely present but **used** by
+the query it exists for. Nothing in the spec asked for that check; it is the cheapest evidence
+that §7's response-time requirement rests on something real.
+
+### What this walk covers, and what covers the rest
+
+Being exact, because one run did not do everything:
+
+- **the SQL walk above** covers the *data* requirements — that the schema can represent every
+  state the seven use cases need, that the joins resolve, that the month boundaries fall where
+  §12 says, that the scoping isolates one member of staff from another, and that the index is
+  used
+- **the 242-test suite** covers the *model-layer behaviours* — address normalization, the
+  referential refusal on all three write paths, the backup append, and the token-shape
+  rejection. Those live in JavaScript, not in the schema, and jest is what drives them
+
+### A fifth environment fact, found while running this
+
+**The Sequelize activator cannot be driven from plain `node` on Windows.**
+`SequelizeActivator` dynamic-imports each model by the path `rootPath.to()` returns — a bare
+`D:\...` — and the ESM loader rejects it: *"On Windows, absolute paths must be valid file://
+URLs. Received protocol 'd:'"*. Jest resolves it and the whole suite runs; any standalone
+script does not. That is why this walk went through SQL rather than through the models
+(Q19).
