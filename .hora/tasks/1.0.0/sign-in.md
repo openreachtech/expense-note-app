@@ -163,26 +163,48 @@ deployed side, where a seeder has no business carrying a real password.
 state all seven need. Re-walking them here would check the same thing against a spec that has
 not changed for them.
 
-## Resolver id block — 101, allocated here
+## Row-id prefix — `101`, and a correction
+
+**`101` is this feature's row-id prefix**, allocated through the equipped allocator skill with
+`sign-in` as the requester, under the lock that skill requires. Ids are `10100000`–`10199999`,
+and they are exclusive to this feature in every table, in every seeder and in every test that
+creates its own rows. `#data-model` holds `100`.
+
+**Corrected from what this file said an hour earlier.** The first version of this section called
+`101` a *resolver* id block and laid out `M101` / `Q101` / a hundred-block per feature. That was
+wrong: the allocator hands out **row** ids for database rows, and it had already handed `100` to
+`#data-model` for the four category rows `10000001`–`10000004`. The number was right by
+coincidence — `101` is what the allocator returns for the second requester either way — which is
+exactly why the mistake would have survived unnoticed. **The reusable part: `101` was written
+down from memory of a previous session rather than read back from the allocator**, and the two
+different things it could have meant were never separated until the skill was read.
+
+**The equipped digest carried the same hazard and was corrected with it.** The seeder skill's
+digest stated "allocated row-id prefix is `100`" as a project fact, which is `#data-model`'s
+prefix; an implementer agent for `#sign-in` handed that digest would have written `100xxxxx` ids
+straight into `#data-model`'s space. It now states where the prefix comes from instead of
+naming one.
+
+## Resolver ids — a separate thing, and this feature creates the file
 
 The always-on resolver rule requires every query and mutation to hold an entry in
-`server/graphql/resolver-id-hash-<audience>.js`, with the id embedded in each error code
-(`203.M018.001`). **The backend row ships no such file for any audience** — the two audiences
-it came with hold one `healthCheck` each and no error codes — so `#sign-in` creates the staff
-one, and with it the numbering every later feature appends to.
+`server/graphql/resolver-id-hash-<audience>.js`, with that id embedded in each error code
+(`203.M018.001`). **These are unrelated to the row-id prefix above** — different space,
+different allocator, different purpose.
 
-**One hundred block per feature, in `_plan.md` order:**
+**The backend row ships no such file for any audience.** Its two audiences hold one
+`healthCheck` each and declare no error codes, so nothing forced the file into existence.
+`#sign-in` opens the staff audience, so it creates the staff one and with it the numbering the
+later two features append to.
 
-| Feature | Block | Operations |
+| Feature | Ids | Operations |
 |---|---|---|
-| `#sign-in` | **101–199** | `M101` signIn, `M102` signOut, `M103` renewAccessToken, `Q101` signedInStaffMember |
-| `#expense-entry` | 201–299 | three mutations and two queries, allocated at its own checkpoint 3 |
-| `#monthly-summary` | 301–399 | one query, likewise |
+| `#sign-in` | `M001`–`M003`, `Q001` | signIn, signOut, renewAccessToken; signedInStaffMember |
+| `#expense-entry` | `M004`–`M006`, `Q002`–`Q003` | recordExpense, correctExpense, removeExpense; expenses, expenseCategories |
+| `#monthly-summary` | `Q004` | monthlyExpenses |
 
-**Why a block rather than one sequence:** three features append to the same file, two of them
-after this one merges. A single running counter makes the next number depend on what merged
-first, so two features developed in parallel collide on it. A block per feature is decided
-once, here, and neither later feature has to read the file to know its own numbers.
-
-**Mutations and queries number independently** (`M101` and `Q101` coexist), which is the rule's
-own scheme — the letter carries the kind, so the digits need not.
+**Plain sequential, not a block per feature.** The rule's scheme numbers within an audience and
+the letter already carries the kind, so `M001` and `Q001` coexist. All three features write one
+audience's file, and `_plan.md` fixes their order — so the next feature's numbers are known
+from the plan without reading what merged. A hundred-block would buy nothing here and leave
+`resolver-id-hash-staff.js` reading as though 297 operations were missing.

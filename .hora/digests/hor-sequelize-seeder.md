@@ -11,13 +11,19 @@ A seed row is keyed by the **physical (snake_case) column names** — the migrat
 **Core principle: a seeder is a filled-in template.** Keep the skeleton identical across files so
 review attention goes to the **data**, not the plumbing.
 
-## THIS FEATURE (project-specific; overrides the skill's id examples)
+## THIS PROJECT (project-specific; overrides the skill's id examples)
 
-- **Allocated row-id prefix is `100`.** Every explicit `id` must be of the form `100xxxxx` —
-  8 digits, in `10000000`–`10099999` — and derived from that prefix alone. Use it in place of the
+- **The row-id prefix is allocated PER FEATURE and arrives in your assignment — never read it
+  from here.** It is 3 digits, and every explicit `id` you write is that prefix followed by your
+  own 5: `<prefix>00001`, `<prefix>00002`, … (8 digits total). Use that form in place of the
   skill's 6-digit block bases (`100000`, `110000`, …) *and* in place of the master-exemption's
-  small sequential ids: e.g. `10000001`, `10000002`, `10000003`, `10000004`. These ids stay far
-  above `SMALLINT`'s max, so the SMALLINT-detection benefit below still holds.
+  small sequential ids. These ids stay far above `SMALLINT`'s max, so the SMALLINT-detection
+  benefit below still holds.
+- **Do not derive an id from any other feature's prefix**, and do not reuse an id you find in an
+  existing seeder — those belong to whichever feature was allocated that prefix. Allocated so
+  far: `100` = `#data-model`, `101` = `#sign-in`. The registry is
+  `expense-note-backend/.hora/id-bank.json`, and the allocator skill is what writes it.
+  *(This list is a reader's convenience. Your own prefix comes from your assignment.)*
 - The four expense categories (`transport`, `meals`, `supplies`, `other`) are **deliberately seeded
   rows, not a code enum** — the spec states that as a design seam. The seeder is the **only** place
   these four values appear; do not mirror them into an `app/constants/*.cjs` enum.
@@ -187,7 +193,7 @@ the snake_case columns.
   `120000`, 4th (`*_password_hashes`) `130000`, 5th (`*_access_tokens`) `140000`.
 - **Production master (`master-*/`) is exempt from blocks:** its ids are small sequential (`1`…`7`)
   or taken from `app/constants` — master ids are part of the product, stable and meaningful.
-  (This feature instead uses the allocated `100` prefix; see the project note above.)
+  (This project instead uses the per-feature allocated prefix; see the project note above.)
 - Blocks already in use — do not reuse a base for a new seeder in the same table:
   `content_plan_rates` `500000`, `content_benchmark_samples` `510000`, `software_packages` `520000`,
   `software_package_options` `530000`, `integration_clients` `600000`.
