@@ -79,7 +79,7 @@ Note: **a stub is a public endpoint.** The authentication filter is built from t
 ## Backend gate
 - [x] 3. DB and API schemas  <!-- skills: hor-database-design, hor-sequelize-migration, hor-sequelize-model, hor-graphql-schema, hor-graphql-server-engine, hor-type-interface, hor-cookie-authentication, hor-constant-definition, hoc-naming, hoc-jsdoc; digests: hora-skills-ort-renchan 0.1.0 and hora-skills-ort-core 0.2.0. hor-graphql-schema and hor-graphql-server-engine had no digest at the installed version and were taken before any agent ran. GAP: the tests this checkpoint owed came from the always-on testing rule rather than the exit condition, and hoc-jest and hor-backend-testing were read in full because neither had a digest yet — both now taken, for checkpoints 6 and 16 -->
 - [x] 4. Stub API  <!-- skills: hor-stub-api, hor-backend-testing, hoc-jest, hoc-naming, hoc-jsdoc; digests: hora-skills-ort-renchan 0.1.0 and hora-skills-ort-core 0.2.0. hor-stub-api, hoc-jest and hor-backend-testing were all taken for this checkpoint. LIMIT: "callable from outside" is evidenced through the framework's own schema-and-resolver path with real GraphQL documents executed in process, not over a socket — Q24 means no server on this machine listens at all -->
-- [ ] 5. The modules the implementation needs
+- [x] 5. The modules the implementation needs  <!-- catalog checked FIRST, once, for the whole checkpoint, against @openreachtech/hora-ecosystem 0.1.0 (33 tracked repositories); skills: hor-cookie-authentication, hor-sequelize-model, hor-sequelize-seeder, hor-database-design, hor-constant-definition, hoc-classes-principles, hoc-classes-constructor, hoc-classes-inflators, hoc-methods, hoc-properties, hoc-scope, hoc-async, hoc-naming, hoc-jsdoc, hoc-jest, hor-backend-testing; digests: hora-skills-ort-renchan 0.1.0 and hora-skills-ort-core 0.2.0, plus six hoc- skills read in full for want of a digest -->
 - [ ] 6. Actual API
 - [ ] 7. Worker
 - [ ] 8. Security audit
@@ -395,3 +395,150 @@ declares no error code at all, so the assertion would be `[] toEqual []` — vac
 vacuous forever, since a stub owning a code is what the convention forbids. The stronger check is
 where it went instead: each stub's own `.get:errorCodeHash` test asserts **empty**, not merely
 unique. `customer/stub` and `admin/stub` are uncovered for the same reason.
+
+## Checkpoint 5 — the catalog check, four modules, and a hole the guard was hiding
+
+**The catalog check ran first, once, and it changed what this checkpoint was.** The plan assumed
+the session layer had to be built. It was mostly already there: `SessionCredentialGenerator`
+covers §9.6 and §9.7's token pair, series and digest storage **entirely**; `SessionClerk` had 21
+members including every revocation primitive; and the models already carried `isAvailable`,
+`isExpired`, `extractUserId`, `verifiesPassword` and `generateNormalizedEmail`. So the checkpoint
+shrank to two gaps, two counters, one encipher and the seeders.
+
+**It also stopped two mistakes before they were made.** `express-rate-limit` is already a
+dependency of this repository and is exactly what §7 rejects by name — HTTP middleware keyed per
+request or per IP, where §7 keys on the address "because the staff sit behind one office address
+and an IP-keyed limit would let one person's wrong password lock out everybody". And
+`mentsu-random-text-generator` is catalogued but builds every character from
+`Math.floor(Math.random() * …)`, so it must never mint a credential; `SessionCredentialGenerator`'s
+own docblock had already argued that out.
+
+**One package's absence is the finding worth passing on.** `mentsu-encipher` is the only
+catalogued name matching a password hash, and it is `turned-off` in the catalog's own rulesets —
+so the most security-sensitive module in this feature had no in-house answer and needed a
+dependency chosen. That belongs with whoever maintains the catalog.
+
+### The security hole, and that an instruction of mine was hiding it
+
+`#spendRefreshToken()`'s guard was `{ tokenHash, usedAt: null }`. A refresh token **revoked but
+never spent — exactly what `signOut` leaves behind** — matched it, was marked spent, and issued a
+fresh pair for a dead series. So did one past `expiredAt`.
+
+**§10's "a session stops working the moment its holder signs out" was false**, held up only by a
+resolver pre-check checkpoint 6 had not written yet.
+
+**The assignment told the agent not to change that guard.** It was meant as "do not remove the
+`usedAt: null` condition, which is what makes reuse detectable"; the agent read it as hands-off,
+which is what it actually said, and reported the hole rather than fixing it. That reading was
+correct and the instruction was wrong. Corrected, and the guard now writes the model's own
+`isAvailable()` as a `where` clause.
+
+**Which makes §10's identical-refusal criterion structural rather than agreed.** Expired, revoked
+and already-spent now all reach `updatedCount === 0` — one branch, one message, one revocation —
+instead of three code paths each choosing to return the same error. The message stopped naming a
+state (it said "already spent", which for an expired token was simply false), and
+`revokeReusedSeries` became `revokeUnavailableSeries`, because the branch cannot tell the three
+apart and §10 requires that it not.
+
+### The rollback trap, and why the obvious fixes fail
+
+A revocation on the reuse branch is undone by the error that reports it: `#invokeRotateSession`
+throws when the result reports an error, and that rolls its transaction back. The series would
+read as revoked in the returned result and stay live in the database — and the criterion would
+fail **silently**, because the operation refuses either way.
+
+| the obvious fix | why it fails |
+|---|---|
+| a second transaction | `beginTransaction` defaults to `SERIALIZABLE`, and the guarded `UPDATE` already holds that row on the unique index — the second writer waits behind the transaction it is trying to outlive |
+| revoke outside the caller's transaction | same lock, same wait |
+| split the spend into its own committed transaction | breaks spend/issue atomicity: a failure while issuing strands a live session with a spent cookie |
+
+**What was built instead reframes it: a rotation has three outcomes, not two.**
+`RotatingSessionResult#shouldRollBack()` is `hasError() && !hasRevokedSeries()`, and
+`#invokeRotateSession` asks that instead of `hasError()`. A refusal that revoked commits; a
+revocation that itself failed carries no revocation, so it rolls back and nothing falsely claims a
+series was revoked.
+
+**One asymmetry is irreducible and is written into the docblocks:** a revocation cannot survive a
+transaction somebody else chooses to roll back. On the route the clerk owns it guarantees the
+commit; on a caller-supplied transaction the contract is `shouldRollBack()`, not `hasError()`. No
+caller passes one today, so checkpoint 6 must not write `if (result.hasError()) rollback` around a
+rotation.
+
+### Everything was mutation-checked rather than argued
+
+| break this | tests that fail |
+|---|---|
+| the rollback fix (revert to `hasError()`) | **6** — `revokedAt: null`, the silent failure exactly |
+| the guard (revert to `usedAt: null` alone) | **8**, with the 30 originals still green |
+| the email normalization (replace with identity) | **8** |
+| `Op.gte` → `Op.gt` on the window bound | **3** |
+| the `rawBody` omission, the broker, `AUTH_COOKIE_SECURE` | 2, 6, 2 — from checkpoints 3 and 4 |
+
+**Under the old guard the expired case did not merely fail to refuse — it issued a working pair
+with a fresh fortnight's expiry, minted from a token dead two weeks.** That is the one output in
+this checkpoint worth reading twice.
+
+### Three design calls, each with a reason that is not "it looked nicer"
+
+**Base plus two thin concretes for the counters, not one parameterized class.** The two do not
+differ only in values: the sign-in limit normalizes its key and the renewal limit must not, which
+is an overridden method rather than a parameter. Parameterizing would also have put §7's numbers
+at every call site, so each resolver would restate the spec.
+
+**The renewal counter needs no table**, which is checkpoint 2's finding paying off: each rotation
+inserts a §9.7 row carrying `sessionKey` and `generatedAt`, so a series' rows inside the last hour
+*are* its renewal count.
+
+**The constants split two ways, and the distinguishing test is worth recording.** §7's windows and
+thresholds are a shared category read by two limits, their resolvers and their tests, so they take
+the `.cjs` master plus ESM bridge pair that `authConstants` and `expenseStatusConstants` use. The
+encipher's cost factor is **one module's own knob** — nothing else reads it, and bcrypt writes the
+factor into each digest so no seeder ever needs it — so it sits at the top of its own file, per
+`javascript-style.md`. Two units read one digest oppositely and both were right.
+
+### Q22 closed in substance, and the trap it existed to avoid
+
+Thirteen members of staff, eleven with a working credential, **verified against the running
+database** rather than reported: every address already lower-cased, every digest matching the
+shape the testing rule asserts, `compare` true for all eleven recorded plaintexts and false for a
+near-miss on all eleven, and `down` reverting cleanly.
+
+**`bulkInsert` bypasses model hooks entirely**, so `StaffMemberSecret`'s normalizing hook never
+fires for a seeded row. An address seeded with a capital in it fails no insert and no test — it
+just makes the account unfindable by `signIn` and uncountable by §7's limit. A test holds it by
+normalizing the address the way `signIn` will and requiring a row back.
+
+**`development/` rather than `dev-master/` decides something real.** `test.sh` runs `tests/empty/**`
+on master seeds only, *then* `db:seed:dev` — so no account exists in phase one, which is exactly
+the split §10's "an address with no account" criterion wants (Q29). Under `dev-master/` phase one
+would already hold accounts and the distinction would be gone.
+
+**Two members of staff deliberately hold no complete credential**, and Q22 is why: accounts are
+issued by hand across three tables, so a half-issued one is the most likely way one goes wrong
+here, not a hypothetical — and §10's identical-refusal criterion needs a row to test against.
+
+### The exit condition, gathered by the main session
+
+Every module checkpoint 6 imports was confirmed to resolve **with the members it will call** —
+`PasswordEncipher`, `SessionClerk` (all six), `SessionCredentialGenerator`, `RotatingSessionResult`,
+the three rate-limit classes, the constants bridge, the resolver id hash and the cookie clerk. Ten
+of ten. The six models are established by the passing suite.
+
+### Handed to checkpoint 6, and two are load-bearing
+
+1. **The equipped skill contradicts §10.** `references/resolvers.md` has `renewAccessToken` return
+   a distinct `RefreshTokenReused` error; §10 requires expired, revoked and already-spent refused
+   identically. The clerk now hands back one indistinguishable error, so the resolver only has to
+   not undo that.
+2. **§7's limits are written and not wired.** The revocation-on-refusal write now sits on the
+   unauthenticated path — `renewAccessToken` is reachable without a session by design — and the
+   reasoning that this is bounded rests on the 60-per-hour-per-series limit **being attached**. A
+   fabricated cookie never reaches the guard (`findRefreshToken` returns null), so the reachable
+   case is one real dead cookie replayed, which the per-series limit bounds. If the limit ships
+   unwired, that branch is a free write for a stolen cookie.
+3. **`findUser` cannot get the member of staff from the clerk**, by design — the clerk holds only
+   the two token models. `extractUserId()` on the returned access-token entity is the id to read
+   `StaffMember` by, and doing so is not a second door onto the token tables.
+4. **The resolver's `isAvailable` pre-check is now defence in depth**, not the only defence. Keep
+   it; do not rely on it.

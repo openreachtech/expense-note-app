@@ -1322,3 +1322,202 @@ run of the check would be able to tell them.
 The fix, when somebody takes it, is `"types": ["jest", "node"]` in `jsconfig.json`, on an
 `update/` branch of its own, with the 409 triaged separately. Adjacent to Q13, Q14, Q15, Q17,
 Q19, Q20 and Q24 — the family of things the boilerplate ships that no gate here exercises.
+
+## Q32. bcrypt ignores a password past 72 bytes, and nothing caps one
+
+<!-- spec: sign-in -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Raised by the agent writing the password encipher at `#sign-in`'s checkpoint 5, which declined to
+add a guard nothing had asked for rather than adding one quietly.
+
+**bcrypt truncates its input at 72 bytes.** So two passwords sharing their first 72 bytes produce
+the same digest and verify interchangeably. `bcryptjs` v3 exposes a `truncates(password)` helper
+to detect it, and **nothing in this product calls it**:
+
+- **§7 and §9.5 cap nothing.** §7 says only "a password is a one-way hash and is never stored,
+  returned or logged in any other form"; §9.5 declares the digest column and says nothing about
+  the plaintext's length
+- **the encipher does not guard it**, deliberately — its assignment said not to add methods
+  nothing needs, and refusing a password is user-visible behaviour no section describes
+- **no input validator guards it either**, because `#sign-in` has none. That was decided at
+  checkpoint 5: §10's eight criteria say nothing about input validation, and the contract types
+  both `SignInInput` fields `String!`, so GraphQL refuses a missing one before a resolver runs
+
+**What it actually costs.** Somebody who sets a 100-character password from a password manager has
+its last 28 characters ignored — and would get in by typing only the first 72. That is a real
+weakening the person did not consent to, and it is invisible: nothing fails, nothing logs, and the
+sign-in works.
+
+**Why it is not urgent.** No account exists that anybody chose a password for. §4 rules sign-up
+out of scope for 1.0.0, and the only credentials in the tree are development seeder fixtures. So
+the exposure arrives with the first real account, which arrives with whatever mechanism Q22 is
+still open about. **The two questions want deciding together.**
+
+**Three ways it could go, and none is obviously right:**
+
+| | what it costs |
+|---|---|
+| refuse a password over 72 bytes | user-visible, and a refusal no section of the spec describes. Needs a §7 or §10 sentence to sit behind it |
+| pre-hash the password (SHA-256, then bcrypt the digest) | removes the limit with no user-visible change, and is standard practice — but it changes what the stored digest is a digest *of*, so adopting it later than the first real account means a reset for everybody. It also diverges from what the always-on testing rule assumes when it asserts a bcrypt digest of a password |
+| accept it | the documented behaviour of the algorithm the project chose, and 72 bytes is a long password. But "documented" is not the same as "somebody decided it" |
+
+**Where it lands.** Checkpoint 8's security audit reads this feature's change set and will meet the
+encipher; it should meet this dated rather than discover it. And whichever way it goes, **option
+two stops being cheap the moment a real password is stored**, which is the only reason this is
+worth writing down now rather than at 1.0.1.
+
+## Q33. Two tests in the suite pass by accident, and seeding development data is what exposed it
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#sign-in`'s checkpoint 5, seeding the three staff-account tables. **Neither finding is
+caused by those rows** — both were latent and became visible because `sequelize/seeders/development/`
+stopped being empty for the first time.
+
+### 1. A master-seeder test depends on suite order
+
+`tests/__tests__/sequelize/seeders/master/expense_categories.js` asserts the **whole table**:
+
+```js
+const actual = await ExpenseCategory.findAll({
+  order: [['displayOrder', 'ASC']],       // no `where` — every row in the table
+})
+
+expect(actual).toEqual(expected)          // exactly four objectContaining entries
+```
+
+and `tests/_orders/Expense/Expense.js` creates categories and leaves them behind:
+
+```js
+await ExpenseCategory.create({
+  id: params.ExpenseCategoryId,           // 10000311, 10000313, … left in the table
+  name: `expense category ${params.ExpenseCategoryId}`,
+  displayOrder: 1,
+})
+```
+
+**It passes only because `test.sh` runs `tests/__tests__/` before `tests/_orders/`.** Reverse
+those two lines, run `__tests__` alone against a database an `_orders` run has already touched, or
+parallelize the two categories, and it fails with a large diff. Reproduced, and confirmed
+unrelated to the new rows: a fresh `db:refresh` makes it pass again.
+
+**Why it is worth recording rather than shrugging at.** The always-on testing rule's whole stance
+is that "a test must fail when the implementation is **wrong**". This one can fail while the
+implementation is **right**, which is the same defect wearing the other face — and it will do so
+at the least convenient moment, since nothing in the runner declares the ordering it depends on.
+The rule also says plainly: "Never call `Model.findOne` / `update` / `findAll` directly inside a
+test to fetch or verify." A seeder test is the one place that instruction is awkward, and scoping
+the read to the seeded id block is what resolves it.
+
+**It is `#data-model`'s file and not `#sign-in`'s to change.** The fix is a `where` on the
+`1000000x` block, or a `toEqual`-plus-length pair scoped to the seeded ids.
+
+### 2. `db:seed:dev` was never idempotent; now it can bite
+
+sequelize-cli's seeder storage here is the default `none`, so `db:seed:all` re-runs **every**
+seeder on every invocation. While `development/` held nothing but `.directorykeeper.cjs`, running
+it twice was harmless. Now a second `db:seed:dev` without a teardown between dies on
+`SQLITE_CONSTRAINT: UNIQUE constraint failed: staff_members.id`.
+
+**The same fragility already existed for `db:seed:master`** — a second run collides on
+`expense_categories.id` — so this is the shape of the runner, not something the new rows
+introduced. `npm test` and `db:refresh` both tear down before seeding and are unaffected. What
+breaks is `./test.sh --seeded <path>` run twice in a row.
+
+**Recorded because it is now reachable.** An agent or a person who runs the seed step twice while
+iterating gets a constraint error naming a table they did not touch, and the honest diagnosis is
+two directories away.
+
+### 3. Settled while recording these: the error-path seeded rows stay
+
+The agent asked whether the two members of staff holding no complete credential — one with no
+address, one with a digest and no address — model anything real, since §9.4 and §9.5 each say one
+row per member of staff and it offered to drop them for a uniform ten.
+
+**They stay, and Q22 is the reason.** §4 rules sign-up out of scope, so "accounts are issued by an
+operator outside the product" — and Q22 records that the product offers that operator no mechanism
+at all, leaving hand-written SQL across three tables in the right order. **A half-issued account is
+therefore not a hypothetical in this product; it is the most likely way one goes wrong.** The
+seeder coverage convention asks for exactly such rows, and §10's identical-refusal criterion means
+`signIn` has to refuse a credential-less account the same way it refuses a wrong password — which
+is a behaviour needing a row to test against.
+
+## Q34. A detected reuse is the one real security event in this flow and it leaves no trace
+
+<!-- spec: sign-in -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Raised by the agent closing `SessionClerk`'s gaps at `#sign-in`'s checkpoint 5, which declined to
+invent an audit line rather than guessing at one.
+
+A refresh token presented after it is spent means the cookie was copied — §9.7 exists to detect
+exactly that, and §10 requires the whole series revoked when it happens. **The product now detects
+it, revokes the series, and records nothing anywhere.** The refusal reaches the caller and the
+event reaches nobody.
+
+**Why no log line was added, which is the substance of the question.** Every identifier that would
+make such a line useful is barred:
+
+| identifier | why it cannot go in a log |
+|---|---|
+| the refresh token | §9.7 stores only a digest and the plaintext must never come back out |
+| its digest | still a credential-equivalent for the row it names |
+| the `sessionKey` | names the series, so it is the credential's handle |
+| the member of staff's id or address | §7: "None of the three is ever written to a log line" |
+
+So the honest options are a line carrying nothing identifying — which cannot be investigated — or
+a table, which is a data-model change no section asks for. **The spec asks for no audit trail at
+all**, and §8 declares no log aggregation.
+
+**Not urgent, and here is the bound.** The security *response* is complete: the series is revoked,
+so a stolen cookie stops working and so does the session it was stolen from. What is missing is
+only the ability to know it happened. At 20 members of staff on an internal system, the person
+affected notices they were signed out.
+
+**Where it would land if taken.** A `staff_member_session_events` table, or §7 gaining a sentence
+that permits a `sessionKey` in a log line at a stated retention. Both are 1.0.1 or later.
+Checkpoint 8's security audit should meet this dated rather than raise it as an omission.
+
+## Q35. §9.6 says an expired access token is deleted, and nothing deletes one
+
+<!-- spec: sign-in -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#sign-in`'s checkpoint 5, giving `SessionClerk` its access-token read.
+
+§9.6 reads: "An expired access token is **deleted**, not flagged — there is no `revoked_at` here,
+because the lifetime is the revocation."
+
+**Only one path deletes one.** `SessionClerk#deleteAllAccessTokens({ sessionKey })` runs on
+sign-out and on a series revocation. **An access token that simply expires is never deleted** —
+`findAvailableAccessToken` refuses it through the model's `isAvailable({ pointsAt })` and leaves
+the row where it is.
+
+**Nothing available can prune them.** §8: "Redis is not declared, because this version runs no
+background job. Every write finishes inside its own request, and nothing here leaves the process."
+So there is no scheduled sweep to put this in. Deleting on read would turn the authentication hot
+path — every operation of every screen — into a write, which is worse than the rows.
+
+**What it costs, sized rather than asserted.** An access token lives fifteen minutes, so a working
+day is roughly 32 per person; §7 foresees 50 members of staff, and §7's retention row keeps an
+expense 7 years. That is on the order of a million rows accumulating in `staff_member_access_tokens`
+over the retention period — not a performance problem for an indexed lookup on a unique column,
+and not nothing either. **The table grows without bound and nothing in the product ever shrinks
+it.**
+
+**Not a code defect and not this feature's to fix.** §9.6 states an intent that §8's own decision
+makes unimplementable at 1.0.0, so the two sections disagree quietly. **The honest reading is that
+§9.6's "deleted" describes what sign-out does and overstates itself for the expiry case** — which
+is a sentence, not a mechanism, and correcting a sentence in `specs/` needs approval this
+checkpoint does not have.
+
+**Where it lands.** Either §9.6 gains a clause saying an expired row is left until its series ends,
+or 1.1.0 declares the job that sweeps it — which the approval feature planned for 1.1.0 may bring a
+scheduler for anyway. Adjacent to Q26 and Q31: things the deployed product carries that no gate of
+a feature exercises.
