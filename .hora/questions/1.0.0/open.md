@@ -860,3 +860,78 @@ other.
       security audit at the repository entire, not at one feature's change set, and its
       dependency check will raise all of this. Better dated now, with the dev-versus-runtime
       split already worked out, than discovered at the gate before a release.
+
+## Q21. §10's first use case ends on a clause no gate of its own can check
+
+<!-- spec: sign-in -->
+<!-- blocking: no -->
+<!-- category: spec-assumption -->
+
+Found at `#sign-in`'s checkpoint 1, reading §10 closely enough to build from.
+
+The use case reads: "a member of staff opens the app on a Monday morning, signs in with the
+address and password they were issued, and is signed in — **every screen after that knows who
+they are**."
+
+Checkpoint 1's exit condition asks that each of a feature's requirements, use cases and
+acceptance criteria be "checkable against a product in which this feature and its `depends`
+are built and nothing later is". With `#data-model` and `#sign-in` built and nothing after
+them, **`#sign-in` has exactly one screen — the sign-in screen** (§10.2). There is no "screen
+after that" to check the clause against; the two that follow belong to `#expense-entry` and
+`#monthly-summary`.
+
+**Not routed to `/hora-spec`, and this is the reason.** A forward-reaching *acceptance
+criterion* is a stop — `/hora-plan` raises it `blocking: yes` and checkpoint 1 does not pass
+while it stands. This is not one. §10's eight acceptance criteria are the things actually
+checked, and **every one of them is local**: identical refusals, a session surviving a reload,
+no password in a response or a log, `signedInStaffMember` refused without a session, the three
+renewal failures, series revocation on reuse, renewal with no cookie, and the eleventh failed
+attempt. None mentions another screen.
+
+**The reading checkpoint 1 passed on, recorded so no later gate re-litigates it:** the clause
+describes the *mechanism* — the access token goes on a request header, so any operation a
+later screen calls carries proof of the session, and `signedInStaffMember` is what answers who
+is holding it. Checked that way it is §10's fourth criterion read forwards, and it holds with
+one screen built.
+
+**What this costs if the reading is wrong:** nothing until `#expense-entry` opens its screen,
+at which point the clause becomes checkable for real and the acceptance sweep will check it.
+The risk is not that it fails — it is that a sweep reads the clause as unmet at 1.0.0 without
+knowing a gate already considered it.
+
+## Q22. Nothing in the product can issue the first account
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#sign-in`'s checkpoint 2, walking the first use case — which begins with an address
+and password "they were issued".
+
+**No account exists, and no route creates one.** `sequelize/seeders/` holds two seeders, both
+for `expense_categories`; there is **no `development/` seeder for `staff_members`,
+`staff_member_secrets` or `staff_member_password_hashes`**. §4 rules a sign-up operation out
+of scope on purpose — "accounts are issued by an operator outside the product, so build no
+sign-up operation and no sign-up screen" — so the absence of the operation is a decision, not
+a gap.
+
+**What is missing is the mechanism the decision implies.** "An operator outside the product" is
+not a procedure anybody can run: the operator would have to compose a bcrypt digest by hand and
+insert three rows across three tables in the right order.
+
+**The build side is unambiguous and needs no spec change.** `#sign-in`'s tests read real rows
+by the always-on testing rule — data from `seeders/development/*`, a seeder added where it is
+missing, never a mocked row — so **development seeders for those three tables are checkpoint 5
+of `#sign-in`**, and checkpoints 17 and 18 need them too: an end-to-end run signs in as a real
+member of staff or it proves nothing.
+
+**The deployed side is what stays open.** A seeder is development data and has no business
+carrying a real password into a real deployment. What a deployment gets is 20 members of staff
+whose accounts must come from somewhere, and the spec names no script, no operation and no
+procedure. §8 declares MariaDB, so hand-written SQL is the implied answer.
+
+**Not raised to `/hora-spec`, because it is not this version's blocker.** §4 already routes
+password *reset* to a later version, needing a mail sender this version does not declare, and
+issuing an account is the same shape of problem. Recorded so it is a decision at 1.0.1 rather
+than a discovery on the first day of use. Adjacent to Q16 (`.env.live` tracked): both are
+"what the deployed product needs that no gate here exercises".
