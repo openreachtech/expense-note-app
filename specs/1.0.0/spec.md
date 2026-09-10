@@ -274,6 +274,26 @@ For: a member of staff who is not signed in. It is the one screen reachable with
 
 `renewAccessToken` is **not** a call any screen makes. It belongs to the GraphQL client layer, which calls it when an access token has expired, transparently, on whatever screen happens to be open — so it appears in no screen's table here or in §11.2 and §12.2. It is named here because a client that never renews leaves every session dying after fifteen minutes with nothing on screen to explain it.
 
+### 10.3 sign_in_attempts
+<!-- id: sign-in-attempts -->
+<!-- target: backend -->
+
+The table §7's sign-in limit counts in, and the one table this feature adds — every
+other table it reads is §9's.
+
+| Column | Type | Constraint | Description |
+|---|---|---|---|
+| id | bigint | primary key | |
+| email | varchar(191) | not null | the address **as presented**, normalized the same way §9.4 normalizes its own. **Not a foreign key:** an attempt on an address with no account is counted too, and §10's identical refusals mean the count cannot branch on whether the account exists |
+| attempted_at | datetime(3) | not null | a **failed** attempt only. A successful sign-in writes nothing here (§7) |
+| created_at / updated_at | datetime(3) | not null | |
+
+Counted by `(email, attempted_at)` together, which is the index this table carries;
+neither field is read alone.
+
+Rows outside the fifteen-minute window answer nothing and may be pruned. Nothing
+expires them automatically — §7's retention rule is about an expense, and this is not one.
+
 ### Use cases
 <!-- usecases -->
 
