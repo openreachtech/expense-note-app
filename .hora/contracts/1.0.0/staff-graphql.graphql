@@ -48,9 +48,12 @@ input SortInput {
 #### QUERY
 ################################################################################
 
+# No `healthCheck`. The backend row ships one for each of its own two audiences and copying it
+# across is the obvious mistake, which is why the plan's own task file forbids it by name.
+# Spec 10.1 is the complete operation list for this audience, and spec 7's Authentication row
+# is written against it staying that way: "every operation authenticates by one of two
+# credentials". A fully-public operation nobody declared would make that false.
 type Query {
-  healthCheck: Boolean!
-
   signedInStaffMember: SignedInStaffMemberResult!
 
   expenses(input: ExpensesInput!): ExpensesResult!
