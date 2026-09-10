@@ -252,7 +252,7 @@ Both mirror their source's columns exactly and add nothing — §9.4 and §9.5 h
 
 | schema | input | result | kind | caller |
 |---|---|---|---|---|
-| `signIn` | `SignInInput(email, password)` | `SignInResult(staffMemberId, accessToken)` | mutation | anyone. The one operation reachable without a session |
+| `signIn` | `SignInInput(email, password)` | `SignInResult(staffMemberId, accessToken)` | mutation | anyone. **Reachable without a session** — it is how one begins |
 | `signOut` | `SignOutInput()` | `SignOutResult(signedOut)` | mutation | the signed-in member of staff |
 | `signedInStaffMember` | `SignedInStaffMemberInput()` | `SignedInStaffMemberResult(staffMemberId, name, email)` | query | the signed-in member of staff, about themselves only |
 | `renewAccessToken` | `RenewAccessTokenInput()` | `RenewAccessTokenResult(accessToken)` | mutation | anyone presenting a refresh-token cookie. **Reachable without a session, by design** — it is what re-establishes one |
@@ -447,9 +447,9 @@ There is none. Everything this version builds is the MVP, and what follows it is
 
 | Path | Role |
 |---|---|
-| `expense-note-backend/sequelize/migrations/` | the three tables, and the index on `(staff_member_id, spent_on)` |
+| `expense-note-backend/sequelize/migrations/` | the ten tables, and the index on `(staff_member_id, spent_on)` |
 | `expense-note-backend/sequelize/seeders/master/` | the four categories |
-| `expense-note-backend/server/graphql/schemas/staff/` | the SDL of the seven operations |
+| `expense-note-backend/server/graphql/schemas/staff/` | the SDL of the ten operations |
 | `expense-note-backend/server/graphql/resolvers/staff/actual/` | the resolvers, one file each |
 | `expense-note-frontend-staff/app/pages/` | the three screens |
 
