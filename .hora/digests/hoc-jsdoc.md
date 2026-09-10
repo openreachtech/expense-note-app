@@ -77,7 +77,9 @@ All typing is JSDoc — no TypeScript syntax, no `.ts` files. Always annotate ty
 
 ## Do not write undefined type names
 
-Any type name other than built-ins (`string` / `number` / `boolean` / `Array` / `Object` / `*` / `null`, etc.) and TS utility types (`Record` / `Partial` / `Pick` / `Omit` / `ReturnType`, etc.) must be **defined before it is referenced**, via one of `@typedef` / `@class` / `@interface` / import. So `Array<UserEntity>` requires a `UserEntity` `@typedef` (or the like) in the same file or its import source. `jsdoc/no-undefined-types` is off in the base default but overridden to `error` by this project's `eslint.config.js`.
+Any type name other than built-ins (`string` / `number` / `boolean` / `Array` / `Object` / `*` / `null`, etc.) and TS utility types (`Record` / `Partial` / `Pick` / `Omit` / `ReturnType`, etc.) must be **defined before it is referenced**, via one of `@typedef` / `@class` / `@interface` / import. So `Array<UserEntity>` requires a `UserEntity` `@typedef` (or the like) in the same file or its import source. **Correction to an earlier version of this digest:** it said `jsdoc/no-undefined-types` was "off in the base default but overridden to `error` by this project's `eslint.config.js`". **That is false for this repository.** `expense-note-backend/eslint.config.js` overrides only `no-shadow` and, for three named files, the `eslint-comments` pair — so the rule stays `off`. Verified with `npx eslint --print-config`, which resolves it to `0`; reading a plugin's source instead is what produced three wrong readings of `id-denylist` earlier in this project.
+
+So **nothing mechanically enforces this convention here** — follow it because the convention says so, not because a check would catch a miss. It matters most for ambient namespaces that resolve through `jsconfig.json` rather than through an import: `GraphqlType.*`, `model.*` and — since checkpoint 3 of `#sign-in` — `server.graphql.staff.*`. Lint will not tell you a name there is wrong; `npx tsc -p jsconfig.json --noEmit` will.
 
 ## `@typedef`
 

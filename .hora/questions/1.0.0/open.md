@@ -1261,3 +1261,64 @@ skill, and named the cases it was deciding — the `@augments` spelling, index-n
 instead of quietly writing a rule into a file agents read as authority. Worth settling before
 checkpoint 6, which writes eight resolver tests and is the first place a shared double would be
 tempting.
+
+## Q31. `checkJs` is on and `jsconfig.json` never resolves the test globals, so two thirds of its output is phantom
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#sign-in`'s checkpoint 4, running the type check an implementer flagged as owed —
+`server.graphql.staff.*` is a new ambient namespace and no lint rule enforces a JSDoc type name.
+
+**`npx tsc -p jsconfig.json --noEmit` reports 1630 errors, and 1010 of them are not real.** They
+are `Cannot find name 'describe'` / `'test'` / `'expect'` — one family, across every test file in
+the repository. `@types/jest@30.0.0` is both declared in `devDependencies` and present in
+`node_modules/@types/`, so this is not a missing dependency.
+
+**It is a config gap, and the diagnosis is one line.** `jsconfig.json` carries `checkJs: true`,
+`moduleResolution`, `module`, `target` and `exclude: ["node_modules"]` — and **no `types` field.**
+Adding one clears the family outright:
+
+| run | total errors | the missing-globals family |
+|---|---|---|
+| as configured | 1630 | 1010 |
+| `--moduleResolution bundler --module esnext` | 1630 | 1010 |
+| **`--types jest,node`** | **409** | **0** |
+
+The middle row is there because a modern module resolution was the obvious hypothesis and it is
+**wrong** — identical numbers. Only the explicit `types` list moves it.
+
+**Why this is worth an entry rather than a shrug.** `checkJs: true` says somebody intended these
+files to be type-checked. What the configuration actually produces is 1010 phantom errors that
+**mask 409 real ones** — and any editor reading `jsconfig.json` shows every developer the same
+1010. A check nobody can read is a check nobody runs.
+
+**Among the 409 that were masked, some are in code `#sign-in` is about to build on.**
+`app/session/SessionClerk.js` carries three `TS2322: Type 'unknown' is not assignable to type
+'Error | null | undefined'`, and `app/session/BaseSessionResult.js` an `Object is possibly
+'null'`. Checkpoint 5 has to extend `SessionClerk` with the access-token read that
+`StaffGraphqlContext.findUser` owes, so knowing those exist beforehand is worth more than
+discovering them while adding a method.
+
+**What this run established about `#sign-in` itself, which was the reason for running it:**
+
+- **zero errors in every source file checkpoint 3 created** — the engine, the context, the share,
+  the model and `types/StaffGraphQL.d.ts`
+- **zero errors anywhere naming `server.graphql.staff`**, so the ambient namespace the always-on
+  `graphql-resolvers.md` mandates does resolve. That was the open question
+- where this feature's files do appear, **the error shapes are identical to the siblings they
+  mirror and strictly fewer**: `StaffGraphqlServerEngine` 14 against `CustomerGraphqlServerEngine`
+  20, of the same kinds; `SignInAttempt` and `StaffMemberSecret` carry the same two, one each. So
+  no new *kind* of type error was introduced
+
+**Not fixed here, for two reasons.** `jsconfig.json` is repository-wide configuration and nothing
+in §10 touches it, so it is scope nobody approved. And **tsc is not part of this project's
+toolchain**: `review-and-tooling.md` names ESLint, Jest and the spell checker, and the always-on
+`jsdoc.md` reaches for tsc only to *emit* declarations (`tsc --emitDeclarationOnly`), never to
+check. So this changes no gate — it changes what a developer sees in an editor, and what a future
+run of the check would be able to tell them.
+
+The fix, when somebody takes it, is `"types": ["jest", "node"]` in `jsconfig.json`, on an
+`update/` branch of its own, with the 409 triaged separately. Adjacent to Q13, Q14, Q15, Q17,
+Q19, Q20 and Q24 — the family of things the boilerplate ships that no gate here exercises.

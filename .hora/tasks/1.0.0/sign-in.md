@@ -78,7 +78,7 @@ Note: **a stub is a public endpoint.** The authentication filter is built from t
 
 ## Backend gate
 - [x] 3. DB and API schemas  <!-- skills: hor-database-design, hor-sequelize-migration, hor-sequelize-model, hor-graphql-schema, hor-graphql-server-engine, hor-type-interface, hor-cookie-authentication, hor-constant-definition, hoc-naming, hoc-jsdoc; digests: hora-skills-ort-renchan 0.1.0 and hora-skills-ort-core 0.2.0. hor-graphql-schema and hor-graphql-server-engine had no digest at the installed version and were taken before any agent ran. GAP: the tests this checkpoint owed came from the always-on testing rule rather than the exit condition, and hoc-jest and hor-backend-testing were read in full because neither had a digest yet — both now taken, for checkpoints 6 and 16 -->
-- [ ] 4. Stub API
+- [x] 4. Stub API  <!-- skills: hor-stub-api, hor-backend-testing, hoc-jest, hoc-naming, hoc-jsdoc; digests: hora-skills-ort-renchan 0.1.0 and hora-skills-ort-core 0.2.0. hor-stub-api, hoc-jest and hor-backend-testing were all taken for this checkpoint. LIMIT: "callable from outside" is evidenced through the framework's own schema-and-resolver path with real GraphQL documents executed in process, not over a socket — Q24 means no server on this machine listens at all -->
 - [ ] 5. The modules the implementation needs
 - [ ] 6. Actual API
 - [ ] 7. Worker
@@ -339,3 +339,59 @@ thing.
 the spec's false authentication blankets, the sentences the backup tables broke, and the three
 counts this feature's own spec gate corrected. The first three were prose in `specs/`; this one
 was code documentation, and this change set caused it.
+
+## Checkpoint 4 — the stubs, and the one thing they hand forward
+
+Four stubs, one unit, no engine or SDL or contract change: the engine already declares the stub
+pool and `DeepBulkClassLoader` scans it, so a stub registers by existing.
+
+**The exit condition says "callable from outside", and this machine cannot do that at all.** Q24:
+`server/index.js` dies on `await activate()` before anything listens, and it breaks the customer
+and admin audiences with it. So the claim was evidenced the same way checkpoint 3's schema was —
+through the framework's own path minus the socket: `StaffGraphqlServerEngine.createAsync()` →
+`GraphqlSchemaBuilder.buildSchema()` → real GraphQL documents through `graphql()`. All four answer
+with data satisfying the SDL and no `errors` key.
+
+**That execution is a shipped test, not a line in a report.** It is the only artifact that
+actually evidences this checkpoint's exit condition, so it had to survive the run that produced
+it.
+
+### What lint caught that the suite could not
+
+The execution test first asserted the **whole** GraphQL envelope with one `toEqual`, which is the
+stronger assertion — a stray `errors` key fails it. **It is not writable here: `data` is on the
+`id-denylist`,** so it cannot be an object-literal key, and four cases tripped it.
+
+Rewritten to assert `actual.data` against the payload plus `expect(actual).not.toHaveProperty('errors')`
+— two allowed matchers, no banned identifier, no logic in the body. **Then falsified:** a stub
+made to throw fails exactly its own case. Without that second assertion it would have passed,
+because a GraphQL error arrives *beside* a still-present `data`.
+
+### What the stubs deliberately do not do
+
+**No stub authenticates, and each says so in its own JSDoc.** A stub-served field is handed no
+filter (Q28), so a stub that read `context` and refused would be theatre — and worse, it would
+read as evidence that the endpoint is protected. `SignedInStaffMemberQueryResolver` carries the
+sharp version: the engine leaves it out of `schemasToSkipFiltering` **so that the filter would
+refuse it**, and as a stub it is reachable anyway.
+
+**The tests back this checkpoint's exit condition, not this feature's acceptance criteria**, and
+that distinction is the honest one. Every §10 criterion — identical refusals, a session surviving
+a reload, a spent refresh token revoking its series, the eleventh attempt inside fifteen minutes
+— needs the real resolver and is checkpoint 6's to prove. A stub cannot be made to demonstrate
+any of them, and none was bent to look as though it does. The one criterion these do reach is
+that no operation returns a password or a hash: the shapes are asserted whole.
+
+### Handed to checkpoint 6
+
+**`execute-stub-operations.js` will start lying the moment the real resolvers land.** It passes
+only while the four return these exact literals, which the real ones will not. It sits under
+`…/staff/stub/`, so checkpoint 6 either deletes it with the stubs or rewrites it against seeded
+data — and the second is the better trade, since it is the only test that exercises the audience
+end to end through the framework rather than a class in isolation.
+
+**`validate-unique-error-code.js` was deliberately not given a `staff/stub/` case.** A stub
+declares no error code at all, so the assertion would be `[] toEqual []` — vacuous today and
+vacuous forever, since a stub owning a code is what the convention forbids. The stronger check is
+where it went instead: each stub's own `.get:errorCodeHash` test asserts **empty**, not merely
+unique. `customer/stub` and `admin/stub` are uncovered for the same reason.
