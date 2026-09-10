@@ -800,8 +800,49 @@ present.
 It is still here, in the backend, unfixed — fixing it in one repository does not reach the
 other.
 
-- [ ] unresolved
-      **Not fixed here, and deliberately not fixed mid-feature.** A dependency change is its
+- [x] resolved
+      **Cleared on the backend row: `npm audit` now reports 6 moderate and nothing above,
+      down from 16 with one critical and six high.** Verified against `release/1.0.0` at
+      `866a754`, and the lockfile confirmed to carry `multer` 2.3.0, `renchan` 2.9.3,
+      `body-parser` 1.20.8 and `sqlite3` 6.0.1.
+
+      **One line above is wrong, and correcting it matters more than the fix.** This entry said
+      `multer` was "not fixable from this project's own ranges" and would need an `overrides`
+      entry or a bump by renchan. **Both were unnecessary.** `@openreachtech/renchan` declares
+      `multer: ^2.1.1`, so the patched 2.3.0 was always inside a range this project already
+      had — a lockfile move reached it, with `package.json` untouched and **no `overrides`
+      block added**, which matters because an `overrides` entry in a sample application is a
+      divergence every later reader would have to explain.
+
+      **How the error was made, since it is the reusable part:** `npm ls multer` was read,
+      showing multer transitive beneath renchan, and "transitive" was treated as "pinned by its
+      parent". It is not — a transitive dependency moves freely within whatever range its
+      parent declares. The check skipped was a single command: read renchan's own declared
+      range. The lesson is not about multer; it is that a dependency's reachability has to be
+      read off the declaring `package.json`, never inferred from the shape of a tree listing.
+
+      **The `sqlite3` semver-major went ahead and was right to be flagged first.** 5.1.7 →
+      6.0.1 cleared the critical and all four remaining highs, and it turned out **reductive**:
+      6 installs a prebuilt binary instead of building through node-gyp, so the toolchain
+      subtree left the tree — 1,153 lockfile deletions against 140 insertions. Both the SQLite
+      and the MariaDB suites passed on it, which are the suites that actually exercise that
+      driver. **The suites approved it rather than an argument on paper**, which is the only
+      reason a major bump on the test database driver should ever be taken.
+
+      **The six that remain are all moderate and none is fixable from here** — `qs` and `uuid`
+      transitively, and `express`, `sequelize`, `sequelize-mig` and `@openreachtech/renchan`
+      directly. They need major bumps on the framework, which is **renchan-boilerplate's
+      decision, not this project's**: every row created from 1.11.0 carries the same six, so
+      clearing them here would fork this project from the boilerplate while leaving the
+      boilerplate exposed.
+
+      **The gap that let sixteen accumulate is still open, and it is the finding worth
+      keeping.** None of the backend row's three workflows runs `npm audit`, while the app
+      repository's `lint.yml` does — which is exactly why every backend pull request passed
+      green with a critical present. Adding the step is right and belongs **upstream**, not as
+      a local divergence. Sixth of the family after Q13, Q14, Q15, Q17 and Q19.
+
+      **Original assessment, kept rather than rewritten:** A dependency change is its
       own `install/` or `update/` branch (`commits.md`), and two of the three groups are
       decisions rather than mechanics:
 
