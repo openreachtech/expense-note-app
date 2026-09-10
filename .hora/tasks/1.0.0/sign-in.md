@@ -62,12 +62,22 @@ Note: `renewAccessToken` belongs to the frontend's client layer and to no screen
 Note: `signedInStaffMember` exists because a session is a cookie (spec §10.1). The screens ask
       it on opening; it is what sends an already-signed-in person on rather than asking twice
 
+Note: **a stub is a public endpoint.** The authentication filter is built from the `actual/`
+      resolvers alone, so a stub-only field gets `filter === undefined` and no check runs at all
+      — the same mechanism `schemasToSkipFiltering` uses, without anybody listing it (Q28). So
+      `signedInStaffMember` is reachable without a session for as long as it is a stub, though it
+      is deliberately absent from the skip list. Three gates need to know: checkpoint 8's audit
+      sees four public operations where §7 permits three; the frontend gate builds a client
+      against an endpoint that never refuses, then meets one that does at 16; and a deployment
+      where checkpoint 6 missed an operation serves it publicly with hardcoded data and nothing
+      fails
+
 ## Spec gate
 - [x] 1. Draft or confirm the specification  <!-- skills: hoc-requirement-definition; digests: none taken — an interactive checkpoint, run by the main session, hands no agent a digest. Matched against hora-skills-ort-core 0.2.0. Four edits routed to /hora-spec and approved as exact text before writing: §10.3 added, three counts corrected -->
 - [x] 2. Verify the use cases can be met  <!-- skills: hoc-requirement-definition, hof-uiux-context; digests: none taken — interactive, no agent. Matched against hora-skills-ort-core 0.2.0 and hora-skills-ort-furo 0.1.0. Unlike #data-model this feature targets a frontend, so hof-uiux-context is in surface and was read; the file it owns does not exist yet and lands at the frontend gate (below) -->
 
 ## Backend gate
-- [ ] 3. DB and API schemas
+- [x] 3. DB and API schemas  <!-- skills: hor-database-design, hor-sequelize-migration, hor-sequelize-model, hor-graphql-schema, hor-graphql-server-engine, hor-type-interface, hor-cookie-authentication, hor-constant-definition, hoc-naming, hoc-jsdoc; digests: hora-skills-ort-renchan 0.1.0 and hora-skills-ort-core 0.2.0. hor-graphql-schema and hor-graphql-server-engine had no digest at the installed version and were taken before any agent ran. GAP: the tests this checkpoint owed came from the always-on testing rule rather than the exit condition, and hoc-jest and hor-backend-testing were read in full because neither had a digest yet — both now taken, for checkpoints 6 and 16 -->
 - [ ] 4. Stub API
 - [ ] 5. The modules the implementation needs
 - [ ] 6. Actual API
@@ -208,3 +218,124 @@ the letter already carries the kind, so `M001` and `Q001` coexist. All three fea
 audience's file, and `_plan.md` fixes their order — so the next feature's numbers are known
 from the plan without reading what merged. A hundred-block would buy nothing here and leave
 `resolver-id-hash-staff.js` reading as though 297 operations were missing.
+
+## Checkpoint 3 — what was built, what verification sent back, and what proved it
+
+Two units, both exclusive: the `sign_in_attempts` table, and the staff audience's whole API
+surface. The four operations could not be four units — they share one SDL directory, one
+`.d.ts`, one engine and one context pair — so the checkpoint ran the surface whole, which is
+what `/hora-build` prescribes when a file two units would both write cannot be given to one.
+
+**Verification failed this checkpoint once, and the send-back was right.** The substance was
+never in doubt — the verifier built the schema through the framework's own `GraphqlSchemaBuilder`
+and got exactly the contract's type map, and read the applied table back out of the SQLite file
+— but four units had shipped with no tests, while the tree held an exact tested sibling for
+every shape they introduced.
+
+### Three decisions, and both layout answers came from the always-on rules
+
+| Question | The equipped skill | What was built |
+|---|---|---|
+| SDL: one flat file per audience, or a directory of numbered files? | `hor-graphql-schema` leaves it **unsettled**, and said so | **a directory** — `directory-structure.md` splits `schemas/` by audience as directories |
+| GraphQL types: one file per resolver, or one per audience? | `hor-type-interface` wants `types/resolvers/<category>/`, namespace `graphql.<category>` | **one `types/StaffGraphQL.d.ts`**, namespace `server.graphql.staff` — `graphql-resolvers.md` prescribes it verbatim |
+| Lift shared members into the app base class? | `hor-graphql-server-engine` advises lifting | **duplicated in the concrete engine**, as the tree does |
+
+**The two layout answers point opposite ways and that is not an inconsistency.** Both follow the
+always-on rules under Q10; the rules simply prescribe a directory for SDL and one file for types.
+The directory also earns its keep: three features contribute to this audience, so each adds a
+file instead of editing a shared one.
+
+**Not lifting into the base was the cheaper future.** `/hora-build` classes a base class as a
+conflict-proof file, so lifting would have rewritten three existing engines so one new one could
+be added.
+
+### The skip list is the feature's most dangerous line, and it is exactly three
+
+`schemasToSkipFiltering` holds `signIn`, `signOut`, `renewAccessToken`. Verification traced what
+that mechanically does: the framework maps ignored schemas to `null` and the resolver wrapper
+calls `filter?.(…)`, so **no** filter runs — no `Unauthenticated`, no `Unauthorized`, no
+`DeniedSchemaPermission`. An entry there is a public endpoint, and the framework offers no
+"authenticate by the other credential" gate, so **the authentication debt moves wholly into the
+three resolvers.** The engine says which operation owes which check, so checkpoint 6 cannot lose
+it. `signedInStaffMember` is deliberately absent — §10 requires it refused without a session.
+
+### `findUser` is deliberately unimplemented, and the failing direction is closed
+
+It returns `null` through `super.findUser()`, with a docblock that opens by saying so and lists
+three obligations it cannot discharge here: an access-token read with the fifteen-minute expiry
+check, that read routed through `SessionClerk` — which carries no access-token method, making it
+checkpoint 5's — and a decision about which entity it returns, because the framework publishes
+`userEntity.id` as `#userId` and therefore as `#staffMemberId`. **Return the token row and
+`staffMemberId` silently becomes the token's id.**
+
+Every non-skipped operation therefore refuses, which is refusal rather than admission, and is
+the correct answer for an audience with no resolvers.
+
+### What could be proved, and what could not
+
+| Claim | How |
+|---|---|
+| the migration works | ran it — all ten up, the composite index created as named, `down` drops both, re-migration clean |
+| the SDL loads **from a directory** | the framework's own `SchemaFilesLoader` over the real path, then `makeExecutableSchema` |
+| `healthCheck` is gone | absent from the **built** schema, not merely from the file |
+| `rawBody` is read nowhere | grepped this repository and all of `renchan` — written in three engines, read by nothing |
+| nothing regressed | the full suite, at every stage |
+
+**Two limits, neither papered over.** Docker Desktop was down, so the migration is verified on
+**SQLite only** and MariaDB verification is owed — `datetime(3)` is the dialect-sensitive field,
+and it is not load-bearing for a fifteen-minute window. And a full server boot is impossible on
+this machine at all (Q24), so `listen(4900)` and an HTTP probe of the endpoint were never
+exercised; the schema was verified through the same code path minus the socket.
+
+### The tests, and the two guards that were green while broken
+
+The finding was closed with 68 tests, then reopened by a second verification for a structural
+breach and closed again. Both halves matter:
+
+**The breach.** The engine test declared four mocks and two context instances at describe scope
+and fed **one** `cases` array to **four** sibling `test.each` calls. It did not false-pass —
+the global `afterEach(restoreAllMocks)` covered it — but eight tests were mutating two shared
+objects while installing spies on them, on the authentication filter. Now fifteen `cases` arrays
+to fifteen `test.each` calls, nothing at describe scope, and `mockReturnValue` rather than
+`Once`, so the hazard is gone rather than relocated.
+
+**The two holes, and both were falsified against the source rather than the test:**
+
+| Break this | Tests that now fail |
+|---|---|
+| add the `rawBody` verify callback back to the engine | **2** — the fifteen-line comment's deliberate omission is under test |
+| drop the broker from `StaffGraphqlShare.createAsync` | **6** — it left the suite green before |
+| `AUTH_COOKIE_SECURE=false` | **2** — staff was the only audience depending on that cookie and the only one outside the existing guard |
+| disable `beforeSave` / `beforeBulkCreate` / `beforeBulkUpdate` | **5 / 2 / 2** — each of the three write paths is independently covered |
+
+**That 5/2/2 split is worth more than a larger number would be.** It was first measured as "9 of
+9", from a probe run against a database still holding the previous run's rows — every test failed
+on a primary-key collision rather than on the missing hook. A falsification proves nothing unless
+the baseline passes under the same conditions; two things had been changed at once. Re-run with a
+refresh before each probe, the split shows each hook has its own test, where "all 9" would have
+meant one path was doing all the work.
+
+**One residual weakness, recorded rather than fixed.** Position 3 of the middleware stack is
+pinned as `name: ''` — the upload middleware is an unnamed arrow — which catches a reorder or a
+drop but not substitution with a *different* anonymous middleware. Pinning it by identity needs a
+spy on renchan's ESM namespace, which is not writable, and the alternative was wrapping the import
+in the engine solely so a test could reach it. **Production code shaped by its test is the worse
+defect**, so the narrower assertion stands.
+
+### The documentation defect this checkpoint caused
+
+The README said "the three servers" and, worse, "Each GraphQL endpoint answers a health check out
+of the box" — false the moment this audience opened, and precisely the sentence that would lead
+the next reader to restore the `healthCheck` Q23 had removed hours earlier. **The comment left in
+the SDL guarded the schema; the README argued against it.**
+
+Fixed in both languages, along with five more lines the audience falsified — and the tagline,
+which the first fix pass read straight past while hunting counts and a grep for number words then
+found. Every replacement is written **without a count**, so the next audience falsifies nothing:
+a scope where there was a number, or a pointer at the command or file that enumerates the real
+thing.
+
+**Fourth instance in this project of a count true when written and falsified by growth**, after
+the spec's false authentication blankets, the sentences the backup tables broke, and the three
+counts this feature's own spec gate corrected. The first three were prose in `specs/`; this one
+was code documentation, and this change set caused it.

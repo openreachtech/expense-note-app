@@ -1130,3 +1130,134 @@ criteria; changing it here would pre-empt the gate whose job it is. What makes i
 rather than leaving to be noticed is the asymmetry verification found: **the omission was reasoned
 and the retention was not.** One of the two decisions was made and the other was inherited, and
 only the first left an argument behind.
+
+## Q28. A stub-served field has no authentication filter, so a stub is a public endpoint
+
+<!-- spec: sign-in -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#sign-in`'s checkpoint 4, digesting the stub-API skill before writing any stub.
+
+**The authentication filter is built from the `actual/` resolvers alone.** In
+`@openreachtech/renchan/lib/server/graphql/resolvers/GraphqlResolversBuilder.js`:
+
+```js
+const schemas = this.extractSchemas({
+  schemaHash: actualResolverSchemaHash,      // actual ONLY — the stub hash is not read here
+})
+const filterSchemaHash = await this.buildFilterSchemaHash({ engine, actualSchemas: schemas })
+```
+
+and then, per schema, over the **union** of actual and stub:
+
+```js
+const filter = this.filterSchemaHash[it]                 // undefined for a stub-only field
+const resolver = this.actualResolverSchemaHash[it]
+  ?? this.stubResolverSchemaHash[it]                     // actual supersedes stub automatically
+```
+
+`generateResolverResolveCallback` then calls `await filter?.(envelope)`. **`undefined` means no
+filter runs** — no `Unauthenticated`, no `Unauthorized`, no `DeniedSchemaPermission`. The same
+mechanism `schemasToSkipFiltering` uses to make an operation public (`.hora/tasks/1.0.0/sign-in.md`,
+checkpoint 3) applies to every stub-only field, without anybody listing it.
+
+**So `signedInStaffMember` is public for exactly as long as it is a stub** — the one operation of
+the four deliberately kept *out* of the skip list, because §10 requires it refused without a
+session. Its criterion is unmeetable at checkpoint 4 by construction, since a stub returns
+hardcoded data and cannot refuse. **That is checkpoint 6's to satisfy, not checkpoint 4's**, and
+checkpoint 4's exit condition asks for hardcoded data in as many words.
+
+**Three consequences, in rising order of cost:**
+
+1. **Checkpoint 8's security audit reads this feature's change set**, which will contain four
+   publicly-reachable operations where §7 permits three. The audit should meet that as a dated
+   finding rather than a discovery.
+2. **The frontend gate builds against the stub.** Checkpoints 12 to 14 develop a client and a
+   screen against an endpoint that **never refuses**, and checkpoint 16 swaps them onto one that
+   does. A client with no unauthenticated path — no redirect to the sign-in screen, no retry
+   through `renewAccessToken` — passes every frontend checkpoint and breaks at 16. §10.2 says
+   every other screen "sends somebody here when theirs has gone", so that path is the feature,
+   not an edge case.
+3. **The production shape is the one worth naming.** The engine loads both resolver directories
+   in every environment, so a deployment where checkpoint 6 missed an operation serves that
+   operation **publicly, with hardcoded data, and nothing fails.** No error, no log line, no
+   failing test — the endpoint simply works and lies. This is the argument for the stub skill's
+   own advice to *move* a stub into `actual/` at checkpoint 6 rather than leave it beside the
+   real one: the framework's `?? ` fallback means a leftover stub is invisible until the actual
+   one is deleted, and then it is invisible in the other direction.
+
+**Recorded rather than acted on, because there is nothing to fix here.** This is how the
+framework's stub mechanism works, and the mechanism is what makes the frontend gate independent
+of the backend gate finishing — which is the whole reason checkpoint 4 precedes checkpoint 6.
+What it needs is to be **known** at three later gates, which is what this entry is for.
+
+## Q29. `test.sh` runs a whole test phase against directories that do not exist
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#sign-in`'s checkpoint 3, reading the runner while digesting the backend-testing skill.
+
+`expense-note-backend/test.sh` runs the suite in **two phases**, and the distinction between them
+is real and useful:
+
+```sh
+function testWithEmpty () {          # the database carries MASTER seeds only
+  jestCommand "$@" tests/empty/__tests__/
+  jestCommand --detectOpenHandles tests/empty/_orders/
+}
+
+function testWithSeeded () {         # then development seeds are added
+  npm run db:seed:dev
+  jestCommand "$@" tests/__tests__/
+  jestCommand --detectOpenHandles tests/_orders/
+}
+```
+
+**Neither `tests/empty/__tests__/` nor `tests/empty/_orders/` exists.** The phase survives only
+because every invocation carries `--passWithNoTests`, so two of the four jest runs do nothing and
+say so quietly. **Not a defect** — an unused capability, and `--passWithNoTests` is what makes it
+harmless rather than a broken runner.
+
+**It is directly relevant to this feature, which is why it is recorded now rather than left.**
+§10's first acceptance criterion is that "an address with no account and a correct address with
+the wrong password are refused identically". Today `staff_members` is empty, so "an address with
+no account" is trivially any address. **Once Q22's development seeders exist, that stops being
+true**: every seeded address has an account, so the test has to pick an address deliberately
+absent from the seeder — a value whose meaning depends on a seeder file the test does not name.
+
+The `empty` phase is where an assertion that genuinely needs an unseeded table belongs, and it
+runs before `db:seed:dev`. **Checkpoint 6 should choose per test which phase it wants**, rather
+than defaulting everything into `tests/__tests__/` because that is where the other files are.
+Adjacent to Q22.
+
+## Q30. The reconciliation between shared test doubles and the no-hoisting rule is undecided
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Raised by the agent digesting the backend-testing skill, which flagged its own resolution as
+non-authoritative rather than presenting it as settled.
+
+**The equipped skill wants shared, itself-tested doubles** under `tests/mocks/` and `tests/tools/`.
+**The always-on rule wants nothing hoisted**: "The instance under test, every stub/fixture it
+needs, and `factoryParams` all belong in the case… never declared as a shared `const` above or
+inside a `describe`. Duplicating a value across cases is accepted and preferred."
+
+These do not obviously contradict — one is about a shared *class* in its own file, the other about
+a `const` at describe scope — but the boundary between them is exactly where an agent will guess.
+
+**The working resolution, used at checkpoint 3 and recorded here so it is visible rather than
+implicit:** a one-line stub is inlined into each case, duplicated as the rule prefers;
+`tests/mocks/` is reserved for a genuine shared mock **class** that is itself tested. Neither
+`tests/mocks/` nor `tests/tools/` exists in this repository yet, so nothing has had to choose.
+
+**Why this is a question and not a ruling.** Q10 settled that the always-on rules beat an equipped
+skill, and named the cases it was deciding — the `@augments` spelling, index-name abbreviation and
+`Promise.all`. **It did not decide this one**, and the digest that reconciled it said so plainly
+instead of quietly writing a rule into a file agents read as authority. Worth settling before
+checkpoint 6, which writes eight resolver tests and is the first place a shared double would be
+tempting.
