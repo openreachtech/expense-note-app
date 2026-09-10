@@ -982,3 +982,151 @@ starts at checkpoint 10, and a health check appears in no screen's call table in
 **What stays open, and is the reusable part:** nothing checks a pinned contract against the spec
 it was derived from. `/hora-plan` verified the operations exist; it did not verify that no
 operation exists which the spec does not declare. Both directions want checking, and only one is.
+
+## Q24. Q19 understated itself — the product's own entry point cannot boot on this machine
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: lacked-environment -->
+
+Found at `#sign-in`'s checkpoint 3, trying to build the new audience's server the way
+`server/index.js` does.
+
+**Q19 says the failure is confined to "any standalone script that activates Sequelize outside
+jest — a one-off walk, a data-inspection script, a manual reproduction". `server/index.js` is
+such a script.** It is the product's single entry point, its first statement is `await
+activate()`, and it dies there:
+
+```
+Error [ERR_UNSUPPORTED_ESM_URL_SCHEME]: On Windows, absolute paths must be valid file:// URLs.
+Received protocol 'd:'
+```
+
+Traced to `@openreachtech/renchan-sequelize/lib/tools/DeepBulkClassLoader.js`, which
+`await import(it)`s a bare `D:\...` path that `rootPath.to()` returned.
+
+**This is not `#sign-in`'s doing and predates the branch.** The base commit's `server/index.js`
+carries the identical first line, so the customer and admin servers cannot start on this
+machine either — nobody had noticed, because jest's resolver tolerates the path and the suites
+are what everyone runs. Q19 found the mechanism and dated it correctly; what it got wrong was
+the blast radius, calling it a scripting inconvenience when it is the deployment entry point.
+
+**What it costs, in order:**
+
+- **checkpoint 17** builds the local end-to-end environment, and **checkpoint 18** drives the
+  product through a browser. Neither can happen on this machine while the entry point cannot
+  start. That is two gates away, not far
+- the frontend gate needs a backend to talk to, so checkpoints 14 to 16 lose their live target
+- it is invisible to every gate before those, because lint and jest both pass
+
+**Not a code defect in this repository, so not a `retake/`.** It is an upstream defect in
+`renchan-sequelize` — a path handed to the ESM loader that must be a `file://` URL on Windows —
+and the honest fix is upstream, where every row created from the boilerplate gets it. Seventh of
+the family after Q13, Q14, Q15, Q17, Q19 and Q20.
+
+**What was done instead, so checkpoint 3 was not blocked on it:** the audience's schema was
+verified by running the framework's own `SchemaFilesLoader` over the real directory and
+`makeExecutableSchema` over the result — the same code path minus the socket. What could not be
+exercised is `listen(4900)` and an HTTP probe of the endpoint.
+
+## Q25. This repository's README is the boilerplate's, inherited verbatim
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#sign-in`'s checkpoint 3, correcting the sentences the staff audience falsified.
+
+`expense-note-backend/README.md` is titled **`# renchan-boilerplate`** and opens "A running
+skeleton for a renchan application… This repository is the starting point for an application
+built on it." It is the boilerplate's own README, never rewritten for this product.
+`README.ja.md` mirrors it.
+
+**What was fixed here, and why only that.** Six statements had become false because this feature
+added an audience — the server count, the health-check blanket, the `TODO`-marker count, "both
+audiences share one implementation", the cookie-name list, and the concept paragraph. Those were
+this change set's to fix, and they are fixed in both languages, written without counts so the
+next audience falsifies nothing.
+
+**What was left alone:** the title, the framing, and the table of contents. Turning this into the
+product's README is a rewrite — the always-on `npm-package.md` rule routes a README through the
+readme skill, with a stated section order and a `docs/` split — and doing it inside a checkpoint
+would be scope nobody approved, on a file whose whole structure that skill governs.
+
+**Why it is worth a question rather than silence.** A reader arriving at this repository is told
+it is a boilerplate and that what is left is "the application's own schema, resolvers and
+models" — which ten tables, a staff audience and 310 tests have since become. **The health-check
+sentence was the concrete cost**: it was still promising a health check on every GraphQL endpoint
+hours after `healthCheck` was removed from this audience as a defect (Q23), and it is exactly
+what would have led the next reader to restore it. Documentation that describes a different
+project does not merely go stale; it argues against the code.
+
+Belongs in the same conversation as `#expense-entry`'s or `#monthly-summary`'s documentation
+work, or as an `update/` branch of its own once the version's features are in.
+
+## Q26. §2.1 declares one server and the deployed product will carry four
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#sign-in`'s checkpoint 3, opening the staff audience.
+
+§2.1 reads: "One server, one consumer. **There is no REST server**: nothing here is a file
+transfer, a redirect or a third party that cannot speak GraphQL, so the default stands." The
+built product will ship four servers, all started by `server/index.js`: the staff GraphQL
+endpoint this feature adds, plus the boilerplate's customer GraphQL (3900), admin GraphQL (5800)
+and RESTful API (8001).
+
+**The tree record already settled that they stay.** `.hora/tree/expense-note-backend.md` says
+"the boilerplate ships `customer` and `admin`. `expense-note` declares one server,
+`staff-graphql` (spec 2.1), so implementation **adds** a `staff` audience" — adds, not replaces.
+Removing them is in no section of §10, so it is not this feature's work, and doing it here would
+be scope nobody approved.
+
+**But three undeclared endpoints is a security surface, not a tidiness question.** Each answers
+`healthCheck` and nothing else today, so the exposure is small — what is undeclared is the
+*surface*, and §2.1's "one server, one consumer" is false of the thing that gets deployed. §7's
+Authentication row governs "every operation", and three of the four servers serve operations no
+section of the spec declares, authenticating by neither credential.
+
+**Where it lands, and why it is recorded now.** Checkpoint 8 audits *this feature's change set*,
+which will not contain them. The whole-version sweep points the same audit at the repository
+entire and will raise all three. Recording it here means the sweep meets a dated finding with the
+scope reasoning already worked out, rather than discovering it before a release. Adjacent to Q16
+(`.env.live` tracked) and Q22 (nothing can issue the first account): all three are "what the
+deployed product carries that no gate of a feature exercises".
+
+## Q27. The upload middleware survives the reasoning that removed the raw-body capture
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found by verification at `#sign-in`'s checkpoint 3.
+
+`StaffGraphqlServerEngine.collectMiddleware()` omits the `rawBody` capture the other three
+engines carry, and the engine says why: nothing in this repository or in `renchan` reads
+`rawBody`, it is laid in for a webhook that must verify a signature over raw bytes, and this
+audience serves none — §10.1 is its complete operation list.
+
+**The same reasoning applies verbatim to the middleware immediately above it**, which was kept:
+
+```js
+graphqlUploadExpressWithResolvingContentType({
+  maxFileSize: 10000000, // 10 MB
+  maxFiles: 10,
+}),
+```
+
+§10.1, §11.1 and §12.1 declare no upload anywhere in this audience, and §4 puts a receipt
+photograph out of scope for 1.0.0 with object storage undeclared. So 10 MB × 10 files of
+multipart parsing sits in front of an endpoint whose `signIn` skips the authentication filter
+entirely — reachable with no credential at all, which is the one place unused parsing capacity
+is worth naming.
+
+**Not acted on, deliberately.** Checkpoint 8 is the security audit and owns this call with its own
+criteria; changing it here would pre-empt the gate whose job it is. What makes it worth recording
+rather than leaving to be noticed is the asymmetry verification found: **the omission was reasoned
+and the retention was not.** One of the two decisions was made and the other was inherited, and
+only the first left an argument behind.
