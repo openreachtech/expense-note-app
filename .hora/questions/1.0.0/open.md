@@ -1873,3 +1873,98 @@ repositories, one advisory, three fixes, because the fix lives in a lockfile rat
 chased here; noted because two instances make it a pattern rather than an incident.
 
 Adjacent to Q38 and Q39, both also conventions this repository inherited rather than wrote.
+
+
+## Q43. The spec says the access token is held in memory; the boilerplate persists it to `localStorage`
+
+<!-- spec: sign-in -->
+<!-- blocking: yes -->
+<!-- category: contradiction -->
+
+Found at `#sign-in`'s checkpoint 13, reading `app/constants.js` before wiring anything. **Raised
+before any code depends on it, which is the only reason it is cheap to settle.** It decides how
+checkpoint 16 wires the session, and it has a security dimension, so it is marked blocking for 16
+rather than for the feature.
+
+### The contradiction, both sides quoted
+
+§6, Terminology:
+
+> **access token** — the credential the client sends on a request header, and what proves a session
+> for every operation except the three §7 names. Lives fifteen minutes (§9.6). **Held in memory,
+> never in a cookie.**
+
+The boilerplate, at `node_modules/@openreachtech/furo-nuxt/lib/tools/AccessTokenClerk.js`:
+
+```js
+static createStorageClerk () {
+  return StorageClerk.createAsLocal()      // -> window.localStorage
+}
+
+static get STORAGE_KEY () {
+  return 'access_token'
+}
+```
+
+and this project's own `app/constants.js` already carries `STORAGE_KEY.ACCESS_TOKEN: 'access_token'`
+to match.
+
+**`localStorage` is neither memory nor a cookie**, so the clause is not violated on its letter by the
+"never in a cookie" half — and is plainly violated on the "held in memory" half.
+
+### Why it is not a wording quibble
+
+**The two designs differ in what an XSS gets.** The refresh token is an httpOnly cookie precisely so
+that script cannot read it (§9.7). An access token in `localStorage` is readable by any script on the
+origin, so a single XSS yields a working credential for up to fifteen minutes. Held in memory, it
+does not survive to be read by a later injection and is not reachable from another tab.
+
+**They also differ in what a reload does, and §10 has a criterion about exactly that.** "A session
+survives a page reload":
+
+| | How a reload is survived |
+|---|---|
+| `localStorage` (boilerplate) | the token is simply still there — no network call |
+| memory (§6) | the token is gone; the client presents the refresh **cookie** to `renewAccessToken` and gets a fresh one |
+
+**§10.2 describes the second one.** It says `renewAccessToken` "belongs to the GraphQL client layer,
+which calls it when an access token has expired, transparently, on whatever screen happens to be
+open", and that "a client that never renews leaves every session dying after fifteen minutes with
+nothing on screen to explain it." That machinery exists **because** the token is not persisted. If it
+were in `localStorage`, the renew path would be needed only after fifteen minutes rather than after
+every reload.
+
+So §6's "held in memory" is not an offhand phrase — the rest of the feature is shaped around it.
+
+### What it collides with
+
+**`middleware/000.gateway.global.js` already calls `AccessTokenClerk.create().existsToken()`**, which
+reads `localStorage`. Under an in-memory design that call answers `false` on every fresh page load,
+so the gateway would redirect a signed-in member of staff to `/sign-in` after every reload — before
+the client layer has had a chance to renew. **The gateway is boilerplate this feature did not write
+and checkpoint 10 deliberately did not touch**, and it is where the two designs actually meet.
+
+### Why this has an adjudicator, unlike Q42
+
+Q42 had none — no rule reached it. **This one does: the spec is the authority, and it is explicit.**
+So the direction is settled even though the work is not: the access token is held in memory, and the
+reload path goes through `renewAccessToken` against the refresh cookie.
+
+**What is genuinely open is only the mechanism**, and it is checkpoint 16's:
+
+1. hold the token in a module-level store or an app-share singleton, and give the gateway a check
+   that tolerates "no access token yet, but a refresh cookie may exist" — which means the gateway
+   can no longer decide by `existsToken()` alone
+2. keep `AccessTokenClerk` for its interface but substitute an in-memory `StorageClerk`, since
+   `create()` accepts `storage` as an injected parameter and defaults it — the seam is already there
+   (`StorageClerk` also ships a `createAsSession()`, which is **still not memory**)
+
+Option 2 is the smaller change and uses a seam the library deliberately exposes. Neither is decided
+here.
+
+**Not fixed at this checkpoint, deliberately.** Nothing yet stores or reads an access token in this
+application — checkpoint 10 built a route and a title. Recording it before 14 and 16 build on the
+boilerplate's assumption is the whole value; discovering it afterwards would mean unpicking the API
+client and the gateway together.
+
+Adjacent to Q40, which is the other boilerplate behaviour this feature has to decide about at 16.
