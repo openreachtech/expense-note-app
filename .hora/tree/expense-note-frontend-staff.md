@@ -65,7 +65,28 @@ lint / l   ESLint
 postinstall  nuxt prepare
 ```
 
-## Middleware
+## Middleware (the infrastructure sense)
 
 **None.** A frontend row holds neither a DB client nor a Redis client, and no compose file is placed
 here.
+
+**The heading is the spec's word, not Nuxt's, and the two do not mean the same thing.** §8's table
+is headed `Middleware | Version | profile | Purpose` and lists MariaDB — that is the sense here.
+Nuxt route middleware is a different thing entirely and this repository ships two of it; see below.
+The overload is worth naming because it has already been misread once, at `#sign-in`'s checkpoint 10,
+as this section being stale.
+
+## What the boilerplate already ships, and what is load-bearing
+
+Read off the tree at `#sign-in`'s checkpoint 10. The layout block above names these directories but
+not their contents, and one of them decides this feature's route.
+
+| File | What it does |
+|---|---|
+| `middleware/000.gateway.global.js` | **Load-bearing for every feature.** A global route middleware: if `AccessTokenClerk.create().existsToken()` it passes, otherwise it redirects to `` `${SIGN_IN_PATH}?redirect=${to.fullPath}` `` — and `SIGN_IN_PATH` is a module constant reading `'/sign-in'`, carrying a `// TODO: should be moved to configuration`. **This is why `#sign-in`'s screen is at `/sign-in` and not somewhere chosen.** It is also what makes §10.2's "every other screen sends somebody here when theirs has gone" already true rather than something a later feature wires |
+| `middleware/010.pageTitle.global.js` | Reads `FuroMeta.create({ routeTo }).pageTitle` and falls back to `'Furo Nuxt'`, so a page sets its title through `definePageMeta` |
+| `plugins/000.furo.js` | Reads `ENDPOINT_URL`, `WEBSOCKET_URL` and `RENCHAN_RESTFUL_API_BASE_URL` off `runtimeConfig.public` |
+| `layouts/default.vue` | A bare `<slot />`. **The only layout.** The `hof-nuxt` digest expects auth pages to take a `gateway` layout; this repository has none, so nothing can use one until somebody writes it |
+| `composables/useRedirect.js` | Reads `?redirect=` off the query and navigates. **A bare exported function with inner function declarations** — which is what this document's "How screens are written" section rules out. See the open question raised at checkpoint 10; it becomes a decision at checkpoint 16, which is what wires the post-sign-in redirect |
+
+**`pages/index.vue` is still the boilerplate stub** — an empty template and a `<!-- TODO: fulfill here -->`. Route `/` renders nothing, though the gateway redirects an unauthenticated visitor away from it before that shows.

@@ -86,7 +86,7 @@ Note: **a stub is a public endpoint.** The authentication filter is built from t
 - [x] 9. Verify the use cases again, against the built API  <!-- interactive, run by the main session against the merged tree; no agent, so no digest taken. All eight of §10's acceptance criteria walked one at a time against something that would fail if the criterion stopped holding. Seven held; the eighth -- "none writes one into a log line" -- was FALSE on live, staging and production, where no `logging` key left Sequelize at its `console.log` default and every sign-in wrote an email address to stdout. Fixed in 3ac78a0 with a test that reads the config file rather than a connection, because the suite runs only under `development`, which already had logging off. Both use cases verified as far as a backend can carry them; the screen half is checkpoint 18's -->
 
 ## Frontend gate
-- [ ] 10. Open the frontend
+- [x] 10. Open the frontend  <!-- skills: hof-nuxt, hof-furo-env; digests: hora-skills-ort-furo 0.1.0. Neither had a digest at the installed version; both taken before the implementer ran, and both carry a conflicts section naming where `D:\ORT\rules\` wins. Route `/sign-in` was FORCED by the boilerplate's existing `middleware/000.gateway.global.js`, not chosen. Reachability established from the built route table rather than a curl, because `ssr: false` makes nitro answer every path with the same SPA fallback. Env repointed from the boilerplate's customer:3900 to the staff endpoint on 4900, verified against the backend engine. One unit claim checked and rejected: the tree doc was not stale, the word "middleware" is overloaded -->
 - [ ] 11. Reconfirm UI/UX and the use cases
 - [ ] 12. Component design
 - [ ] 13. The frontend modules the implementation needs
@@ -810,6 +810,76 @@ Eight criteria walked, seven held on the first pass, one fixed and re-walked. Bo
 verified as far as a backend can carry them, with the screen half recorded as checkpoint 18's.
 **715 + 195 = 910 before this checkpoint, 720 + 195 = 915 after it**, lint clean, and both CI
 dialects green — SQLite and MariaDB, the latter running the same suite on every pull request (Q37).
+
+## Checkpoint 10 — the frontend opened, and a route that was already decided
+
+**The route is `/sign-in`, and that was not a free choice.** The boilerplate already ships
+`middleware/000.gateway.global.js`, a global route middleware holding
+
+    const SIGN_IN_PATH = '/sign-in'
+
+which redirects every unauthenticated request to `` `${SIGN_IN_PATH}?redirect=${to.fullPath}` ``.
+So §10.2's "every other screen sends somebody here when theirs has gone" is **already true** rather
+than something a later checkpoint wires — and any other path would have quietly broken it. The unit
+found this by reading the tree rather than by picking a plausible name, which is the difference
+between a route that works and one that looks right.
+
+`pages/sign-in/index.vue` is the routable leaf, paired with `SignInPageContext` beside it as a `.js`
+sibling that `nuxt.config.js`'s existing `pages:extend` hook strips from the route table. The page
+is a title and nothing else — no fields, no validation, no submit. Components are 12, the UI is 15,
+the wiring is 16.
+
+### Reachability was established, not asserted
+
+A `nuxt build` was run and the generated route table read out of the client bundle: `path:"/sign-in"`
+appears with its page chunk, and **only the two `index.vue` routes appear**, which is what proves the
+`.js` sibling really is stripped rather than merely believed to be.
+
+**Curling a running server would have proved less, and the reason is worth keeping.** With
+`ssr: false` nitro serves the same SPA fallback for every path, so a `200` on `/sign-in` is
+indistinguishable from a `200` on `/nonsense`. The weaker check is the one that looks more like
+real verification.
+
+### The endpoint was wrong for this audience in every tracked env file
+
+The boilerplate shipped `http://localhost:3900/graphql-customer`, and `.furo-env.test` pointed at
+`/graphql-stub`. Both now read the staff endpoint, verified against the backend rather than assumed
+— `StaffGraphqlServerEngine` declares `graphqlEndpoint: '/graphql-staff'` and `server/index.js`
+listens that engine on `4900`:
+
+    ENDPOINT_URL   = http://localhost:4900/graphql-staff
+    WEBSOCKET_URL  = ws://localhost:4900/graphql-staff
+
+`WEBSOCKET_URL` also gained its field in both `RuntimeConfig` and `PublicRuntimeConfig`;
+`plugins/000.furo.js` had always read it off `runtimeConfig.public`, but only `ENDPOINT_URL` was
+ever declared. And `.furo-env.development` is gitignored, so it does not exist until somebody copies
+the example — `NuxtFuroEnvLoader.loadEnv()` returns `{}` for a missing file **silently**, which would
+leave `ENDPOINT_URL` undefined at dev time with nothing said.
+
+### A unit's finding I checked and did not take
+
+The unit reported the tree doc "stale" for saying **Middleware: None** while the repo ships two
+global middleware files. **It is not stale — the word is overloaded.** That section reads "A frontend
+row holds neither a DB client nor a Redis client, and no compose file is placed here", which is §8's
+sense of middleware, the one whose table lists MariaDB. Nuxt route middleware is a different thing.
+
+The doc was right and the reading was wrong, so nothing was corrected. **What was genuinely missing
+is different and now recorded:** the tree doc named the directories without saying that one of them
+decides this feature's route. `.hora/tree/expense-note-frontend-staff.md` now carries what the
+boilerplate ships and which parts are load-bearing, plus the overload itself, so the next reader does
+not repeat the misreading.
+
+### Two gaps this checkpoint did not close, both recorded rather than worked around
+
+- **There is no `gateway` layout.** The `hof-nuxt` digest expects an auth page to take one; this
+  repository ships only `layouts/default.vue`, a bare `<slot />`. The page uses the default
+  implicitly. Creating a layout is checkpoint 12's or 15's, not this one's.
+- **`composables/useRedirect.js` is a bare exported function**, which the tree doc's own "shared logic
+  is a class, never a composable and never a bare function" rules out. Pre-existing boilerplate,
+  untouched, raised as **Q40** — it becomes a decision at checkpoint 16, which is what wires the
+  post-sign-in redirect.
+
+**9 suites, 34 tests, lint clean.** Baseline was 8 and 27.
 
 ## Where the decisions live, when control flow does not hold them
 

@@ -1721,3 +1721,41 @@ reasoning was sound about where such a test belongs and wrong about the phase be
 its workflow runs a bare `npm test`. Any other ORT backend on this boilerplate carries the same two
 files. Adjacent to Q26, Q31 and Q38: things the built or deployed product carries that no gate of a
 feature exercises.
+
+
+## Q40. The boilerplate's one composable is a bare function, and the redirect this feature needs is inside it
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Raised at `#sign-in`'s checkpoint 10 by the unit opening the frontend, which flagged it rather than
+using it or rewriting it. **It becomes a decision at checkpoint 16**, which is what wires what
+happens after a successful sign-in.
+
+`.hora/tree/expense-note-frontend-staff.md` records this project's ruling plainly: **"shared logic is
+a class under the app's own folders — never a composable and never a bare function."** The
+`hof-nuxt` digest's Composables section is overridden by it, and that override is already written
+down.
+
+`composables/useRedirect.js` is exactly what the ruling excludes — `export default function
+useRedirect ({ defaultPath = '/' } = {})`, returning `{ redirectTo }` closed over two inner function
+declarations. It reads `?redirect=` off the route query and navigates, defaulting to `/`.
+
+**It is not dead code, which is what makes this a decision rather than a tidy-up.** The gateway
+middleware redirects an unauthenticated visitor to `` `/sign-in?redirect=${to.fullPath}` ``, so the
+query parameter this composable exists to read is written on every such redirect. Something has to
+consume it after `signIn` succeeds, or a member of staff sent to the sign-in screen from a deep link
+lands on `/` instead of where they were going.
+
+| The options | What it costs |
+|---|---|
+| use it as it is | the one place this project breaks its own class-only rule is the sign-in path, and the next frontend feature has a precedent for adding composables |
+| replace it with a class under `app/` | consistent, testable the way everything else here is, and `#sign-in` pays for a boilerplate file it did not write |
+| leave it and write the redirect fresh in the page context | two implementations of one behaviour, which is worse than either |
+
+**Not blocking and not this checkpoint's.** Recorded now because the unit that found it was not the
+unit that will have to choose, and because the reasoning is invisible from the file itself — nothing
+in `useRedirect.js` says a project rule forbids its shape.
+
+Adjacent to Q38 and Q39: a convention this repository inherited rather than wrote.
