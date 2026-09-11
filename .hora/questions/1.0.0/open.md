@@ -1521,3 +1521,203 @@ checkpoint does not have.
 or 1.1.0 declares the job that sweeps it — which the approval feature planned for 1.1.0 may bring a
 scheduler for anyway. Adjacent to Q26 and Q31: things the deployed product carries that no gate of
 a feature exercises.
+
+## Q36. A worked example in an equipped skill is corrupted at source, behind an eslint-disable
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: upstream-defect -->
+
+Found at `#sign-in`'s checkpoint 6, digesting `hor-resolver-validator` before writing the first
+input validator this repository has had.
+
+`@openreachtech/hora-skills-ort-renchan@0.1.0`, in
+`hor-resolver-validator/references/validator-pattern.md` around line 233, the test example reads:
+
+```js
+    /* eslint-disable */
+},
+      {
+        input: {
+          originObjectCategory    const cases = [
+      {
+        input: {
+          originObjectCategoryId: 1,
+        },
+        expected: true,
+     Id: '1',
+        },
+```
+
+**An entire `const cases = [` block has been pasted into the middle of the identifier
+`originObjectCategoryId`**, splitting it across ten lines — `originObjectCategory` … `Id: '1',`.
+The array is also unbalanced. It is not a formatting quirk; the code cannot parse.
+
+**The `/* eslint-disable */` immediately above it is what makes this worth recording rather than
+just fixing locally.** Whatever produced the corruption, the disable comment means no linter in any
+consuming project will ever report it — so the example can sit broken indefinitely while reading as
+deliberate.
+
+**The cost to a consumer.** This is a *worked example in a reference file*, which is exactly the
+thing an implementer copies. An agent handed this skill and told to follow its test shape would
+reproduce unparseable code, and the disable comment would travel with it.
+
+**It also contradicts this project's own standards twice over**, independently of being broken:
+`D:/ORT/rules/testing.md` names the case fields `params` / `expected` (this uses `input`), and the
+disable comment itself is refused by `eslint-comments/no-use` outside the three files
+`expense-note-backend/eslint.config.js` exempts by name — under a comment telling maintainers never
+to add a fourth (Q18 and checkpoint 3 both met that rule already).
+
+**Not worked around, because nothing here consumes it.** The digest at
+`.hora/digests/hor-resolver-validator.md` records the section as thin, states the defect, and tells
+the implementer to follow `D:/ORT/rules/testing.md` for test shape instead — which is what the
+always-on rule requires anyway (Q10). So `#sign-in` loses nothing.
+
+**Belongs upstream**, with whoever maintains that package: the file wants repairing and the
+`eslint-disable` wants removing rather than the example being left to lint-silence. Eighth of the
+upstream family after Q13, Q14, Q15, Q17, Q19, Q20 and Q24 — and the first one that is a defect in
+the *guidance* rather than in code or tooling.
+
+## Q37. Every id the API returns is `BIGINT` in the database and `Int!` in the contract, and no test asserts its type
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Raised by the agent implementing `signedInStaffMember` at `#sign-in`'s checkpoint 6, which declined
+to add a coercion nothing had asked for and flagged it instead.
+
+Every primary key in §9 is `BIGINT` (`MigrationAttributeFactory.ID_BIGINT`), and every id the pinned
+contract returns is `Int!` — `SignInResult.staffMemberId`, `SignedInStaffMemberResult.staffMemberId`,
+and at `#expense-entry` also `RecordExpenseResult.expenseId`, `CorrectExpenseResult.expenseId`,
+`RemoveExpenseResult.expenseId` and `Expense.id`.
+
+**Under SQLite — which every suite runs on — Sequelize hands a `BIGINT` back as a JS number.
+Under MariaDB, which §8 declares as the real store, it can hand it back as a string.** So the
+resolvers are only ever exercised against one of the two representations.
+
+**Checked, and it is not a defect.** Two reasons, both arithmetic rather than opinion:
+
+- **`graphql-js` coerces a numeric string for an `Int!` output field**, so the contract holds under
+  either representation. A resolver returning `"10110001"` and one returning `10110001` produce the
+  same response.
+- **Overflow is unreachable.** `Int!` permits up to `2147483647`. This project's allocator hands out
+  a 3-digit prefix plus 5 digits — 8 digits, so at most `99999999`, comfortably inside it. And those
+  are *seeder and fixture* ids; production ids autoincrement from 1, and §7 foresees 50 members of
+  staff with a few hundred expenses each. Nothing approaches 2.1 billion rows.
+
+**So no coercion was added, and that was the right call.** A `Number(...)` on the response path would
+be an undocumented transformation that nothing in the tree does, and it would hide the dialect
+difference rather than resolve it.
+
+**Corrected at checkpoint 9 — the claim that only SQLite is ever tested was false.** This entry
+said `package.json` carries a `test:live` script that "nothing in this project's gates ever runs".
+`.github/workflows/test-with-mariadb.yml` runs `npm run test:live` against a real MariaDB service
+on **every pull request**, and always has. The proof is a failure rather than a reading: the
+MariaDB run of this branch refused
+`StaffGraphqlContext › .findUser() › … accessTokenRecord.id: 10100406` while the SQLite run of the
+same commit refused a *different* case — which is how Q38's race was diagnosed. Both dialects
+execute the same 910 tests at every gate.
+
+**And the passing suite says more than this entry allowed.** Tests assert seeded ids as JS numbers
+(`id: 10110001` inside a `toEqual`), and `toEqual` does not equate `'10110001'` with `10110001`. The
+MariaDB run passes those assertions, so on this driver and at these magnitudes a `BIGINT` id arrives
+as a number, exactly as it does on SQLite. That is evidence, not a guarantee about every magnitude.
+
+**What remains genuinely open is therefore narrower, and is the part worth keeping.** No test
+asserts the *type* of a returned id on either dialect, so the two representations are
+indistinguishable to the suite rather than untested by it. If a coercion ever does turn out to be
+needed it belongs in one place for every operation rather than per resolver. Adjacent to Q24, Q31
+and Q38.
+
+
+## Q38. The id-block convention cannot protect a table the product itself writes
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Found at `#sign-in`'s checkpoint 9, diagnosing an intermittent CI failure. **Fixed in this
+repository; raised here because the convention it breaks is not this repository's.**
+
+`hor-bank-id` allocates an exclusive row-id prefix per feature so that two writers never choose the
+same id, and `migrations-and-seeders.md` asks every seeder to reserve its own block. `#sign-in` was
+allocated `101`. The convention holds perfectly against another writer **choosing** an id. It does
+nothing against a writer that **derives** its id from the current maximum — which is what an
+auto-increment column does.
+
+    step 1  a test inserts explicit id 10100401     -> table max = 10100401
+    step 2  a concurrent signIn mints an access token, auto-incremented,
+            and is assigned max + 1                 -> 10100402
+    step 3  the same test inserts explicit 10100402 -> UNIQUE violation
+
+So the block's **own first insert** is what hands the auto-increment writer the block's second id.
+No choice of prefix escapes it, because the collision is generated by the block rather than
+suffered by it. Three tables were exposed — `staff_member_access_tokens`, `sign_in_attempts` and
+`staff_member_refresh_tokens` — every one of them a table the product writes on the `signIn` or
+`renewAccessToken` path.
+
+**Two properties made it expensive to find, and both are worth recording.**
+
+1. **It is a race, so it moved.** The failing case differed between runs and between dialects, which
+   reads as a flaky fixture rather than a systematic fault. The mechanism only became visible after
+   the thrown error was printed: Jest reports a `SequelizeUniqueConstraintError` by its `message`,
+   which is the bare string `Validation error`, so the log showed a **blank** message above a stack
+   in the insert path and named neither the constraint nor the column. The useful text sits in
+   `error.original.message` — `UNIQUE constraint failed: staff_member_access_tokens.id` — and
+   nothing surfaces it.
+2. **A partial fix made it worse.** Removing the ids from two files first took the run from
+   intermittent to failing every time, because the collision moved to the suites that still held
+   explicit ids in the same tables. The invariant holds everywhere or nowhere.
+
+**The invariant, stated for whoever owns the convention:** an explicit row id is safe only in a
+table **nothing but the tests writes**. `staff_members` qualifies — §4 rules sign-up out of scope, so
+no product path inserts one, and its 45 explicit ids were kept. A table on any product write path
+must leave the id to the database, and a case needing identification should use a natural key it
+already has (here `access_token`, which is unique, indexed, and what the lookup uses anyway).
+
+**Where it lands.** `hor-bank-id`'s allocation is still correct and still needed; what it lacks is
+the sentence saying which tables it can protect. Same for `migrations-and-seeders.md`'s id-block
+rule. Neither is this repository's file. Adjacent to Q33, which recorded two other ways this
+shared-database test tree depends on order.
+
+## Q39. Both backend CI workflows passed their test flags to npm instead of to the test script
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Found at `#sign-in`'s checkpoint 9, while reproducing Q38. **Fixed in this repository; raised
+because both files came from the backend boilerplate.**
+
+Every Jest step in `test-with-sqlite.yml` and `test-with-mariadb.yml` was written without npm's
+`--` separator:
+
+    npm test --seeded --maxWorkers=3 tests/_orders/
+
+npm reads `--seeded` and `--maxWorkers=3` as its own configuration and forwards only the positional
+argument. `npm test --dry-run` prints what actually ran:
+
+    > ./test.sh tests/_orders/
+
+**So neither flag had ever reached the script, on either dialect, silently.** Two consequences:
+
+| declared | what happened |
+|---|---|
+| `--maxWorkers=3` | never applied. `test.sh` appends its own cap only inside the `--empty` / `--seeded` branches; with no mode argument the run falls through to the bottom, where `jestCommand "$@"` carries no cap — so the concurrency CI declares is not the concurrency it uses |
+| `--seeded` / `--empty` | never distinguished. The fall-through branch runs `db:seed:dev` unconditionally, so the phase meant to prove behaviour against **master seeds alone** would have run with development seeds loaded |
+
+The second matters more than the first, and it reaches a decision already recorded: checkpoint 5
+chose `development/` over `dev-master/` for the staff-account seeders precisely because
+`tests/empty/**` runs before `db:seed:dev`, which is what gives §10's "an address with no account"
+criterion a phase with no accounts in it (Q29). **On CI that phase would have been seeded.** The
+split was real in `test.sh` and absent in the workflow that calls it.
+
+**It cost nothing yet, for a reason that is luck rather than design:** `tests/empty/` does not exist
+in this repository, so the phase whose semantics were broken currently holds no tests. Q29's
+reasoning was sound about where such a test belongs and wrong about the phase being ready for it.
+
+**Where it lands.** The `--` is added to all ten steps here. The frontend repository is unaffected —
+its workflow runs a bare `npm test`. Any other ORT backend on this boilerplate carries the same two
+files. Adjacent to Q26, Q31 and Q38: things the built or deployed product carries that no gate of a
+feature exercises.
