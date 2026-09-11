@@ -87,7 +87,7 @@ Note: **a stub is a public endpoint.** The authentication filter is built from t
 
 ## Frontend gate
 - [x] 10. Open the frontend  <!-- skills: hof-nuxt, hof-furo-env; digests: hora-skills-ort-furo 0.1.0. Neither had a digest at the installed version; both taken before the implementer ran, and both carry a conflicts section naming where `D:\ORT\rules\` wins. Route `/sign-in` was FORCED by the boilerplate's existing `middleware/000.gateway.global.js`, not chosen. Reachability established from the built route table rather than a curl, because `ssr: false` makes nitro answer every path with the same SPA fallback. Env repointed from the boilerplate's customer:3900 to the staff endpoint on 4900, verified against the backend engine. One unit claim checked and rejected: the tree doc was not stale, the word "middleware" is overloaded -->
-- [ ] 11. Reconfirm UI/UX and the use cases
+- [x] 11. Reconfirm UI/UX and the use cases  <!-- interactive, main session, in conversation; skills: hof-uiux-context, read in full (no digest -- no agent ran). Wrote `expense-note-frontend-staff/ai/contexts/uiux-context.md`, which did not exist; every answer tagged [spec]/[user]/[tree]/[chosen] so checkpoint 18 does not audit an arbitrary answer as a rule. Three questions put to the user: devices, accessibility target, tone. BOTH of section 10's use cases were found to end outside this feature -- the sign-out control lives on section 11.2's screen and "every screen after that" means screens #expense-entry owns -- so neither is closable at this feature's gate. Not sent back to checkpoint 2: the spec is coherent, the paths exist at version level. Q41 raised, and checkpoint 9's claim that the screen half is "checkpoint 18's" is corrected there -->
 - [ ] 12. Component design
 - [ ] 13. The frontend modules the implementation needs
 - [ ] 14. API client
@@ -880,6 +880,74 @@ not repeat the misreading.
   post-sign-in redirect.
 
 **9 suites, 34 tests, lint clean.** Baseline was 8 and 27.
+
+## Checkpoint 11 — the third pass over the use cases, and what it found that the first two could not
+
+**Run interactively by the main session.** Its real output is
+`expense-note-frontend-staff/ai/contexts/uiux-context.md`, which did not exist — only the blank
+questionnaire ships with the skill. Both the UI generator (checkpoints 12 and 15) and the auditor
+(checkpoint 18) read that file, so **an answer written into it becomes both the instruction and the
+standard it is later judged against.** Every answer is therefore tagged with where it came from:
+`[spec]` with the section named, `[user]`, `[tree]`, or **`[chosen]` — arbitrary, so checkpoint 18
+does not audit a preference as though it were a rule.**
+
+### Three answers the spec could not give, put to the user
+
+| | Decided | Why it was not inferable |
+|---|---|---|
+| devices | **desktop-first, usable on a phone browser** | §4 rules out a phone **app**. That says nothing about a phone **browser**, and the two are different questions |
+| accessibility | **WCAG 2.2 AA** | the spec is silent. This is the standard checkpoint 18 fails against, so it had to be stated before 12 generates anything |
+| tone | **plain and neutral** | §5 inherits nothing, so there was no house voice to match |
+
+**One thing that looked like a question and was not.** The interface language is **English**, and it
+is derived rather than chosen: §6 names the categories "transport, meals, supplies, other", so the
+domain vocabulary the UI displays is English. §1's `Question language | English` is about questions
+put to the user during specification and is **not** evidence for the interface — reading it that way
+would have been a guess wearing a citation.
+
+### The finding: both of §10's use cases end outside this feature
+
+This is the checkpoint that asks whether *a person can actually do the use case on a screen* — 2
+asked whether the spec supports it, 9 whether the API does. Walking both:
+
+| §10 use case | The path, as far as it goes | Where it stops |
+|---|---|---|
+| signs in on a Monday morning, "**and every screen after that knows who they are**" | open any path → the gateway sees no token → `/sign-in?redirect=<path>` → form → `signIn` → token in memory → redirected back | **there is no screen after that.** The only routes are `/sign-in` and `/`, and `/` is still the boilerplate stub with an empty template. The clause is about screens this feature does not own |
+| "finishes on a shared machine, **signs out**, and the next person is asked to sign in" | — | **there is nowhere to put the control.** §11.2 puts `signOut` on the **expense-entry** screen, and §10.2's screen is explicitly "for a member of staff who is **not** signed in". `#sign-in` has no screen a signed-in person ever sees |
+
+**This is not a spec defect and was not sent back to checkpoint 2.** The kit says a use case with no
+path through the interface goes back, because either the interface or the use case is wrong. Neither
+is wrong here: the paths exist at **version** level — §11.2 carries the sign-out control, and the
+later screens are what "every screen after that" refers to. What is true is narrower and sharper:
+**§10's use cases are not closable at `#sign-in`'s own gate.** They close when `#expense-entry`
+exists, or at the whole-version sweep.
+
+**And that corrects something I wrote at checkpoint 9.** The record there says the screen half of
+these two use cases "is checkpoint 18's". **It is not** — `#sign-in`'s checkpoint 18 cannot close
+them either, because the control and the destination both belong to a feature that does not exist
+yet. The right statement is the one above, and Q41 records it so checkpoint 18 does not report a
+missing sign-out button as a defect of this feature.
+
+**Why the earlier passes could not have caught it.** Checkpoint 2 read the use case against the
+spec, where §11.2's `signOut` row makes the path complete. Checkpoint 9 read it against the API,
+where the `signOut` operation exists and works. **Only the question "which screen has the button"
+reaches it** — and that question is this checkpoint's alone.
+
+### What the context file records that nothing else does
+
+- **No design tokens exist.** `assets/css/variables.css` declares `:root { }` and a comment saying
+  the boilerplate deliberately makes no decision. So there is no answer to "what is the primary
+  colour" until a checkpoint declares one — which is why checkpoint 10's page carries no `<style>`
+  block at all: with no tokens, any colour would be a literal, and `05-frontend.md` forbids those.
+- **Eighteen project UX rules**, lifted from `D:\ORT\rules\05-frontend.md` rather than invented, so
+  the generator produces code that passes review instead of code that gets rejected.
+- **Three things that must never be built**, each with its spec citation: a sign-up or
+  password-reset link (§3 — there is no such screen and no such flow), a "remember me" checkbox (§9.6
+  — the access token lives in memory and the refresh token is httpOnly, so it would control nothing),
+  and any UI for `renewAccessToken` (§10.2 — it belongs to the client layer and happens invisibly).
+- **One copy rule that is a requirement, not a preference:** an unknown address and a wrong password
+  are refused **identically**. "No account found for that email" is a defect, and a generator left to
+  its instincts writes exactly that.
 
 ## Where the decisions live, when control flow does not hold them
 

@@ -1759,3 +1759,51 @@ unit that will have to choose, and because the reasoning is invisible from the f
 in `useRedirect.js` says a project rule forbids its shape.
 
 Adjacent to Q38 and Q39: a convention this repository inherited rather than wrote.
+
+
+## Q41. Neither of §10's use cases can be completed on a screen this feature builds
+
+<!-- spec: sign-in -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#sign-in`'s checkpoint 11, the pass that asks whether a person can actually perform each
+use case **on a screen**. **This is not a spec defect** — it is a statement about what this
+feature's acceptance can and cannot claim, recorded so checkpoint 18 does not report it as one.
+
+§10's two use cases:
+
+> - a member of staff opens the app on a Monday morning, signs in with the address and password they
+>   were issued, and is signed in — **every screen after that knows who they are**
+> - a member of staff who has finished on a shared machine **signs out**, and the next person to open
+>   the app is asked to sign in rather than landing in somebody else's account
+
+**Both end outside `#sign-in`.**
+
+| | Why |
+|---|---|
+| "every screen after that" | there is no screen after that. `#sign-in` owns exactly one screen, §10.2's, and the only other route is `/` — still the boilerplate stub with an empty template. The clause refers to screens `#expense-entry` and `#monthly-summary` own |
+| "signs out" | **§11.2 puts the `signOut` call on the expense-entry screen.** §10.2's screen is explicitly "For: a member of staff who is **not** signed in", so there is nowhere in this feature for a sign-out control to live — a signed-in person never sees this feature's only screen |
+
+**The spec is coherent and nothing should change in it.** The paths are complete at **version**
+level: §11.2 carries the control, and the later screens are what "every screen after that" means.
+What is not true is that `#sign-in` can demonstrate either one end to end.
+
+**Where they actually close.** At `#expense-entry`'s gate, or at the whole-version sweep — which is
+the run `_plan.md` already reserves for behaviour spanning several features, and which is the only
+run that judges §14's version-wide criteria.
+
+**This corrects a claim in checkpoint 9's own record.** That record says the screen half of these
+two use cases "is checkpoint 18's". It is not: `#sign-in`'s checkpoint 18 cannot close them either,
+for the reason above. The claim was written before anybody asked *which screen has the button*.
+
+**Why neither earlier pass could have caught it, which is the part worth keeping.** Checkpoint 2
+read the use cases against the **spec**, where §11.2's `signOut` row makes the path complete.
+Checkpoint 9 read them against the **API**, where the `signOut` operation exists, is tested and
+works. Both were right about what they were asked. **Only "which screen has the control" reaches
+this**, and no gate before 11 asks it.
+
+**What checkpoint 18 should do with this.** Not report a missing sign-out control as a defect of
+`#sign-in`, and not mark §10's use cases as passed either. Record them as reached-as-far-as-the-
+feature-goes, with the remainder owed to `#expense-entry`. Adjacent to Q40, also deferred to a later
+frontend checkpoint.
