@@ -2037,3 +2037,93 @@ boilerplate's assumption is the whole value; discovering it afterwards would mea
 client and the gateway together.
 
 Adjacent to Q40, which is the other boilerplate behaviour this feature has to decide about at 16.
+
+
+## Q44. No `.vue` file in this repository can be unit-tested
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#sign-in`'s checkpoint 15 by the unit building the screen, which wrote a mount test for its
+one new component, hit this, **deleted the test rather than encode the defect**, and reported it.
+Verified independently from the main session before recording.
+
+### What happens
+
+`jest.config.js` transforms `.vue` with `@vue/vue3-jest` (29.2.6), and `.babelrc` compiles the test
+file to CommonJS with `@babel/preset-env`. **vue3-jest's output is not interop-flagged** — it carries
+no `__esModule: true` — so babel's `_interopRequireDefault` wraps the whole module object rather than
+unwrapping it, and a default import yields the namespace instead of the component.
+
+Probed directly, on the real component:
+
+```
+PROBE keys:          [ 'default', 'render' ]
+PROBE has .props:    undefined
+PROBE has .default:  object
+```
+
+So `import AppRefusalMessage from '.../AppRefusalMessage.vue'` gives `{ default, render }`.
+`.props` is undefined, every prop falls through as a plain attribute, and a mount renders nothing
+useful.
+
+### Why it has never been noticed
+
+**No `.vue` file has ever been tested in this repository** — `grep` over `tests/` finds not one import
+of a `.vue`. The boilerplate ships none, and every test so far targets a class. So nothing regressed;
+this is a latent gap that the first component to want a test walked into.
+
+### Why it was not fixed at checkpoint 15
+
+Four reasons, and the last is the one that decides it:
+
+1. The exit condition was met without it.
+2. The one new component, `AppRefusalMessage`, **holds no logic** — no context class, no computation,
+   no decision — so there is no behaviour a test would assert.
+3. `jest.config.js` is a shared file, and changing test infrastructure mid-checkpoint affects every
+   suite in the repository.
+4. **There is nothing to verify a fix against.** A change to the transform with no component whose
+   test currently fails is a change whose correctness cannot be demonstrated — which is exactly the
+   class of "green but meaningless" this feature has spent the day recording.
+
+**Where it lands.** `#expense-entry` adds components that *do* hold behaviour, and its checkpoint 13
+or 15 is the natural place: there will be a real failing test to fix against, which is the condition
+this checkpoint lacked. The workaround to avoid — writing `.default` into test imports — encodes the
+bug into every test file and should not be taken.
+
+Adjacent to Q42: another thing the boilerplate hands every project built from it.
+
+## Q45. furo's controls assume a CSS reset that nothing in the stack ships
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Found at `#sign-in`'s checkpoint 15, and **worked around on one screen rather than fixed**, because
+the fix is project-wide and does not belong to a feature.
+
+`FuroTextField` and its siblings are written for `box-sizing: border-box` — `width: 100%` plus padding
+plus a border. **Nothing supplies it:**
+
+- `@openreachtech/furo-vue` ships no `box-sizing` anywhere in `lib/assets/css/` — grepped, not assumed
+- `@openreachtech/furo-nuxt` 2.x ships **no stylesheet at all** (Q42's neighbour: 1.x shipped
+  `0100.reset.css`, and the sibling `crm-kit-frontend` still loads it — but it is on furo-nuxt 1.x)
+- this application's `assets/css/main.css` is 7 lines of iOS input sizing and declares no reset
+
+**So every furo control overflows its container, at every viewport**, in any project on
+`furo-boilerplate-nuxt 2.1.0` that uses `furo-vue`. Checkpoint 15 worked around it with three local
+`box-sizing: border-box` declarations scoped to the sign-in screen.
+
+**Why it was not fixed centrally here.** A reset in `main.css` changes the box model of every element
+in the application at once. On a repository with one screen that is nearly free, and that is exactly
+why it is tempting — but it is a project-wide structural decision arriving as a side effect of
+building a form, and the same reasoning that kept `@layer` out of checkpoint 15 applies unchanged.
+
+**Where it lands.** Either `main.css` gains a reset — the removal condition for the three local
+declarations, which should be deleted the moment it does — or furo-nuxt 2.x restores the stylesheet
+it used to ship. The second is upstream and is the better fix, since every consumer of `furo-vue`
+has this problem.
+
+Adjacent to Q42 and Q44: three separate things the frontend boilerplate leaves to each project to
+discover independently.

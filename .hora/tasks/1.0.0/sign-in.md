@@ -91,7 +91,7 @@ Note: **a stub is a public endpoint.** The authentication filter is built from t
 - [x] 12. Component design  <!-- skills: hof-uiux-forge, hof-cp-text-field, hof-cp-button, hof-cp-control-block, hof-prohibits; digests: hora-skills-ort-furo 0.1.0, all five taken at this checkpoint since none existed. Four components exist (FuroEmailField, FuroPasswordField, FuroButton, FuroControlBlock), one is new -- the form-level refusal message, because section 10 requires an identical refusal and `errorMessages` attaches to a single control. Eight source-verified facts contradict the skills or the library's own manifest, two of them WCAG 2.2 AA gaps to compensate for at 15. Three digests independently found that NO component had a working colour: nothing imported furo.css, so `--color-ring` -- FuroButton's only focus indicator -- resolved to nothing. Fixed in 2899424, verified out of the built bundle -->
 - [x] 13. The frontend modules the implementation needs  <!-- skills: hof-error-handling, hof-modules; digests: hora-skills-ort-furo 0.1.0, both taken at this checkpoint. The kit requires stating WHICH half applies: the error-code mapping applied (13 codes), the shared-module half is n/a -- one screen, `components/` empty, no second call site -- so `app/modules/` was deliberately not created. Static-string variant taken over the i18n locale-path variant, following the no-localization-layer decision already recorded at checkpoint 11 rather than making a new one; no i18n dependency added. `hoc-properties`' Map prohibition and the skill's own "no reverse map" both killed the skill's two-hop design, so the hash is keyed by code directly. `BaseAppGraphqlCapsule` is conflict-proof and was written by the main session, with a test reading removed for using a banned case-generating loop that ESLint does not catch -->
 - [x] 14. API client  <!-- REACHED IN PART, and recorded as such. skills: hof-graphql; digest: hora-skills-ort-furo 0.1.0, taken at this checkpoint. Four Launcher/Payload/Capsule trios. The "matching the contract exactly" clause is MET -- each document extracted from the file on disk and validated against `.hora/contracts/1.0.0/` with graphql 17.0.2, with a negative control that was itself corrected after tripping on the wrong error. The "works against the stub" clause is NOT met and is unmeetable here: Q24 means no server boots on Windows, so nothing listens. Not faked and no mock server called a stub. `types/graphql-schema.d.ts` created -- a type projection, not a second authority, because nothing can validate against it -->
-- [ ] 15. UI
+- [x] 15. UI  <!-- skills: hof-uiux-forge plus every skill covering this project's CSS conventions -- hof-css, hof-css-props-naming, hof-css-props-prohibits, hof-css-units, hof-css-coding-styles, hof-css-prohibits, hof-css-line-height, hof-css-z-index, hof-selector-props-sort, hof-layout-margin, hof-animation; digests: hora-skills-ort-furo 0.1.0, all twelve taken at this checkpoint. All four states built. NO custom property declared, no @layer, no z-index, no animation CSS -- each decided against for a stated reason. The two accessibility gaps recorded at checkpoint 12 are compensated, and THREE further contrast failures were found by measuring the real token hexes rather than trusting their semantic names. Q44 and Q45 raised: no .vue can be unit-tested here, and furo's controls assume a reset nothing ships -- both worked around with removal conditions rather than silently patched -->
 - [ ] 16. Wire the data-fetching logic in
 - [ ] 17. Local test environment
 
@@ -1178,6 +1178,83 @@ a computed key **suppresses no rule** and names the thing better than `data` did
 reproduced before the workaround was chosen rather than assumed.
 
 **22 suites, 140 tests, lint clean.** Baseline was 10 and 73.
+
+## Checkpoint 15 — the screen, and three contrast failures found by measuring rather than trusting
+
+**All four states built, which is the whole exit condition** — the kit says outright that loading,
+empty and error "are the ones that get skipped and the ones acceptance fails on".
+
+Each is reached by setting a field on injected reactive state, so each is asserted without a browser:
+
+| State | Reached by | What proves it |
+|---|---|---|
+| **empty** | both values `null`, no refusal | the value getters answer `null`; the submit parcel is `loading: false` |
+| **filled** | a value on either field | the value getters, including `''` — **cleared is distinct from untouched**, which is why a `ref` starts at `null` |
+| **loading** | one boolean | the submit parcel is `loading: true`. **That single field is the double-submission guard**: the library suppresses the click emit *and* sets native `disabled`, which also blocks a form's implicit Enter submit. No template guard |
+| **error** | the refusal message present | the refusal getter, and **both** fields marked invalid |
+
+### §10's identical refusal is now held in the markup as well
+
+The control-block parcels are asserted with a **full** `toEqual` carrying **no `errorMessages`**, in
+all four states. A per-field message is the shape that would let the two credential outcomes diverge
+on screen, so the test fails the moment one appears. A refusal marks **both** fields, never one.
+
+**That criterion is now enforced in four places**, each independently: one `throw` site in the
+resolver, one code in the contract, one string in `constants-error.js`, and one form-level region
+here. It is structural at every layer rather than agreed at any of them.
+
+### The two accessibility gaps, compensated — which is why they were recorded at 12
+
+- **The pending button keeps an accessible name.** `aria-label` matching the visible text, so it
+  survives the library hiding the label with `visibility: hidden` and marking the spinner
+  `aria-hidden`. Matching the visible text also keeps name and label in agreement (2.5.3).
+- **The refusal region is ALWAYS rendered**, empty or not, giving both fields a stable
+  `aria-describedby` target — the library's own source admits the omission in a comment — and letting
+  `role="alert"` announce reliably, since an assertive region announces text **inserted into it**,
+  not its own insertion. It reserves one line, so a refusal appearing moves nothing.
+
+### Three further contrast failures, found by measuring the real hexes rather than trusting names
+
+**This is the finding worth keeping from this checkpoint.** The tokens are named semantically and
+correctly — `--color-destructive` for an error, `--color-input` for a control boundary — and a build
+that consumed them by name, as every convention says to, would have shipped three WCAG failures:
+
+| Token | Measured | Required |
+|---|---|---|
+| `--color-destructive` as text | **3.67:1** | 4.5:1 |
+| `--color-input` as a control boundary | **1.69:1** | 3:1 (1.4.11) |
+| the library's field focus style | `outline: none` plus a hue change of near-identical luminance | a visible indicator |
+
+**A semantic name is a claim about purpose, not about contrast.** Nothing in the naming convention,
+the digests or the linter can tell you that `--color-destructive` is too light to be error text; only
+computing the ratio against the surface it actually sits on can. Fixed on this screen with tokens
+that clear the thresholds, and recorded as a library-level problem rather than a screen-level one.
+
+### What was deliberately not built
+
+- **No custom property declared** — `variables.css` is still an empty `:root {}`. furo supplies
+  everything this screen needs, so the five-step scale conflict never had to be adjudicated.
+- **No `@layer`, no `z-index`, no animation or transition CSS.** Each decided against for a stated
+  reason, the last following the animation skill's own rule never to animate a keyboard-initiated
+  action — and a form submits on Enter.
+- **`onSubmitForm()` does the UI half only and does not invoke `signIn`.** The button spins and stays
+  spun. **Stubbing a fake resolution to make the screen look finished would have made checkpoint 16
+  harder to verify, not easier** — there would be nothing left that failed.
+
+### Two repository-level gaps found, worked around rather than fixed
+
+Both are recorded with removal conditions rather than silently patched:
+
+- **Q44 — no `.vue` file in this repository can be unit-tested.** vue3-jest's output is not
+  interop-flagged, so a default import yields `{ default, render }` and `.props` is undefined. The
+  unit wrote a mount test, hit it, and **deleted the test rather than write `.default` into it and
+  encode the bug**. Not fixed here because there is nothing to verify a fix against: the one new
+  component holds no logic. `#expense-entry` will have a real failing test to fix against.
+- **Q45 — furo's controls assume a `box-sizing` reset nothing in the stack ships.** Every control
+  overflows its container at every viewport. Worked around with three declarations scoped to this
+  screen, with the removal condition written down.
+
+**22 suites, 206 tests, lint clean.** Baseline was 22 and 140.
 
 ## Where the decisions live, when control flow does not hold them
 
