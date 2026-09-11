@@ -1807,3 +1807,69 @@ this**, and no gate before 11 asks it.
 `#sign-in`, and not mark §10's use cases as passed either. Record them as reached-as-far-as-the-
 feature-goes, with the remainder owed to `#expense-entry`. Adjacent to Q40, also deferred to a later
 frontend checkpoint.
+
+
+## Q42. Twenty equipped component skills document a package the boilerplate does not ship
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Found at `#sign-in`'s checkpoint 12, the first checkpoint in this project that needed a text field.
+**Resolved for this repository by a user decision; recorded because the cause is upstream and every
+project built from the same boilerplate meets it identically, at the same checkpoint.**
+
+### What disagrees with what
+
+`furo-boilerplate-nuxt 2.1.0` gives this row `@openreachtech/furo-nuxt ^2.0.0`, which depends on
+`@openreachtech/furo ^1.11.0`. **Neither package contains a single `.vue` file** — verified by
+counting, not inferred — and `components/` ships empty but for a `.gitkeep`.
+
+Every one of the **twenty** `hof-cp-*` skills opens with the same clause: *"in a repo that consumes
+`@openreachtech/furo-vue`"*. Button, text field, control block, select, table, dialog, toast,
+tabs, and the rest. Their examples import from that package — nine such imports in the two skills
+read closely.
+
+**`@openreachtech/furo-vue` is referenced nowhere in this project**: not `package.json`, not the
+boilerplate, not `.hora/tree/expense-note-frontend-staff.md`, not `specs/`. Only the skills name it.
+
+So the skills and the boilerplate disagree about what the stack is, and **the disagreement is
+invisible until a checkpoint needs a component.** Checkpoints 1 to 11 all passed without touching
+it. Checkpoint 12 cannot.
+
+### Why this is a different kind of arbitration from the eighteen already logged
+
+The eighteen recorded above are all **an equipped skill versus an always-on rule in
+`D:\ORT\rules\`**, and Q10 settles every one of them: the rule wins. There is a standing authority,
+so the arbitration is mechanical once the conflict is spotted.
+
+**This one has no adjudicator.** A boilerplate is not a rule, a skill is not a rule, and neither
+`specs/` nor `D:\ORT\rules\` says anything about which component library a frontend uses. Q10 does
+not reach it. That is precisely why it went to the user rather than being decided in a unit — there
+was nothing to appeal to, and the two readings led to materially different work:
+
+| | |
+|---|---|
+| add `@openreachtech/furo-vue` | twenty skills become applicable; the stack gains a dependency the boilerplate did not choose |
+| hand-build the components | the declared stack is untouched; a text field, a password field and a button get reinvented, and every table, select and dialog after them |
+
+**Decided by the user: add it.** The evidence that supported it — three sibling ORT frontends
+already depend on it (`crm-kit-frontend`, `hora-ecosystem`, `hora-kit-homepage`), it is actively
+maintained at 1.3.2, it carries no lifecycle install scripts, and it ships 52 components including
+`FuroEmailField` and `FuroPasswordField`, purpose-built for exactly this screen.
+
+### Where it lands, and why not here
+
+**Upstream, and one of two places.** Either `furo-boilerplate-nuxt` should ship what the skills
+assume, or the skills package should declare the dependency it documents. This project fixed its own
+instance in one commit; **that fix reaches one repository.** The next project created from the same
+boilerplate hits the same wall at its own checkpoint 12 and has to make the same call with the same
+absence of an adjudicator.
+
+**The same shape, independently, in a second place:** one `js-yaml` advisory has now been fixed
+separately in the app repository and the backend row and is still open in the frontend — three
+repositories, one advisory, three fixes, because the fix lives in a lockfile rather than in
+`renchan-boilerplate` and `furo-boilerplate-nuxt`. Different subject, identical propagation. Not
+chased here; noted because two instances make it a pattern rather than an incident.
+
+Adjacent to Q38 and Q39, both also conventions this repository inherited rather than wrote.
