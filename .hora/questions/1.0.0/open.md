@@ -1130,3 +1130,394 @@ criteria; changing it here would pre-empt the gate whose job it is. What makes i
 rather than leaving to be noticed is the asymmetry verification found: **the omission was reasoned
 and the retention was not.** One of the two decisions was made and the other was inherited, and
 only the first left an argument behind.
+
+## Q28. A stub-served field has no authentication filter, so a stub is a public endpoint
+
+<!-- spec: sign-in -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#sign-in`'s checkpoint 4, digesting the stub-API skill before writing any stub.
+
+**The authentication filter is built from the `actual/` resolvers alone.** In
+`@openreachtech/renchan/lib/server/graphql/resolvers/GraphqlResolversBuilder.js`:
+
+```js
+const schemas = this.extractSchemas({
+  schemaHash: actualResolverSchemaHash,      // actual ONLY — the stub hash is not read here
+})
+const filterSchemaHash = await this.buildFilterSchemaHash({ engine, actualSchemas: schemas })
+```
+
+and then, per schema, over the **union** of actual and stub:
+
+```js
+const filter = this.filterSchemaHash[it]                 // undefined for a stub-only field
+const resolver = this.actualResolverSchemaHash[it]
+  ?? this.stubResolverSchemaHash[it]                     // actual supersedes stub automatically
+```
+
+`generateResolverResolveCallback` then calls `await filter?.(envelope)`. **`undefined` means no
+filter runs** — no `Unauthenticated`, no `Unauthorized`, no `DeniedSchemaPermission`. The same
+mechanism `schemasToSkipFiltering` uses to make an operation public (`.hora/tasks/1.0.0/sign-in.md`,
+checkpoint 3) applies to every stub-only field, without anybody listing it.
+
+**So `signedInStaffMember` is public for exactly as long as it is a stub** — the one operation of
+the four deliberately kept *out* of the skip list, because §10 requires it refused without a
+session. Its criterion is unmeetable at checkpoint 4 by construction, since a stub returns
+hardcoded data and cannot refuse. **That is checkpoint 6's to satisfy, not checkpoint 4's**, and
+checkpoint 4's exit condition asks for hardcoded data in as many words.
+
+**Three consequences, in rising order of cost:**
+
+1. **Checkpoint 8's security audit reads this feature's change set**, which will contain four
+   publicly-reachable operations where §7 permits three. The audit should meet that as a dated
+   finding rather than a discovery.
+2. **The frontend gate builds against the stub.** Checkpoints 12 to 14 develop a client and a
+   screen against an endpoint that **never refuses**, and checkpoint 16 swaps them onto one that
+   does. A client with no unauthenticated path — no redirect to the sign-in screen, no retry
+   through `renewAccessToken` — passes every frontend checkpoint and breaks at 16. §10.2 says
+   every other screen "sends somebody here when theirs has gone", so that path is the feature,
+   not an edge case.
+3. **The production shape is the one worth naming.** The engine loads both resolver directories
+   in every environment, so a deployment where checkpoint 6 missed an operation serves that
+   operation **publicly, with hardcoded data, and nothing fails.** No error, no log line, no
+   failing test — the endpoint simply works and lies. This is the argument for the stub skill's
+   own advice to *move* a stub into `actual/` at checkpoint 6 rather than leave it beside the
+   real one: the framework's `?? ` fallback means a leftover stub is invisible until the actual
+   one is deleted, and then it is invisible in the other direction.
+
+**Recorded rather than acted on, because there is nothing to fix here.** This is how the
+framework's stub mechanism works, and the mechanism is what makes the frontend gate independent
+of the backend gate finishing — which is the whole reason checkpoint 4 precedes checkpoint 6.
+What it needs is to be **known** at three later gates, which is what this entry is for.
+
+## Q29. `test.sh` runs a whole test phase against directories that do not exist
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#sign-in`'s checkpoint 3, reading the runner while digesting the backend-testing skill.
+
+`expense-note-backend/test.sh` runs the suite in **two phases**, and the distinction between them
+is real and useful:
+
+```sh
+function testWithEmpty () {          # the database carries MASTER seeds only
+  jestCommand "$@" tests/empty/__tests__/
+  jestCommand --detectOpenHandles tests/empty/_orders/
+}
+
+function testWithSeeded () {         # then development seeds are added
+  npm run db:seed:dev
+  jestCommand "$@" tests/__tests__/
+  jestCommand --detectOpenHandles tests/_orders/
+}
+```
+
+**Neither `tests/empty/__tests__/` nor `tests/empty/_orders/` exists.** The phase survives only
+because every invocation carries `--passWithNoTests`, so two of the four jest runs do nothing and
+say so quietly. **Not a defect** — an unused capability, and `--passWithNoTests` is what makes it
+harmless rather than a broken runner.
+
+**It is directly relevant to this feature, which is why it is recorded now rather than left.**
+§10's first acceptance criterion is that "an address with no account and a correct address with
+the wrong password are refused identically". Today `staff_members` is empty, so "an address with
+no account" is trivially any address. **Once Q22's development seeders exist, that stops being
+true**: every seeded address has an account, so the test has to pick an address deliberately
+absent from the seeder — a value whose meaning depends on a seeder file the test does not name.
+
+The `empty` phase is where an assertion that genuinely needs an unseeded table belongs, and it
+runs before `db:seed:dev`. **Checkpoint 6 should choose per test which phase it wants**, rather
+than defaulting everything into `tests/__tests__/` because that is where the other files are.
+Adjacent to Q22.
+
+## Q30. The reconciliation between shared test doubles and the no-hoisting rule is undecided
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Raised by the agent digesting the backend-testing skill, which flagged its own resolution as
+non-authoritative rather than presenting it as settled.
+
+**The equipped skill wants shared, itself-tested doubles** under `tests/mocks/` and `tests/tools/`.
+**The always-on rule wants nothing hoisted**: "The instance under test, every stub/fixture it
+needs, and `factoryParams` all belong in the case… never declared as a shared `const` above or
+inside a `describe`. Duplicating a value across cases is accepted and preferred."
+
+These do not obviously contradict — one is about a shared *class* in its own file, the other about
+a `const` at describe scope — but the boundary between them is exactly where an agent will guess.
+
+**The working resolution, used at checkpoint 3 and recorded here so it is visible rather than
+implicit:** a one-line stub is inlined into each case, duplicated as the rule prefers;
+`tests/mocks/` is reserved for a genuine shared mock **class** that is itself tested. Neither
+`tests/mocks/` nor `tests/tools/` exists in this repository yet, so nothing has had to choose.
+
+**Why this is a question and not a ruling.** Q10 settled that the always-on rules beat an equipped
+skill, and named the cases it was deciding — the `@augments` spelling, index-name abbreviation and
+`Promise.all`. **It did not decide this one**, and the digest that reconciled it said so plainly
+instead of quietly writing a rule into a file agents read as authority. Worth settling before
+checkpoint 6, which writes eight resolver tests and is the first place a shared double would be
+tempting.
+
+## Q31. `checkJs` is on and `jsconfig.json` never resolves the test globals, so two thirds of its output is phantom
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#sign-in`'s checkpoint 4, running the type check an implementer flagged as owed —
+`server.graphql.staff.*` is a new ambient namespace and no lint rule enforces a JSDoc type name.
+
+**`npx tsc -p jsconfig.json --noEmit` reports 1630 errors, and 1010 of them are not real.** They
+are `Cannot find name 'describe'` / `'test'` / `'expect'` — one family, across every test file in
+the repository. `@types/jest@30.0.0` is both declared in `devDependencies` and present in
+`node_modules/@types/`, so this is not a missing dependency.
+
+**It is a config gap, and the diagnosis is one line.** `jsconfig.json` carries `checkJs: true`,
+`moduleResolution`, `module`, `target` and `exclude: ["node_modules"]` — and **no `types` field.**
+Adding one clears the family outright:
+
+| run | total errors | the missing-globals family |
+|---|---|---|
+| as configured | 1630 | 1010 |
+| `--moduleResolution bundler --module esnext` | 1630 | 1010 |
+| **`--types jest,node`** | **409** | **0** |
+
+The middle row is there because a modern module resolution was the obvious hypothesis and it is
+**wrong** — identical numbers. Only the explicit `types` list moves it.
+
+**Why this is worth an entry rather than a shrug.** `checkJs: true` says somebody intended these
+files to be type-checked. What the configuration actually produces is 1010 phantom errors that
+**mask 409 real ones** — and any editor reading `jsconfig.json` shows every developer the same
+1010. A check nobody can read is a check nobody runs.
+
+**Among the 409 that were masked, some are in code `#sign-in` is about to build on.**
+`app/session/SessionClerk.js` carries three `TS2322: Type 'unknown' is not assignable to type
+'Error | null | undefined'`, and `app/session/BaseSessionResult.js` an `Object is possibly
+'null'`. Checkpoint 5 has to extend `SessionClerk` with the access-token read that
+`StaffGraphqlContext.findUser` owes, so knowing those exist beforehand is worth more than
+discovering them while adding a method.
+
+**What this run established about `#sign-in` itself, which was the reason for running it:**
+
+- **zero errors in every source file checkpoint 3 created** — the engine, the context, the share,
+  the model and `types/StaffGraphQL.d.ts`
+- **zero errors anywhere naming `server.graphql.staff`**, so the ambient namespace the always-on
+  `graphql-resolvers.md` mandates does resolve. That was the open question
+- where this feature's files do appear, **the error shapes are identical to the siblings they
+  mirror and strictly fewer**: `StaffGraphqlServerEngine` 14 against `CustomerGraphqlServerEngine`
+  20, of the same kinds; `SignInAttempt` and `StaffMemberSecret` carry the same two, one each. So
+  no new *kind* of type error was introduced
+
+**Not fixed here, for two reasons.** `jsconfig.json` is repository-wide configuration and nothing
+in §10 touches it, so it is scope nobody approved. And **tsc is not part of this project's
+toolchain**: `review-and-tooling.md` names ESLint, Jest and the spell checker, and the always-on
+`jsdoc.md` reaches for tsc only to *emit* declarations (`tsc --emitDeclarationOnly`), never to
+check. So this changes no gate — it changes what a developer sees in an editor, and what a future
+run of the check would be able to tell them.
+
+The fix, when somebody takes it, is `"types": ["jest", "node"]` in `jsconfig.json`, on an
+`update/` branch of its own, with the 409 triaged separately. Adjacent to Q13, Q14, Q15, Q17,
+Q19, Q20 and Q24 — the family of things the boilerplate ships that no gate here exercises.
+
+## Q32. bcrypt ignores a password past 72 bytes, and nothing caps one
+
+<!-- spec: sign-in -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Raised by the agent writing the password encipher at `#sign-in`'s checkpoint 5, which declined to
+add a guard nothing had asked for rather than adding one quietly.
+
+**bcrypt truncates its input at 72 bytes.** So two passwords sharing their first 72 bytes produce
+the same digest and verify interchangeably. `bcryptjs` v3 exposes a `truncates(password)` helper
+to detect it, and **nothing in this product calls it**:
+
+- **§7 and §9.5 cap nothing.** §7 says only "a password is a one-way hash and is never stored,
+  returned or logged in any other form"; §9.5 declares the digest column and says nothing about
+  the plaintext's length
+- **the encipher does not guard it**, deliberately — its assignment said not to add methods
+  nothing needs, and refusing a password is user-visible behaviour no section describes
+- **no input validator guards it either**, because `#sign-in` has none. That was decided at
+  checkpoint 5: §10's eight criteria say nothing about input validation, and the contract types
+  both `SignInInput` fields `String!`, so GraphQL refuses a missing one before a resolver runs
+
+**What it actually costs.** Somebody who sets a 100-character password from a password manager has
+its last 28 characters ignored — and would get in by typing only the first 72. That is a real
+weakening the person did not consent to, and it is invisible: nothing fails, nothing logs, and the
+sign-in works.
+
+**Why it is not urgent.** No account exists that anybody chose a password for. §4 rules sign-up
+out of scope for 1.0.0, and the only credentials in the tree are development seeder fixtures. So
+the exposure arrives with the first real account, which arrives with whatever mechanism Q22 is
+still open about. **The two questions want deciding together.**
+
+**Three ways it could go, and none is obviously right:**
+
+| | what it costs |
+|---|---|
+| refuse a password over 72 bytes | user-visible, and a refusal no section of the spec describes. Needs a §7 or §10 sentence to sit behind it |
+| pre-hash the password (SHA-256, then bcrypt the digest) | removes the limit with no user-visible change, and is standard practice — but it changes what the stored digest is a digest *of*, so adopting it later than the first real account means a reset for everybody. It also diverges from what the always-on testing rule assumes when it asserts a bcrypt digest of a password |
+| accept it | the documented behaviour of the algorithm the project chose, and 72 bytes is a long password. But "documented" is not the same as "somebody decided it" |
+
+**Where it lands.** Checkpoint 8's security audit reads this feature's change set and will meet the
+encipher; it should meet this dated rather than discover it. And whichever way it goes, **option
+two stops being cheap the moment a real password is stored**, which is the only reason this is
+worth writing down now rather than at 1.0.1.
+
+## Q33. Two tests in the suite pass by accident, and seeding development data is what exposed it
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#sign-in`'s checkpoint 5, seeding the three staff-account tables. **Neither finding is
+caused by those rows** — both were latent and became visible because `sequelize/seeders/development/`
+stopped being empty for the first time.
+
+### 1. A master-seeder test depends on suite order
+
+`tests/__tests__/sequelize/seeders/master/expense_categories.js` asserts the **whole table**:
+
+```js
+const actual = await ExpenseCategory.findAll({
+  order: [['displayOrder', 'ASC']],       // no `where` — every row in the table
+})
+
+expect(actual).toEqual(expected)          // exactly four objectContaining entries
+```
+
+and `tests/_orders/Expense/Expense.js` creates categories and leaves them behind:
+
+```js
+await ExpenseCategory.create({
+  id: params.ExpenseCategoryId,           // 10000311, 10000313, … left in the table
+  name: `expense category ${params.ExpenseCategoryId}`,
+  displayOrder: 1,
+})
+```
+
+**It passes only because `test.sh` runs `tests/__tests__/` before `tests/_orders/`.** Reverse
+those two lines, run `__tests__` alone against a database an `_orders` run has already touched, or
+parallelize the two categories, and it fails with a large diff. Reproduced, and confirmed
+unrelated to the new rows: a fresh `db:refresh` makes it pass again.
+
+**Why it is worth recording rather than shrugging at.** The always-on testing rule's whole stance
+is that "a test must fail when the implementation is **wrong**". This one can fail while the
+implementation is **right**, which is the same defect wearing the other face — and it will do so
+at the least convenient moment, since nothing in the runner declares the ordering it depends on.
+The rule also says plainly: "Never call `Model.findOne` / `update` / `findAll` directly inside a
+test to fetch or verify." A seeder test is the one place that instruction is awkward, and scoping
+the read to the seeded id block is what resolves it.
+
+**It is `#data-model`'s file and not `#sign-in`'s to change.** The fix is a `where` on the
+`1000000x` block, or a `toEqual`-plus-length pair scoped to the seeded ids.
+
+### 2. `db:seed:dev` was never idempotent; now it can bite
+
+sequelize-cli's seeder storage here is the default `none`, so `db:seed:all` re-runs **every**
+seeder on every invocation. While `development/` held nothing but `.directorykeeper.cjs`, running
+it twice was harmless. Now a second `db:seed:dev` without a teardown between dies on
+`SQLITE_CONSTRAINT: UNIQUE constraint failed: staff_members.id`.
+
+**The same fragility already existed for `db:seed:master`** — a second run collides on
+`expense_categories.id` — so this is the shape of the runner, not something the new rows
+introduced. `npm test` and `db:refresh` both tear down before seeding and are unaffected. What
+breaks is `./test.sh --seeded <path>` run twice in a row.
+
+**Recorded because it is now reachable.** An agent or a person who runs the seed step twice while
+iterating gets a constraint error naming a table they did not touch, and the honest diagnosis is
+two directories away.
+
+### 3. Settled while recording these: the error-path seeded rows stay
+
+The agent asked whether the two members of staff holding no complete credential — one with no
+address, one with a digest and no address — model anything real, since §9.4 and §9.5 each say one
+row per member of staff and it offered to drop them for a uniform ten.
+
+**They stay, and Q22 is the reason.** §4 rules sign-up out of scope, so "accounts are issued by an
+operator outside the product" — and Q22 records that the product offers that operator no mechanism
+at all, leaving hand-written SQL across three tables in the right order. **A half-issued account is
+therefore not a hypothetical in this product; it is the most likely way one goes wrong.** The
+seeder coverage convention asks for exactly such rows, and §10's identical-refusal criterion means
+`signIn` has to refuse a credential-less account the same way it refuses a wrong password — which
+is a behaviour needing a row to test against.
+
+## Q34. A detected reuse is the one real security event in this flow and it leaves no trace
+
+<!-- spec: sign-in -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Raised by the agent closing `SessionClerk`'s gaps at `#sign-in`'s checkpoint 5, which declined to
+invent an audit line rather than guessing at one.
+
+A refresh token presented after it is spent means the cookie was copied — §9.7 exists to detect
+exactly that, and §10 requires the whole series revoked when it happens. **The product now detects
+it, revokes the series, and records nothing anywhere.** The refusal reaches the caller and the
+event reaches nobody.
+
+**Why no log line was added, which is the substance of the question.** Every identifier that would
+make such a line useful is barred:
+
+| identifier | why it cannot go in a log |
+|---|---|
+| the refresh token | §9.7 stores only a digest and the plaintext must never come back out |
+| its digest | still a credential-equivalent for the row it names |
+| the `sessionKey` | names the series, so it is the credential's handle |
+| the member of staff's id or address | §7: "None of the three is ever written to a log line" |
+
+So the honest options are a line carrying nothing identifying — which cannot be investigated — or
+a table, which is a data-model change no section asks for. **The spec asks for no audit trail at
+all**, and §8 declares no log aggregation.
+
+**Not urgent, and here is the bound.** The security *response* is complete: the series is revoked,
+so a stolen cookie stops working and so does the session it was stolen from. What is missing is
+only the ability to know it happened. At 20 members of staff on an internal system, the person
+affected notices they were signed out.
+
+**Where it would land if taken.** A `staff_member_session_events` table, or §7 gaining a sentence
+that permits a `sessionKey` in a log line at a stated retention. Both are 1.0.1 or later.
+Checkpoint 8's security audit should meet this dated rather than raise it as an omission.
+
+## Q35. §9.6 says an expired access token is deleted, and nothing deletes one
+
+<!-- spec: sign-in -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#sign-in`'s checkpoint 5, giving `SessionClerk` its access-token read.
+
+§9.6 reads: "An expired access token is **deleted**, not flagged — there is no `revoked_at` here,
+because the lifetime is the revocation."
+
+**Only one path deletes one.** `SessionClerk#deleteAllAccessTokens({ sessionKey })` runs on
+sign-out and on a series revocation. **An access token that simply expires is never deleted** —
+`findAvailableAccessToken` refuses it through the model's `isAvailable({ pointsAt })` and leaves
+the row where it is.
+
+**Nothing available can prune them.** §8: "Redis is not declared, because this version runs no
+background job. Every write finishes inside its own request, and nothing here leaves the process."
+So there is no scheduled sweep to put this in. Deleting on read would turn the authentication hot
+path — every operation of every screen — into a write, which is worse than the rows.
+
+**What it costs, sized rather than asserted.** An access token lives fifteen minutes, so a working
+day is roughly 32 per person; §7 foresees 50 members of staff, and §7's retention row keeps an
+expense 7 years. That is on the order of a million rows accumulating in `staff_member_access_tokens`
+over the retention period — not a performance problem for an indexed lookup on a unique column,
+and not nothing either. **The table grows without bound and nothing in the product ever shrinks
+it.**
+
+**Not a code defect and not this feature's to fix.** §9.6 states an intent that §8's own decision
+makes unimplementable at 1.0.0, so the two sections disagree quietly. **The honest reading is that
+§9.6's "deleted" describes what sign-out does and overstates itself for the expiry case** — which
+is a sentence, not a mechanism, and correcting a sentence in `specs/` needs approval this
+checkpoint does not have.
+
+**Where it lands.** Either §9.6 gains a clause saying an expired row is left until its series ends,
+or 1.1.0 declares the job that sweeps it — which the approval feature planned for 1.1.0 may bring a
+scheduler for anyway. Adjacent to Q26 and Q31: things the deployed product carries that no gate of
+a feature exercises.
