@@ -197,6 +197,14 @@ by `.join('_')` on an array (never auto-named).
 - **One index → `await` it directly. Multiple indexes on the same table → wrap them in
   `Promise.all([...])`.**
 
+> ⚠ **OVERRIDDEN IN THIS PROJECT — do NOT use `Promise.all` for indexes.** The always-on rule
+> `D:/ORT/rules/migrations-and-seeders.md` states: "**Indexes: sequential
+> `await queryInterface.addIndex(...)` — never `Promise.all`.**" Always-on rules win over an
+> equipped skill here (Q10), and the repository already follows the rule —
+> `…-000009-create_table-staff_member_refresh_tokens.cjs` awaits its three indexes one after
+> another. **Write sequential `await`s.** The `Promise.all` sample below is the skill's text,
+> kept so the disagreement is visible; do not copy its shape.
+
 ```js
 await Promise.all([
   queryInterface.addIndex(TABLE_NAME, [
@@ -225,6 +233,18 @@ await Promise.all([
 DB identifier limit is 64 chars; as a safety margin **shorten once a name would run past ~50
 characters** — and not before (do not mechanically initialize; `customers_registered_at_index`
 stays full). Shorten in this priority order:
+
+> ⚠ **OVERRIDDEN IN THIS PROJECT — the ~50-character threshold does not apply.** The always-on
+> rule states: "**Index name always uses `SHORT_COLUMN_NAME`**", with no length condition, and all
+> ten existing migrations follow it — `expenses_smi_so_index` is nowhere near 50. Always-on wins
+> (Q10).
+>
+> **How far to abbreviate is settled separately, and it is not "initialize every word":**
+> abbreviate **for length only, and keep a short name whole**. So a composite of `email` and
+> `attempted_at` becomes `sign_in_attempts_email_aa_index`, not `sign_in_attempts_e_aa_index` —
+> `email` is one short word and carries whole, while `attempted_at` abbreviates the way `spent_on`
+> → `so` does in the expenses migration. The priority order below still holds for **which** name
+> to shorten first.
 
 1. **Shorten the column name(s) only** — define `SHORT_COLUMN_NAME`, keep `TABLE_NAME` in full.
    `content_generations_content_generation_job_id_unique` (52) → `content_generations_cgji_unique` (31).
