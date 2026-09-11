@@ -1299,6 +1299,7 @@ distinction is worth more than the findings:
 | **1. Right where the suite looks** | the code is correct in the environment the suite runs in, and wrong only in the configuration of environments it never opens | the logging defect (19) |
 | **2. Right against the referent asked** | the same sentence yields a different answer against the spec, against the API, and against the screen. Each pass answered its own question correctly | §10's use cases (20) |
 | **3. Legal but empty** | nothing is malformed, so nothing is detectable | the undefined tokens (21) |
+| **4. Tested through a door production does not use** | the suite reaches the code by a different route than the running product does, so the failing path is never entered | the Windows boot defect (Q24) |
 
 **The third has no class of automated detector at all**, and that is the one worth stating plainly:
 
@@ -1312,6 +1313,23 @@ reported anything.
 removes the native focus outline and rebuilds the ring from `--color-ring`. Undefined, it did not
 fail to add a ring — it left the removal in place with nothing behind it. An omission degrades to
 the browser default; this one degraded past it.
+
+**Mechanism 4 is the one the backend gate could not have found, and it is worth its own paragraph.**
+`@openreachtech/renchan`'s `DeepBulkClassLoader` passes a raw absolute path to `await import()`,
+which on Windows is `D:\...` — protocol `d:` — and the ESM loader refuses it. **No renchan server
+starts on Windows**, and the same line appears in two packages, covering models, GraphQL resolvers,
+post-workers and REST routes.
+
+**915 tests pass anyway, for two independent reasons that both have to be true.** Jest supplies its
+own module registry and intercepts `import()`, so a specifier Node's loader would refuse is resolved
+by jest instead. And **no test exercises `loadClasses()` at all** — the suite reaches models and
+resolvers by importing them directly, never through the loader that boots them.
+
+So the suite is not weak here and no extra assertion would have helped: **it is pointed somewhere
+else entirely.** A green suite says what it says about the code it runs, and says nothing whatever
+about the path production takes to reach that code. Adding tests does not close this class; only
+running the thing the way it actually runs does — which is what a live acceptance gate is for, and
+which this exercise has never once been able to do.
 
 ### The same shape bit the measurement, not just the product
 
