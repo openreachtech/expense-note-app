@@ -89,7 +89,7 @@ Note: **a stub is a public endpoint.** The authentication filter is built from t
 - [x] 10. Open the frontend  <!-- skills: hof-nuxt, hof-furo-env; digests: hora-skills-ort-furo 0.1.0. Neither had a digest at the installed version; both taken before the implementer ran, and both carry a conflicts section naming where `D:\ORT\rules\` wins. Route `/sign-in` was FORCED by the boilerplate's existing `middleware/000.gateway.global.js`, not chosen. Reachability established from the built route table rather than a curl, because `ssr: false` makes nitro answer every path with the same SPA fallback. Env repointed from the boilerplate's customer:3900 to the staff endpoint on 4900, verified against the backend engine. One unit claim checked and rejected: the tree doc was not stale, the word "middleware" is overloaded -->
 - [x] 11. Reconfirm UI/UX and the use cases  <!-- interactive, main session, in conversation; skills: hof-uiux-context, read in full (no digest -- no agent ran). Wrote `expense-note-frontend-staff/ai/contexts/uiux-context.md`, which did not exist; every answer tagged [spec]/[user]/[tree]/[chosen] so checkpoint 18 does not audit an arbitrary answer as a rule. Three questions put to the user: devices, accessibility target, tone. BOTH of section 10's use cases were found to end outside this feature -- the sign-out control lives on section 11.2's screen and "every screen after that" means screens #expense-entry owns -- so neither is closable at this feature's gate. Not sent back to checkpoint 2: the spec is coherent, the paths exist at version level. Q41 raised, and checkpoint 9's claim that the screen half is "checkpoint 18's" is corrected there -->
 - [x] 12. Component design  <!-- skills: hof-uiux-forge, hof-cp-text-field, hof-cp-button, hof-cp-control-block, hof-prohibits; digests: hora-skills-ort-furo 0.1.0, all five taken at this checkpoint since none existed. Four components exist (FuroEmailField, FuroPasswordField, FuroButton, FuroControlBlock), one is new -- the form-level refusal message, because section 10 requires an identical refusal and `errorMessages` attaches to a single control. Eight source-verified facts contradict the skills or the library's own manifest, two of them WCAG 2.2 AA gaps to compensate for at 15. Three digests independently found that NO component had a working colour: nothing imported furo.css, so `--color-ring` -- FuroButton's only focus indicator -- resolved to nothing. Fixed in 2899424, verified out of the built bundle -->
-- [ ] 13. The frontend modules the implementation needs
+- [x] 13. The frontend modules the implementation needs  <!-- skills: hof-error-handling, hof-modules; digests: hora-skills-ort-furo 0.1.0, both taken at this checkpoint. The kit requires stating WHICH half applies: the error-code mapping applied (13 codes), the shared-module half is n/a -- one screen, `components/` empty, no second call site -- so `app/modules/` was deliberately not created. Static-string variant taken over the i18n locale-path variant, following the no-localization-layer decision already recorded at checkpoint 11 rather than making a new one; no i18n dependency added. `hoc-properties`' Map prohibition and the skill's own "no reverse map" both killed the skill's two-hop design, so the hash is keyed by code directly. `BaseAppGraphqlCapsule` is conflict-proof and was written by the main session, with a test reading removed for using a banned case-generating loop that ESLint does not catch -->
 - [ ] 14. API client
 - [ ] 15. UI
 - [ ] 16. Wire the data-fetching logic in
@@ -1024,6 +1024,81 @@ package instead of summarising it.
 It also corrected the tree doc, which attributed those stylesheets to `furo-nuxt` and described a
 `@layer` system this repository does not have — that is `crm-kit-frontend`'s. The correction is kept
 beside what it replaced.
+
+## Checkpoint 13 — one half applicable, one half not, and the kit made me say which
+
+**The exit condition has two halves and the kit is explicit: "State which of the two, do not assume
+both."** That instruction did real work here.
+
+| Half | Verdict |
+|---|---|
+| this feature's backend error codes map to user-facing messages | **applicable.** 13 codes, all mapped |
+| logic used by more than one component or page exists as a class under `app/modules/` | **not applicable**, and nothing was built for it |
+
+**The n/a is evidenced rather than asserted.** `#sign-in` has one screen; `components/` holds only a
+`.gitkeep`; `pages/index.vue` is still an empty stub; and the feature's other two operations have no
+second call site either — `signOut`'s control belongs to §11.2's screen (Q41) and `renewAccessToken`
+is transparent client-layer work no screen calls (§10.2). The skill's own trigger is "reusing
+general logic across multiple files", and nothing clears it. **`app/modules/` still does not exist,
+which is the right outcome**: inventing a shared module to have something to show would be premature
+extraction, and the checkpoint explicitly permits n/a.
+
+### The i18n fork, decided from what was already recorded
+
+The skill offers two **mutually exclusive** mechanisms and says an app uses one or the other: a
+locale-path variant (`ERROR_LOCALE_HASH` + `t()`) that needs an i18n layer **even for a single
+language**, and a static-string variant that needs none.
+
+**Static strings, no new dependency.** Not a fresh judgement — `ai/contexts/uiux-context.md` §7
+already records English, single language, no localization layer, and that was derived at checkpoint
+11 from §6 naming the categories "transport, meals, supplies, other". The decision was made two
+checkpoints ago; this one only had to notice it applied.
+
+### An always-on rule forced a better design than the skill's
+
+The skill's static variant resolves in **two** hops — code → semantic name via `ERROR_CODE_MAP`,
+then name → message — and writes `ERROR_CODE_MAP` as a `Map`.
+
+Two rules kill that. `hoc-properties` prohibits `Map` and **names a string-keyed one as the exact
+circumvention it is banning**. And the skill's own `dictionaries.md` says "no reverse map", which
+`ERROR_CODE_MAP` is. So the hash is keyed by the code directly, one hop — and `ERROR_CODE_HASH`
+still earns its place by supplying the computed keys, so no dotted string is typed twice.
+
+**A skill contradicting itself, resolved by a rule that reached both halves.** Category 1 of the
+arbitration taxonomy, and the cheapest kind.
+
+### The three messages worth recording
+
+- **`204.M001.001`** — "That email address and password do not match." One code for two outcomes, so
+  the message names neither. A reading pins that exact text, so restoring "No account found for that
+  email" fails a test rather than surviving review. §10's criterion is now held in three places: one
+  `throw` site in the backend, one code in the contract, one string here.
+- **`203.M001.004`** — quotes **no figure**. The limit is 72 **bytes**, measured with
+  `Buffer.byteLength` because bcrypt truncates there, so "72 characters" is false for any non-ASCII
+  password. A helpful-sounding number would have been a lie, and the honest message is vaguer.
+- **`204.Q001.002`** — the account row exists, its secret row does not. **The one case where "try
+  again" would be a lie**, because a missing row does not heal on a retry. It points at whoever
+  issues accounts, which §4 puts outside the product — and not at a screen, because there is none.
+
+### The conflict-proof file, and a rule ESLint does not enforce
+
+`BaseAppGraphqlCapsule` is a base class every operation's capsule derives from, so the unit reported
+it rather than editing it and the main session wrote it. It carries the **single** resolution point:
+a context that mapped a code to a message itself would be a second place where §10's identical
+refusal can quietly stop holding.
+
+`getErrorMessage()` is inherited from furo and **returns a code despite its name** — confirmed in the
+base, which answers `null`, one of four transport codes of its own, or the backend's. The name
+cannot be changed, so the docblock warns.
+
+**And one reading was written and deleted before committing.** It generated its cases with
+`Object.entries(ERROR_MESSAGE_HASH).map(...)`, which `testing.md` bans — "complex case-generating
+loops are banned". **ESLint does not catch that one**, lint was clean, and 86 tests passed. It was
+removed because the rule says so and because the completeness it was testing already lives in the
+reconciliation reading in `constants-error.js`, which is where it belongs. A green suite is not
+evidence that a test is allowed to exist.
+
+10 suites, **73 tests**, lint clean. Baseline was 9 and 34.
 
 ## Where the decisions live, when control flow does not hold them
 
