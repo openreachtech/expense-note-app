@@ -935,3 +935,50 @@ password *reset* to a later version, needing a mail sender this version does not
 issuing an account is the same shape of problem. Recorded so it is a decision at 1.0.1 rather
 than a discovery on the first day of use. Adjacent to Q16 (`.env.live` tracked): both are
 "what the deployed product needs that no gate here exercises".
+
+## Q23. The pinned contract declared an operation the spec never did, and the same commit forbade it
+
+<!-- spec: sign-in -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#sign-in`'s checkpoint 3, reading the contract before writing the staff SDL.
+
+`.hora/contracts/1.0.0/staff-graphql.graphql` declared `healthCheck: Boolean!` as a field of the
+staff `type Query`. **The spec never mentions a health check, in any section.** §10.1 holds four
+operations, §11.1 five and §12.1 one; `healthCheck` is none of them.
+
+**`#sign-in`'s own task file forbids it by name**, and both files were written by the same
+`/hora-plan` commit (`731b9d4`, "Plan 1.0.0 into four features, and pin the staff contract"):
+
+> **the staff audience adds NO `healthCheck`.** The backend row ships one for its own
+> audiences, and copying it across out of habit is the obvious thing to do — do not. §10.1 is
+> the complete operation list, and §7's Authentication row is written against it staying that
+> way
+
+So the derivation contradicted itself inside one commit: the constraint anticipated exactly this
+mistake, and the contract beside it made it. **It surfaces only when somebody builds from both
+artifacts at once**, which is checkpoint 3 and no earlier gate.
+
+**Why it is not cosmetic.** §7's Authentication row reads "every operation authenticates by one
+of two credentials, and which one is part of adding it", naming three exceptions —
+`signIn`, `signOut`, `renewAccessToken`. A `healthCheck` has neither credential, so it would
+have to join `schemasToSkipFiltering` as a fourth, and §7's rate-limiting row would stop being
+true as well ("these are the two operations reachable without a session, and the only two
+limited at 1.0.0"). One convenience field would falsify two sentences of the spec.
+
+**Resolved by correcting the contract, not by raising it and stopping.** `/hora-build` says
+wanting to change a contract mid-checkpoint means raising a question rather than changing it —
+that rule guards a contract against an implementation that finds it inconvenient. This is the
+other case: the contract contradicted the document it was derived from, and `specs/` is the
+authority over every derivation under `.hora/`. The field was removed and a comment left in its
+place saying why, so the next reader does not restore it. **Nothing in `specs/` was touched.**
+
+**The consumer had not read it yet.** The contract is pinned for both sides, so changing one
+normally desyncs the frontend — but no frontend work has begun, `#sign-in`'s frontend gate
+starts at checkpoint 10, and a health check appears in no screen's call table in §10.2, §11.2 or
+§12.2. Had a screen been built against it, this would have been a stop rather than a fix.
+
+**What stays open, and is the reusable part:** nothing checks a pinned contract against the spec
+it was derived from. `/hora-plan` verified the operations exist; it did not verify that no
+operation exists which the spec does not declare. Both directions want checking, and only one is.
