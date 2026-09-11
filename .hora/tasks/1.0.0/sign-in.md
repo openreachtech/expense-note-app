@@ -80,10 +80,10 @@ Note: **a stub is a public endpoint.** The authentication filter is built from t
 - [x] 3. DB and API schemas  <!-- skills: hor-database-design, hor-sequelize-migration, hor-sequelize-model, hor-graphql-schema, hor-graphql-server-engine, hor-type-interface, hor-cookie-authentication, hor-constant-definition, hoc-naming, hoc-jsdoc; digests: hora-skills-ort-renchan 0.1.0 and hora-skills-ort-core 0.2.0. hor-graphql-schema and hor-graphql-server-engine had no digest at the installed version and were taken before any agent ran. GAP: the tests this checkpoint owed came from the always-on testing rule rather than the exit condition, and hoc-jest and hor-backend-testing were read in full because neither had a digest yet — both now taken, for checkpoints 6 and 16 -->
 - [x] 4. Stub API  <!-- skills: hor-stub-api, hor-backend-testing, hoc-jest, hoc-naming, hoc-jsdoc; digests: hora-skills-ort-renchan 0.1.0 and hora-skills-ort-core 0.2.0. hor-stub-api, hoc-jest and hor-backend-testing were all taken for this checkpoint. LIMIT: "callable from outside" is evidenced through the framework's own schema-and-resolver path with real GraphQL documents executed in process, not over a socket — Q24 means no server on this machine listens at all -->
 - [x] 5. The modules the implementation needs  <!-- catalog checked FIRST, once, for the whole checkpoint, against @openreachtech/hora-ecosystem 0.1.0 (33 tracked repositories); skills: hor-cookie-authentication, hor-sequelize-model, hor-sequelize-seeder, hor-database-design, hor-constant-definition, hoc-classes-principles, hoc-classes-constructor, hoc-classes-inflators, hoc-methods, hoc-properties, hoc-scope, hoc-async, hoc-naming, hoc-jsdoc, hoc-jest, hor-backend-testing; digests: hora-skills-ort-renchan 0.1.0 and hora-skills-ort-core 0.2.0, plus six hoc- skills read in full for want of a digest -->
-- [ ] 6. Actual API
-- [ ] 7. Worker
-- [ ] 8. Security audit
-- [ ] 9. Verify the use cases again, against the built API
+- [x] 6. Actual API  <!-- skills: hor-mutation-resolver, hor-query-resolver, hor-resolver-validator, hor-graphql-server-engine, hor-cookie-authentication, hor-backend-testing, hoc-jest, hoc-classes-notations, hoc-methods, hoc-errors, hoc-naming, hoc-jsdoc; digests: hora-skills-ort-renchan 0.1.0 and hora-skills-ort-core 0.2.0. hor-mutation-resolver, hor-query-resolver and hor-resolver-validator had no digest at the installed version and were taken before any agent ran; each carries a "Settled by the main session" section for the arbitrations below. 15 of the 18 skill-versus-rule conflicts fell in this checkpoint -->
+- [x] 7. Worker  <!-- n/a: decided with hor-execution-placement-pattern, read in full (no digest — an interactive decision, no agent ran), not by eye. Every piece of this feature's processing belongs in the request path; the two candidates that do not are barred by §8 and §7 respectively. Reasoning below -->
+- [x] 8. Security audit  <!-- skills: hor-security-audit, read in full (no digest at the installed version). Ran over the whole change set of checkpoints 3 to 6, on code already committed, lint-clean and passing 876 tests. Six findings, two of them MEDIUM and reachable from the internet; all six fixed in f427e22, b0a7cc5 and 62d6a61, each with a test that fails without the fix. Three INFO items recorded, one of them (the WebSocket channel bypassing both HTTP mitigations) left open as an engine-level decision this feature does not own -->
+- [x] 9. Verify the use cases again, against the built API  <!-- interactive, run by the main session against the merged tree; no agent, so no digest taken. All eight of §10's acceptance criteria walked one at a time against something that would fail if the criterion stopped holding. Seven held; the eighth -- "none writes one into a log line" -- was FALSE on live, staging and production, where no `logging` key left Sequelize at its `console.log` default and every sign-in wrote an email address to stdout. Fixed in 3ac78a0 with a test that reads the config file rather than a connection, because the suite runs only under `development`, which already had logging off. Both use cases verified as far as a backend can carry them; the screen half is checkpoint 18's -->
 
 ## Frontend gate
 - [ ] 10. Open the frontend
@@ -532,13 +532,436 @@ of ten. The six models are established by the passing suite.
    identically. The clerk now hands back one indistinguishable error, so the resolver only has to
    not undo that.
 2. **§7's limits are written and not wired.** The revocation-on-refusal write now sits on the
-   unauthenticated path — `renewAccessToken` is reachable without a session by design — and the
-   reasoning that this is bounded rests on the 60-per-hour-per-series limit **being attached**. A
-   fabricated cookie never reaches the guard (`findRefreshToken` returns null), so the reachable
-   case is one real dead cookie replayed, which the per-series limit bounds. If the limit ships
-   unwired, that branch is a free write for a stolen cookie.
+   unauthenticated path — `renewAccessToken` is reachable without a session by design — so §7's
+   60-per-hour-per-series limit needs attaching to it. A fabricated cookie never reaches the guard
+   (`findRefreshToken` returns null), so the reachable case is one real dead cookie replayed.
+
+   > **CORRECTION, made at checkpoint 6 — the sentence this paragraph originally ended with was
+   > wrong, and it was mine.** It read: "which the per-series limit bounds. If the limit ships
+   > unwired, that branch is a free write for a stolen cookie." **The limit does not bound it.**
+   >
+   > `AccessTokenRenewalRateLimit` counts rows in `staff_member_refresh_tokens` by `sessionKey`
+   > and `generatedAt` — and **a refused renewal generates no row**, because the guard matched
+   > nothing so no rotation happened. So replaying a dead cookie never advances its own count, and
+   > the limit is never reached however many times it is replayed.
+   >
+   > **What the limit does bound is row growth**, which is what §7 actually asks of it: a live
+   > series can rotate at most 60 times an hour. That is intact and wired at checkpoint 6.
+   >
+   > **The residual, stated properly:** each replay of a known-dead cookie costs one transaction
+   > and two statements, and after the first refusal both are no-ops — `revokedAt` no longer
+   > matches, and the access tokens are already deleted. So it is bounded in *effect* rather than
+   > by the limit. Recorded as Q38. Found by the checkpoint 6 unit that wired the limit, which
+   > checked the claim rather than inheriting it.
 3. **`findUser` cannot get the member of staff from the clerk**, by design — the clerk holds only
    the two token models. `extractUserId()` on the returned access-token entity is the id to read
    `StaffMember` by, and doing so is not a second door onto the token tables.
 4. **The resolver's `isAvailable` pre-check is now defence in depth**, not the only defence. Keep
    it; do not rely on it.
+
+## Checkpoint 6 — the actual API, and the checkpoint where the arbitrations happened
+
+**Four resolvers replaced four stubs**: `signIn`, `signOut` and `renewAccessToken` as mutations,
+`signedInStaffMember` as a query, each with its stub still standing beside it. Thirteen error codes
+across them — `203.M001.001`–`004` for the validator, then `204.M001.001`–`003`, `204.M002.001`–
+`002`, `204.M003.001`–`002` and `204.Q001.001`–`002` for the database refusals.
+
+**Q28 closes here, and it closes by construction rather than by a fix.** A stub is a public
+endpoint: the framework builds its authentication filter hash from the resolver pool it is given, so
+while the only `signedInStaffMember` was a stub, the operation answered without a session. The pool
+is now `actual/`, so the filter is built from resolvers that authenticate. Nothing was added to
+close it — the hole was the stub's existence, and the stub is no longer what answers.
+
+**`schemasToSkipFiltering` is the most dangerous line in the feature**, and it is written to be read
+that way. An operation listed there is handed to `FilterSchemaHashBuilder` as an ignored schema,
+mapped to `null`, and called as `filter?.(…)` — so it gets no `Unauthenticated`, no `Unauthorized`
+and no `DeniedSchemaPermission`. **An operation wrongly listed there is a public endpoint.** The
+list is exactly the three §7 declares reachable without an access token, and the docblock says why
+each one is there rather than leaving the reader to infer it.
+
+### The validator, and the two limits that are not the obvious ones
+
+Five checks behind four error names: `MissingEmail`, `MissingPassword`, `MalformedEmail` and
+`TooLongPassword`. Two of them are bounds rather than formats, and both were chosen against a
+stated reason:
+
+- **72 bytes, measured with `Buffer.byteLength`, not `String#length`.** bcrypt truncates at 72
+  *bytes*, so a password of 72 multi-byte characters is silently cut. Counting characters would
+  accept an input the hash does not fully cover (Q32). Replacing the byte count with `String#length`
+  fails 3 tests.
+- **191 characters, counted with `Array.from(email).length`, carried on `MalformedEmail`.** §9.4
+  stores the address in `varchar(191)`; without the bound a 300-character address reached the
+  INSERT. It rides the existing error name rather than adding a fifth, because §10 requires a
+  malformed address and an over-long one to be refused identically.
+
+`EMAIL_PATTERN` is `/^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/u` — deliberately not an RFC 5322
+attempt. It requires a dot-separated domain and rejects whitespace, and nothing more, because §10
+asks only that a malformed address be refused and the account lookup decides the rest.
+
+### Where the eighteen arbitrations landed
+
+**Fifteen of the eighteen recorded below fell in this checkpoint**, which is where an equipped skill
+and an always-on rule had the most to disagree about: the validator's entrypoint, its directory, the
+error-code family, member order, method order, matcher choice, case-field names, the Act variable
+and fixture hoisting. Three changed real structure. The full list, with what each skill said and
+what was built, is its own section below — it cannot be reconstructed from the merged tree, because
+the tree records only the outcome.
+
+### The test file that became false, and was replaced rather than patched
+
+Checkpoint 4 left `execute-stub-operations.js`, which drove the four operations end to end through
+the framework's own schema-and-resolver path. **The moment actual resolvers landed, its name and its
+subject were both wrong** — it was no longer exercising stubs. It was reworked into
+`tests/_orders/SignIn/execute-staff-session-operations.js`, and given §10's cross-operation
+criterion to own: sign in, read yourself, renew, read yourself again, sign out, and fail to read
+yourself.
+
+**Two units had also placed their `_orders` files by source path**, which the always-on rule forbids
+— `_orders` groups by domain. Consolidated to `tests/_orders/SignIn/`.
+
+### Everything mutation-checked, not argued
+
+| break this | tests that fail |
+|---|---|
+| restore the `'*'` wildcard in `schemasToSkipFiltering` | **11** |
+| remove the 191-character address bound | **12** |
+| remove the resolver's `isAvailable` pre-checks | **4** |
+| restore the upload middleware | **3** |
+| give the two credential refusals different error codes | **11** |
+| count the password with `String#length` instead of bytes | **3** |
+
+The suite went from 242 to **910** across the checkpoint, lint clean throughout.
+
+## Checkpoint 7 — the placement decision, and the one piece that would belong to a worker
+
+**Not applicable, and the skill is what says so.** `/hora-build` is explicit that this is decided
+with the placement skill rather than by eye, because "a write that looks synchronous, a side effect
+that looks small, a notification that looks instant — each is a candidate".
+
+### Running the decision flow over every piece of this feature's processing
+
+| processing | flow step | placement |
+|---|---|---|
+| `signedInStaffMember` | step 1 — read-only, so "return it via an API query and you're done" | **API** |
+| `signIn` | validate, one indexed `COUNT`, one indexed read, a 59ms compare, one insert or three | **API** — light, and the caller waits for the access token |
+| `signOut` | read a cookie, one indexed read, two writes | **API** |
+| `renewAccessToken` | read a cookie, one indexed read, one `COUNT`, one update and two inserts | **API** |
+
+Nothing here is "heavy, time-consuming, or uncertain due to external dependencies" — the skill's own
+example of heavy is processing that "takes tens of seconds". The slowest step in the feature is
+bcrypt at 59ms, and it **cannot** be deferred: a password check the caller does not wait for is not
+a password check. `postWorkersPath` stays `null`, and no `server/graphql/post-workers/` directory
+exists in the repository.
+
+### Three candidates considered and rejected, each for a stated reason
+
+**1. Recording a failed sign-in attempt — rejected on correctness, not preference.** It looks exactly
+like the skill's post-worker case: a small write, a side effect of a refusal, and the caller does
+not need it. **But §7's rate limit counts those rows, so the row must be durable before the refusal
+returns.** Deferred to a post-worker, eleven rapid attempts could each be answered before any row
+landed, and every one of them would see fewer than ten rows. The limit would be unenforceable. This
+is the clearest case in the feature of processing that *reads* as deferrable and is not.
+
+**2. Pruning expired access tokens — genuinely worker work, and unavailable at 1.0.0.** The
+placement skill puts it squarely in "heavy, automatic by interval/time → Worker (scheduled)". §9.6
+says an expired access token is "deleted, not flagged", and **nothing deletes one**:
+`SessionClerk#deleteAllAccessTokens` runs on sign-out and on a series revocation, never on expiry.
+
+**§8 forecloses it in as many words** — "Redis is not declared, because this version runs no
+background job. Every write finishes inside its own request, and nothing here leaves the process."
+So the one piece of this feature's processing that the skill would place in a worker is the one
+piece §8 declares there is no worker for.
+
+**This is independent support for Q35 rather than a restatement of it.** Q35 was written from
+reading §9.6 against §8; the placement skill, applied without reference to either, lands on the
+same answer — which makes the §9.6-versus-§8 tension a real one rather than an artefact of how I
+read it. Deleting on read was the alternative and is worse: it would turn the authentication hot
+path, every operation of every screen, into a write.
+
+**3. Auditing a detected reuse — a post-worker in shape, barred in substance.** It is the textbook
+post-worker: a side effect unrelated to the response, wanted after it. **But every identifier that
+would make the record useful is barred** — the token, its digest, the `sessionKey` and the member of
+staff's address are each a credential or personal data under §7 — and the spec asks for no audit
+trail. Recorded as Q34. A post-worker writing a line with nothing identifying in it would be
+machinery for nothing.
+
+### What this checkpoint would have got wrong by eye
+
+**Candidate 1 is the trap.** Every instinct says a failed-attempt row is a side effect to be swept
+out of the request path, and the skill's post-worker section reads as though it were written for it.
+Only §7's use of those rows makes it load-bearing — and that is a fact about the *spec*, not about
+the code's shape, which is exactly why the checkpoint insists the decision be made with the skill
+and against the requirement rather than by inspection.
+
+## Checkpoint 8 — the security audit, and why it had to run before the merge
+
+**This checkpoint is the reason the backend gate does not merge at 6.** The audit ran over code that
+was already committed, lint-clean and passing 876 tests, and it found six defects — two of them
+security holes reachable from the internet. The full accounting of what a test could and could not
+have caught is its own section below; this records what was changed.
+
+### The six, and what each one actually was
+
+| # | Severity | What | Fixed in |
+|---|---|---|---|
+| 1 | **MEDIUM** | the staff endpoint allowed **any origin**. `signIn` callable cross-origin with a readable response — credential stuffing relayed through the staff's own browsers | `f427e22` |
+| 2 | **MEDIUM** | a session whose refresh half could not be delivered was **minted anyway**: over the framework's unconditional WebSocket channel there is no express response, so the cookie write is a silent no-op and `signIn` returned a working access token while discarding the refresh token | `b0a7cc5` |
+| 3 | | the validator capped the password at 72 bytes and the address at **nothing**, so a 300-character address reached an INSERT into `varchar(191)` | `b0a7cc5` |
+| 4 | | upload middleware on the audience — 10 files × 10 MB parsed before any resolver or filter — for a feature no section declares, beside a 10 MB JSON body limit for an email and a password. Removed; the JSON cap is now `16kb` | `b0a7cc5` |
+| 5 | | a comment asserted §7's limit bounded the work an unknown address can buy. True per address, false in aggregate: §7 mandates address keying, and a caller rotating the address is bounded by nothing | `b0a7cc5` |
+| 6 | | `RotatingSessionResult#hasRevokedSeries()` answers true when zero rows were revoked, because the predicate means "attempted without error". No consequence today; recorded so a future caller does not read it as "rows changed" | `b0a7cc5` |
+
+**#2 is the one worth reading twice.** Every existing null-response test was on a *refusal* path;
+nobody had written one on a *success* path. The fix refuses the sign-in when the cookie cannot be
+written, rather than handing back half a session. Four tests fail without it.
+
+### The CORS decision, and a claim I got wrong twice
+
+The allow-list is read from `STAFF_CORS_ALLOWED_ORIGINS` and always passed to `cors` as an **array**.
+Three properties, each verified against the installed library rather than assumed:
+
+- **A missing or misspelled key yields an empty list, never a wildcard.** There is no way to ask for
+  a wildcard through this key at all.
+- **A deliberate `*` denies everything.** The value is compared element by element against the
+  request's `Origin`, which is never the literal `*`.
+- **The wildcard comes from omitting the `origin` option entirely** — `cors()` and `cors({})` merge
+  the library's own default of `'*'`. Every falsy *value* is safe: `undefined`, `null`, `''` and `[]`
+  each send no `Access-Control-Allow-Origin`.
+
+**The third property is a correction.** The re-audit reported that an empty *string* is read as
+"allow any", and I wrote that into `.env.development`, `.env.live`, the engine's docblock and a
+commit message as fact before testing it. It is false. The code was already right — the engine
+always passes an `origin` — but the stated reason for it was wrong in four places, and `62d6a61`
+corrects them and says so plainly, because the next reader has no other way to know the claim was
+measured. **This is the second time in this feature that a verifier's prose was propagated before
+being checked**, and both times the code survived while the explanation did not.
+
+### Three INFO items the re-audit raised, and what became of them
+
+1. **The WebSocket channel bypasses both new HTTP mitigations.** The 16kb JSON cap and the CORS
+   allow-list are express middleware; the framework mounts a WebSocket channel unconditionally, and
+   `ws` defaults `maxPayload` to 100 MiB. Recorded, not fixed — it is the same channel that produced
+   finding #2, and closing it is an engine-level decision this feature does not own.
+2. **`.env.live` needed the key declared**, left empty so a deployment fails safe rather than
+   silently allowing nothing it meant to allow. Done.
+3. **A deliberate `*` denies everything** — surprising enough to debug for an hour. Now commented at
+   the key and in the engine.
+
+## Checkpoint 9 — the use cases walked against the built API, and a criterion that was false in production
+
+**Run interactively by the main session, against the merged tree rather than against the plan.**
+Every one of §10's eight acceptance criteria was taken in turn and matched to something that would
+actually fail if the criterion stopped holding. Seven held. **The eighth was false on every deployed
+environment**, and no test in the repository could have failed on it.
+
+### The eight criteria, and what holds each one
+
+| § 10 criterion | What would fail if it stopped holding |
+|---|---|
+| an address with no account and a wrong password refused identically, neither saying which | `should refuse an unknown address and a wrong password identically`, over the two separate refusals. Giving them different codes fails **11** |
+| a session survives a reload, and stops working the moment its holder signs out | `should carry a session across a reload, and refuse it the moment its holder signs out` — the cross-operation test that owns this criterion end to end |
+| no operation returns a password or a hash, and none writes one into a log line | **the returning half:** each resolver's `#formatResponse()` compares the **whole** returned object, not `objectContaining`, precisely so an added field breaks it. **The logging half: see below — it did not hold** |
+| `signedInStaffMember` without a session is refused and returns nobody | `when the context carries no member of staff` |
+| a refresh token expired, revoked or already spent refused identically in all three | `should refuse a dead refresh token identically, whichever way it died`, plus one test per state. Structural rather than agreed: all three reach `updatedCount === 0`, one branch, one message |
+| a reused refresh token revokes every token in its series | `should revoke every token in the series a reuse presented` |
+| `renewAccessToken` with no cookie at all is refused and returns nobody | `should refuse a call carrying no refresh-token cookie at all` |
+| an eleventh failed sign-in on one address inside fifteen minutes refused; a first attempt on another address not; successful sign-ins refused nothing | three tests, one per clause. The third is asserted at **eleven** successful sign-ins where §10 says ten — deliberately one past the threshold the failures use |
+
+**Both use cases were walked too, and both are only half-verifiable here.** "Every screen after that
+knows who they are" and "the next person is asked to sign in" are statements about screens, and the
+frontend opens at checkpoint 10. What the backend half can show is that a session is carried across
+a reload and dies at sign-out, which the cross-operation test does. The rest is checkpoint 18's.
+
+### The criterion that was false: every sign-in wrote an address to a log line
+
+§7's Personal data row is unambiguous — "None of the three is ever written to a log line" — and §10
+repeats it for passwords. **`live`, `staging` and `production` declared no `logging` key, and
+Sequelize's default when the key is absent is `console.log`:**
+
+    logging: hasOwnProperty.call(this.options, 'logging')
+      ? this.options.logging
+      : console.log                    // sequelize/lib/sequelize.js:249
+
+Sequelize logs the SQL text, and the address travels in a `WHERE` clause rather than in a bound
+parameter. Two statements on the sign-in path carry it — the account lookup, and the `COUNT(*)` that
+§7's per-address limit runs on **every attempt**:
+
+    WHERE `email` = 'someone@example.com'
+
+So every sign-in attempt on every deployed environment wrote an address to stdout. Fixed in
+`3ac78a0`: `logging: false` on all four environments, with the reasoning at the top of the file so
+the next reader does not restore a default that looks harmless.
+
+**Why no test could have caught it, which is the part worth keeping.** `development` already set
+`logging: false`, and the whole suite runs under `development` — so the defect lived *only* in the
+configuration of the environments the suite never opens. A passing suite was not weak evidence here;
+it was no evidence at all. The new test therefore reads the **file** rather than a connection, so it
+holds for environments this machine cannot open, and a second test reconciles its enumerated cases
+against the file's own keys so a fifth environment cannot be added unchecked.
+
+**And the password half of the same criterion does hold, for a reason worth stating rather than
+assuming:** the digest is compared through the encipher in JS, never in a SQL equality, so it never
+reaches a `WHERE`; and a single-row insert binds its values rather than inlining them. The criterion
+was half true and half false, and only walking each clause separately showed which was which.
+
+### The exit condition
+
+Eight criteria walked, seven held on the first pass, one fixed and re-walked. Both use cases
+verified as far as a backend can carry them, with the screen half recorded as checkpoint 18's.
+**715 + 195 = 910 before this checkpoint, 720 + 195 = 915 after it**, lint clean, and both CI
+dialects green — SQLite and MariaDB, the latter running the same suite on every pull request (Q37).
+
+## Where the decisions live, when control flow does not hold them
+
+**Asked for at the gate, and it cannot be recovered from the tree afterwards.** A reader counting
+branches in this feature sees a small number and concludes the logic is thin. The opposite is true:
+the load-bearing decisions were deliberately moved *out* of control flow, into data, getters,
+`where` clauses and hooks — each time for a stated reason, and each time with an alternative that
+would have scored better on a branch count and been worse.
+
+| Where | The decision it holds | Why not a branch, and what was rejected |
+|---|---|---|
+| `generateValidationEntries()` — an array of `[() => boolean, errorClass]` tuples | which checks run, **in which order**, and which error each produces | Order is the decision: presence before format before length, so the first failure is the most specific thing wrong. As `if` statements the order would be implicit in the nesting and a new rule would edit an existing branch. Rejected: one `if` per rule (five branches, OCP violation); a single regex doing all five (one branch, five indistinguishable refusals — and §10 needs the address cases to differ from the password cases) |
+| `schemasToSkipFiltering` — a three-element array | **which operations are reachable without a session** | The framework maps listed entries to `null` and calls `filter?.(…)`, so a listed operation gets no `Unauthenticated`, no `Unauthorized`, no `DeniedSchemaPermission`. This array *is* §7's Authentication row, and a wrong entry is a public endpoint. Rejected: the boilerplate's `'*'`, which is what made the audience open (audit finding 1); and a per-resolver opt-out, which spreads one security decision over four files |
+| `errorCodeHash` — distinct names, **one shared code** | that two different internal causes are one indistinguishable refusal | §10 requires an unknown address and a wrong password to be refused identically. The names stay separate so the code reads honestly about which path it is on; the *code* is shared so the wire cannot tell. A branch would have to remember to return the same string twice. Rejected: one error name for both (loses the internal distinction the code needs); different codes (fails 11 tests, and the criterion) |
+| `#spendRefreshToken`'s `where` clause — `{ tokenHash, usedAt: null, revokedAt: null, expiredAt: { [Op.gt]: now } }` | **whether a refresh token may be spent at all** | Four conditions evaluated by the database in one guarded `UPDATE`, which a control-flow count reads as **zero**. It is the most security-relevant decision in the feature. A caller-side check would have scored as branches and been *weaker*, because a caller-side check is skippable by construction and this one is not. It is also what makes §10's identical-refusal structural: expired, revoked and spent all reach `updatedCount === 0` |
+| `RotatingSessionResult#shouldRollBack()` — `hasError() && !hasRevokedSeries()` | that a rotation has **three** outcomes, not two | A refusal that revoked must commit; a revocation that itself failed must roll back. Written as a predicate on the result rather than a branch at the call site, because the caller cannot see which of the three it is. Rejected: a second transaction and revoking outside the caller's transaction (both deadlock on the same row under `SERIALIZABLE`); splitting the spend into its own committed transaction (breaks spend/issue atomicity) |
+| the two rate-limit subclasses' **overridden getters** | §7's two limits — the model, the keyed field, the instant field, the window, the threshold | Base plus two thin concretes rather than one parameterized class, because the two do not differ only in values: the sign-in limit normalizes its key and the renewal limit must not, which is an overridden *method*, not a parameter. Parameterizing would also have put §7's numbers at every call site, so each resolver would restate the spec |
+| Sequelize **hooks** — the address normalizers | that an address is lower-cased once, wherever it enters | Not a branch anywhere, and not in any resolver. The trap is recorded at checkpoint 5: `bulkInsert` bypasses hooks entirely, so a seeded address with a capital fails no insert and no test — it just makes the account unfindable. Held by a test that normalizes the way `signIn` will and requires a row back |
+| the **renewal limit's absence of a table** | how many times a series renewed in the last hour | Checkpoint 2's finding paying off: each rotation already inserts a §9.7 row carrying `sessionKey` and `generatedAt`, so a series' rows inside the window *are* its count. Rejected: a counter table, which would have been a second source of truth for a fact the data already holds |
+
+**The pattern, stated once.** Every row above trades a branch for a declaration, and in six of the
+eight the declaration is also the thing that makes a §10 criterion structural rather than agreed —
+true because there is only one path, not because three paths were each written to return the same
+answer. That is the property a branch count cannot see and a reviewer should.
+
+## Where an equipped skill and an always-on rule disagreed, and what won
+
+**Captured at checkpoint 8, not at the gate, because this list cannot be reconstructed from the
+files afterwards.** A reader of the merged tree sees the outcome and not the disagreement: nothing
+in the code records that a skill said otherwise. The evidence lives only in the unit reports, and
+those are transient.
+
+**Q10 is the standing ruling** — where an equipped skill and an always-on rule in `D:\ORT\rules\`
+conflict, the rule wins. What follows is every time that ruling was actually exercised in
+checkpoints 3 to 6, as the units reported it.
+
+**A correction to a figure I gave verbally first: I said "eleven times in checkpoint 6 alone".
+The real count is 18 across checkpoints 3 to 6, of which 15 are in checkpoint 6.** I said eleven
+from memory rather than from the reports. The larger number is not a better result — it is the
+same conflicts, counted properly.
+
+### The five that changed structure, not style
+
+| # | The question | The skill said | The rule said | Built |
+|---|---|---|---|---|
+| 1 | the validator's run entrypoint | `validate()`, which **throws** | `validateInput()`, which **returns** the error or `null` | the rule's. The skill explicitly punted — "use whatever the actual base names it" — so a rule that decides beat a skill that declined to |
+| 2 | where validators live | `app/validator/forResolver/<endpoint>/` | `app/tools/validator/resolvers/<audience>/` | the rule's. Also keeps one `tools/` tree rather than opening a second top-level directory |
+| 3 | who calls `.create()` on the error | the entry carries a constructor the base "raises" | the base `.create()`s the first failing entry's error | the rule's; follows from #1 |
+| 4 | the error-code family for a credential refusal | `205.*` is **auth** | `205` is **external**; `204` is database, and its own worked example is `OrderNotFound: '204.M018.001'` | the rule's. All of this feature's credential refusals are `204` |
+| 5 | SDL layout for a new audience | **unsettled** — the skill says so outright | `schemas/` split by audience as directories | a directory of numbered files. Three features append to this audience, so each adds a file instead of editing a shared one |
+
+### The rest — convention, and each one a real fork
+
+| # | The question | Built, and why |
+|---|---|---|
+| 6 | `@augments` versus `@extends` | `@augments`. The framework and boilerplate write `@extends`; `jsdoc.md` and every file this project has *written* use `@augments`. Arose in five separate units |
+| 7 | GraphQL type declarations | one `types/StaffGraphQL.d.ts`, `namespace server.graphql.staff`, per `graphql-resolvers.md` — against the type skill's one-file-per-resolver under `types/resolvers/` |
+| 8 | lifting shared members into the app base engine | duplicated in the concrete engine, as the tree does. The skill advises lifting; `/hora-build` classes a base class as conflict-proof, so lifting would rewrite three existing files so one new one could be added |
+| 9 | index-name abbreviation | always `SHORT_COLUMN_NAME`, no length threshold. The migration digest set a ~50-character floor "and not before" |
+| 10 | multiple `addIndex` calls | sequential `await`, never `Promise.all` — the digest said the opposite |
+| 11 | constant file layout | `.cjs` master plus ESM bridge for §7's shared figures; a module-level constant for the encipher's own cost factor. Two units read one digest oppositely and **both were right** — the distinguishing test is shared category versus one module's knob |
+| 12 | member order in a resolver | constructor, then `static create`, then static getters, per `javascript-style.md` — against the mutation digest's `schema`-first list |
+| 13 | method order within a resolver | caller above callee, so `validateInput` sits above `createInputValidator` — the digest numbered them the other way |
+| 14 | model seam naming | `StaffMemberSecretModel`, not `…Ctor`: `hoc-accessors` reserves the `Ctor` form for a class you instantiate, and a Sequelize model is called statically |
+| 15 | case-field names in tests | `params` / `factoryParams` / `expected`. `hoc-jest` says "do not invent names like `params`" — the rule's allowed list is closed and excludes the skill's `input` / `override` |
+| 16 | the Act variable | `actual`, not the skill's `received` — except in an inheritance test, where the rule's **own example** writes `received` |
+| 17 | `toStrictEqual` | forbidden by the rule, permitted by the skill. Decisive detail: every `toStrictEqual` in this repository is in a file from the initial boilerplate commit, and every test this project has *written* uses `toEqual` — so the tree was not counter-precedent |
+| 18 | hoisting fixtures under a `describe` | nothing hoisted; every fixture inside its case, duplication preferred. The skill **mandates** hoisting and the rule bans it |
+
+### Two things worth saying about this list
+
+**Nine of the eighteen are test conventions, and that is not noise.** `hoc-jest` and the always-on
+`testing.md` disagree about case-field names, the Act variable, matchers, and hoisting — four
+pervasive choices, each touching every test file. A build that followed the skill would have a
+visibly different test suite from one that followed the rule, and nothing in either document
+announces the conflict.
+
+**The arbitration step is itself a property of this setup.** A build with no equipped skills has
+no such step: there is one authority and no reconciliation. So a comparison between this and a
+conventional build is partly measuring the existence of the arbitration, not only the style it
+settles on. Three of the five structural outcomes — #1, #2 and #4 — would have been *different
+code* under the skill, and nothing in the merged tree records that a choice was made.
+
+### The clearest case of the metric and the quality pointing opposite ways
+
+Kept verbatim because it is the one worth quoting: **`#spendRefreshToken`'s guard was written
+narrow at checkpoint 5** — `{ tokenHash, usedAt: null }` — **the hole was found by a unit reading
+the guard against §10 rather than by a failing test**, and the fix widened the query to
+`{ tokenHash, usedAt: null, revokedAt: null, expiredAt: { [Op.gt]: now } }` **instead of adding a
+caller-side check.**
+
+A caller-side check would have scored as branches on a control-flow count and been **weaker**,
+because a caller-side check is skippable by construction. The chosen fix is four conditions
+evaluated by the database, which a control-flow count reads as zero — and it is the most
+security-relevant decision in the feature.
+
+## What was found in code that was already committed, lint-clean and passing
+
+**Every item below was discovered in code that the suite was green on.** The column that matters is
+the last one: whether any test could have failed on it. Where the answer is no, the finding is the
+case for having a verification or audit step at all — no branch count, no coverage figure and no
+passing suite can produce it.
+
+**Tally: of 18 items, 12 could not have been caught by any test.** Three could have been caught by
+a test that did not exist. One could only have been caught against a database dialect this project
+never tests on. Two were caught by an existing test that was too weak, and are counted in the
+three.
+
+### Found by the verifier at checkpoint 3, first pass (verdict: not met)
+
+| # | What | Could a test have caught it? |
+|---|---|---|
+| 1 | four units shipped with **no tests**, while the tree held a tested sibling for every shape they introduced | **No.** A test cannot fail on its own absence |
+| 2 | the README said "the three servers" and "Each GraphQL endpoint answers a health check out of the box" — the second **false the moment this audience opened**, and the exact sentence that would lead the next reader to restore the `healthCheck` Q23 removed | **No.** Nothing points a test suite at prose |
+| 3 | `validate-unique-error-code.js` had no `staff/actual/` case | **No** — the gap *was* a missing test |
+| 4 | two JSDoc claims the code did not support: a present-tense claim that counting code normalized before querying, when no such code existed; and a circular-dependency justification that was untrue for that pair | **No.** A confidently wrong comment is invisible to execution |
+| 5 | the `// TODO: Must fulfill this method.` convention dropped, so a pre-release `git grep` listed three of four unimplemented `findUser`s | **No.** A discoverability convention, not a behaviour |
+| 6 | `PaginationInput.sort` declared non-optional, though an omitted GraphQL input field arrives `undefined` | **In principle** `tsc` — but Q31 records that `jsconfig.json` produces 1630 errors of which 1010 are phantom, so in practice **no** |
+
+### Found by the verifier at checkpoint 3, second pass
+
+| # | What | Could a test have caught it? |
+|---|---|---|
+| 7 | the engine test declared four mocks and two context instances at **describe scope** and fed **one** `cases` array to **four** sibling `test.each` calls — eight tests mutating two shared objects while installing spies on them, on the authentication filter | **No.** It did not fail; it was fragile. Nothing fails until something else changes |
+| 8 | `collectMiddleware()` asserted only five `expect.any(Function)`, so a reorder, a swapped parser or a dropped mount all passed | **A test existed and was too weak.** A better one catches it — and now does, position by position |
+| 9 | `StaffGraphqlShare.createAsync()` never asserted the broker, so **dropping the broker left the suite green** | **Yes, by a test that did not exist.** Now 6 fail |
+| 10 | the README tagline still said "two GraphQL endpoints" — missed by the pass that had just fixed the paragraph and the table eighteen lines below it, and found by grepping for number words | **No.** And it was found by a *different method* than the fix that missed it |
+
+### Found by a unit reading code against the spec at checkpoint 5
+
+| # | What | Could a test have caught it? |
+|---|---|---|
+| 11 | `#spendRefreshToken`'s guard was `{ tokenHash, usedAt: null }`, so a refresh token **revoked but never spent — exactly what `signOut` leaves** — was marked spent and issued a fresh pair for a dead series. §10's "stops working the moment its holder signs out" was false | **Yes, by a test that did not exist** — 8 now fail without the fix. But it was found by **reading the guard against §10**, not by anything failing. The suite was green with the hole in it |
+| 12 | checkpoint 5's own record claimed §7's per-series limit bounded the revocation write on the unauthenticated path. It does not: a refused renewal generates no row, so a replay never advances its own count | **No.** A prose claim in a record, found by a later unit checking it rather than inheriting it |
+
+### Found by the security audit at checkpoint 8
+
+| # | What | Could a test have caught it? |
+|---|---|---|
+| 13 | **MEDIUM** — the staff endpoint allowed **any origin**. `signIn` callable cross-origin with a readable response; no origin control at all behind `sameSite` | **No.** It was intended behaviour, copied from the boilerplate. A test asserts what you meant, and this is what was meant |
+| 14 | the validator capped the password at 72 bytes and the address at **nothing**, so a 300-character address reached an INSERT into `varchar(191)` | **Only against MariaDB** — and the dev dialect is **SQLite, which enforces no `varchar` length at all**, so a 300-character address inserts cleanly there. On this project's actual test setup, **no** |
+| 15 | a comment asserted §7's limit bounded the work an unknown address can buy — true per address, false in aggregate, since §7 mandates address keying and a caller rotating the address is bounded by nothing | **No.** Prose again, and the second instance of this exact class |
+| 16 | a session whose refresh half could not be delivered was **minted anyway** — over the framework's unconditional WebSocket channel there is no express response, so the cookie write is a silent no-op and `signIn` returned a working access token while discarding the refresh token | **Yes, by a test nobody thought to write**: pass a null response on a *success* path. Every existing null-response case was on a refusal path. Now 4 fail |
+| 17 | the audience carried upload middleware — 10 files × 10 MB parsed before any resolver or filter — for a feature no section declares, beside a 10 MB JSON limit for an email and a password | **No.** "This middleware serves nothing declared" is a scope question. Nothing misbehaves |
+| 18 | `RotatingSessionResult#hasRevokedSeries()` answers true when zero rows were revoked, because the predicate means "attempted without error" | **No, and no test should** — it has no consequence today. Recorded so a future caller does not read it as "rows changed" |
+
+### What this says
+
+**Three distinct discovery methods produced these, and none of them is a test.**
+
+1. **Reading code against the spec sentence it implements** — items 11, 14, 16. The most valuable, and the only method that found the two real security holes.
+2. **Reading prose against the code it describes** — items 2, 4, 10, 12, 15. Five of eighteen, and *nothing* else can find them: a comment, a README and a `.hora` record are all invisible to execution, and all three were wrong in ways that would mislead the next reader into undoing a deliberate decision.
+3. **Reading a test against what it would fail on** — items 7, 8, 9. A green test that cannot fail is worse than a missing one, because it reports coverage it does not have.
+
+**And one thing the tests did do, which is worth saying plainly:** every fix above now has a test that fails without it, verified by reverting each fix and reading the failure. The suite could not find these, and it is what keeps them found.
