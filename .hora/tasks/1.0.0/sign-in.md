@@ -1031,6 +1031,41 @@ conventional build is partly measuring the existence of the arbitration, not onl
 settles on. Three of the five structural outcomes — #1, #2 and #4 — would have been *different
 code* under the skill, and nothing in the merged tree records that a choice was made.
 
+
+### The eighteen are one category of three, and the frontend gate found the other two
+
+**Written at checkpoint 12, because the list above is titled for a disagreement that turns out to be
+only one of the kinds that happen.** All eighteen entries are *an equipped skill versus an always-on
+rule*, and Q10 settles every one of them. That is worth stating precisely, because it changes what
+the list is evidence of:
+
+**An arbitration with a standing authority is cheap; an arbitration without one is the only kind
+that needs a person.**
+
+Q10 is a standing authority. So once a skill-versus-rule conflict is **noticed**, resolving it is
+mechanical — the rule wins, every time, with no judgement exercised. **The entire cost of those
+eighteen is detection.** They are not eighteen judgement calls; they are eighteen detections against
+a rule somebody had already written. Those are very different products, and conflating them
+overstates what the arbitration step did.
+
+The frontend gate produced the other two categories:
+
+| | What it is | Adjudicator | Cost | Instances |
+|---|---|---|---|---|
+| **1. skill versus rule** | the skill says one thing, `D:\ORT\rules\` another | **Q10** — the rule wins | detection only | 18, listed above |
+| **2. skill versus boilerplate** | twenty component skills document `@openreachtech/furo-vue`; `furo-boilerplate-nuxt 2.1.0` ships neither it nor any component | **none.** A boilerplate is not a rule, a skill is not a rule, and neither `specs/` nor `D:\ORT\rules\` says which component library a frontend uses | **a person** | 1 — **Q42** |
+| **3. skill stricter than rule** | `hof-prohibits` forbids, in template position, both a chopped ternary and the `.map()`/`.filter()` that `javascript-style.md` positively *requires* over loops | not needed — the strict side is safe | **nothing** | 1 so far |
+
+**Category 2 is why Q42 went to the user rather than into a unit**, and the reason is better than
+"it changes the stack": there was nothing to appeal to. No rule reached it, the spec is silent, and
+two readings led to materially different work.
+
+**Category 3 is the only one of the three that is a positive finding about the skill set**, and it
+is worth counting separately for a reason the other two do not have: an implementer who knew only
+the always-on rules would write a `.map()` into a template and be **correct by the rules while being
+wrong**. The skill is carrying knowledge the rules cannot express. Free to obey, and nothing detects
+it except reading the skill.
+
 ### The clearest case of the metric and the quality pointing opposite ways
 
 Kept verbatim because it is the one worth quoting: **`#spendRefreshToken`'s guard was written
