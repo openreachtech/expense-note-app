@@ -1002,6 +1002,75 @@ Error [ERR_UNSUPPORTED_ESM_URL_SCHEME]: On Windows, absolute paths must be valid
 Received protocol 'd:'
 ```
 
+### Root cause found at checkpoint 14, and the scope was wider than this entry claimed
+
+**This entry said "on this machine". It is not this machine, and it is not this project — it is a
+one-line defect in `@openreachtech/renchan` that stops any renchan server booting on Windows.**
+
+`DeepBulkClassLoader.loadClasses()` builds absolute filesystem paths with `path`, then:
+
+```js
+const exported = await import(it)      // lib/tools/DeepBulkClassLoader.js:61
+```
+
+`pathToFileURL` is never imported by that file — only `fs` and `path`. On Windows an absolute path
+is `D:\...`, whose scheme Node reads as the protocol `d:`, and the ESM loader refuses it. On Linux
+and macOS an absolute path begins `/`, which Node tolerates, so the defect is invisible everywhere
+except Windows.
+
+**Proved rather than diagnosed**, in isolation and without modifying anything installed — importing
+one real model file both ways:
+
+```
+the absolute path the loader passes: D:\ORT\...\sequelize\models\StaffMember.js
+raw absolute path        -> ERR_UNSUPPORTED_ESM_URL_SCHEME
+pathToFileURL(path).href -> IMPORTED
+```
+
+So the fix is `await import(pathToFileURL(it).href)`, and it is confirmed to work.
+
+**The same defect exists twice, at the same line number, in two packages:**
+
+| Package | Version | File |
+|---|---|---|
+| `@openreachtech/renchan` | 2.9.3 | `lib/tools/DeepBulkClassLoader.js:61` |
+| `@openreachtech/renchan-sequelize` | 2.2.2 | `lib/tools/DeepBulkClassLoader.js:61` |
+
+**And the blast radius is every class-loading path a server has at startup**, not only models:
+
+- `RenchanModelsLoader` / `SequelizeActivator` — the Sequelize models
+- `GraphqlResolversLoader` — **the GraphQL resolvers**
+- `GraphqlPostWorkersLoader` — the post-workers
+- `RestfulApiRoutesBuilder` — the REST routes
+
+So it is not that this product's entry point happens to die early. **No renchan application can start
+on Windows at all**, and it would die at the next loader even if the first were fixed.
+
+### Why a green suite says nothing about it
+
+**Jest never reaches the failing path, for two independent reasons**, which is why 915 passing tests
+coexist with a server that cannot start:
+
+1. Jest supplies its own module registry and intercepts `import()`, so a specifier that Node's ESM
+   loader would refuse is resolved by Jest instead.
+2. **No test exercises `loadClasses()` at all.** The suite reaches models and resolvers by importing
+   them directly, never through the loader that boots them.
+
+This is another instance of the pattern recorded at the frontend gate: the check and the failure do
+not meet. The suite is not weak here — it is pointed somewhere else entirely.
+
+### Where it lands
+
+**Upstream, in `@openreachtech/renchan` and `@openreachtech/renchan-sequelize`**, as a one-line change
+in each. Not fixable in this project except by patching `node_modules`, which would be undone by the
+next install and is not this feature's to do.
+
+Until it is fixed, **nothing in this product has ever been exercised through a running server on this
+machine.** Every gate has been met in-process — checkpoint 4 said so explicitly, and checkpoint 14
+reports the same split. That is a real and stated limit on what any verification here can claim, and
+it is worth keeping attached to this entry rather than rediscovered.
+
+
 Traced to `@openreachtech/renchan-sequelize/lib/tools/DeepBulkClassLoader.js`, which
 `await import(it)`s a bare `D:\...` path that `rootPath.to()` returned.
 
