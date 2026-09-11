@@ -1285,6 +1285,16 @@ The frontend gate produced the other two categories:
 | **1. skill versus rule** | the skill says one thing, `D:\ORT\rules\` another | **Q10** — the rule wins | detection only | 18, listed above |
 | **2. skill versus boilerplate** | twenty component skills document `@openreachtech/furo-vue`; `furo-boilerplate-nuxt 2.1.0` ships neither it nor any component | **none.** A boilerplate is not a rule, a skill is not a rule, and neither `specs/` nor `D:\ORT\rules\` says which component library a frontend uses | **a person** | 1 — **Q42** |
 | **3. skill stricter than rule** | `hof-prohibits` forbids, in template position, both a chopped ternary and the `.map()`/`.filter()` that `javascript-style.md` positively *requires* over loops | not needed — the strict side is safe | **nothing** | 1 so far |
+| **4. rule and skill together imply a third form neither states** | the CSS prohibits skill mandates logical properties (`padding-block`, `margin-inline`) as the sanctioned replacement for physical ones; `05-frontend.md` §6-4 bans **all** shorthands, and those logical forms are two-value shorthands | **neither document** — only their intersection | **a derivation**, and nothing announces it | the logical **longhands**: `padding-block-start` + `padding-block-end` |
+
+**Category 4 is the one with no detector at all, and the frontend gate is where it appeared.** Obeying
+either document literally produces a violation of the other, so there is no "follow the authority"
+move available: `padding-block` breaks the shorthand ban, `padding-top` breaks the logical mandate,
+and the correct answer — `padding-block-start` — is written nowhere. **An implementer copying the
+skill's own sanctioned example would breach the rule on every spacing declaration**, and an
+implementer obeying the rule's examples would breach the skill. Category 1's cost is detection;
+category 4's cost is *derivation*, and only after noticing that both documents are unusable as
+written.
 
 **Category 2 is why Q42 went to the user rather than into a unit**, and the reason is better than
 "it changes the stack": there was nothing to appeal to. No rule reached it, the spec is silent, and
@@ -1295,6 +1305,48 @@ is worth counting separately for a reason the other two do not have: an implemen
 the always-on rules would write a `.map()` into a template and be **correct by the rules while being
 wrong**. The skill is carrying knowledge the rules cannot express. Free to obey, and nothing detects
 it except reading the skill.
+
+### What twelve CSS digests actually bought, counted honestly
+
+**Checkpoint 15 delegates to "every skill covering this project's CSS conventions", and there are
+twelve.** That is a large read for one form, so it is worth recording what it returned rather than
+assuming the volume justified itself.
+
+**Four decisions, each of which removed work rather than adding it:**
+
+| Settled | Effect |
+|---|---|
+| furo supplies **122 semantic colours**, the `--size-space-*` and `--font-size-*` scales, and `--value-golden-ratio` | the app declares **no custom property at all**; `variables.css` stays an empty `:root {}` |
+| furo wraps components in `@layer furo` but **declares no order**, and unlayered app CSS already outranks layered rules | **`@layer` not adopted.** The precedence the order exists to produce is already the status quo, and adopting one is a project-wide change |
+| a flat form is ordinary content | **no `z-index`** |
+| the animation skill's own rules — "never animate keyboard-initiated actions", and a form submits on Enter — plus `FuroButton` owning its spinner | **no animation or transition CSS authored at all** |
+
+**Three findings that would have produced wrong code, and one that was simply absent:**
+
+1. **Property order was not in the skill the kit's wording points at.** `hof-css-coding-styles` turned
+   out to govern only line breaks *between* selectors; property order lives in
+   `hof-selector-props-sort`, which had to be digested separately after the first digest identified
+   its own gap and named the real owner. **A digest finding its own boundary is worth more than one
+   that answers confidently.**
+2. **That skill then disagreed with the rule on a real ordering.** §6-5 puts `background` with
+   `width`/`height`, **before** padding; the skill puts it in a later category, **after** padding.
+   Shown side by side rather than averaged; the rule wins.
+3. **The five-step size scale versus furo's own.** `huge / large / medium / small / tiny`, no escape
+   hatch, and `x-large`-style labels banned outright — while furo's shipped scale is built from
+   exactly those banned labels (`--size-space-x-large`, `2x-large` through `5x-large`,
+   `--font-size-4x-large`). **It does not bite, for a reason worth stating:** the ban binds names *we*
+   declare, consuming a third party's interface is carved out, and the app declares nothing. The
+   conflict is satisfied by having no declarations rather than by adjudicating it.
+4. **The animation skill is silent on `prefers-reduced-motion`** — verified across all 239 lines of it
+   and its six references. The project has committed to WCAG 2.2 AA, so checkpoint 18 needs a source
+   for that requirement which the equipped skills do not provide.
+
+**And the pattern across all twelve, which is the finding rather than any single conflict:** nearly
+every skill's own canonical example violates `05-frontend.md` somewhere — hex literals at a
+`--color-*` definition, `gap:` and `margin:` and `transition:` and `border:` shorthands, a decimal on a
+block width, `item` as a class name, `px` in a blur radius. **The examples are the part an implementer
+copies**, so a build that trusted the skills' snippets would have breached the always-on rule in
+roughly a dozen places, each of them lint-clean.
 
 ### The clearest case of the metric and the quality pointing opposite ways
 
