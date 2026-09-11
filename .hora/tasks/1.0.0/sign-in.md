@@ -1037,7 +1037,7 @@ would have scored better on a branch count and been worse.
 |---|---|---|
 | `generateValidationEntries()` — an array of `[() => boolean, errorClass]` tuples | which checks run, **in which order**, and which error each produces | Order is the decision: presence before format before length, so the first failure is the most specific thing wrong. As `if` statements the order would be implicit in the nesting and a new rule would edit an existing branch. Rejected: one `if` per rule (five branches, OCP violation); a single regex doing all five (one branch, five indistinguishable refusals — and §10 needs the address cases to differ from the password cases) |
 | `schemasToSkipFiltering` — a three-element array | **which operations are reachable without a session** | The framework maps listed entries to `null` and calls `filter?.(…)`, so a listed operation gets no `Unauthenticated`, no `Unauthorized`, no `DeniedSchemaPermission`. This array *is* §7's Authentication row, and a wrong entry is a public endpoint. Rejected: the boilerplate's `'*'`, which is what made the audience open (audit finding 1); and a per-resolver opt-out, which spreads one security decision over four files |
-| `errorCodeHash` — distinct names, **one shared code** | that two different internal causes are one indistinguishable refusal | §10 requires an unknown address and a wrong password to be refused identically. The names stay separate so the code reads honestly about which path it is on; the *code* is shared so the wire cannot tell. A branch would have to remember to return the same string twice. Rejected: one error name for both (loses the internal distinction the code needs); different codes (fails 11 tests, and the criterion) |
+| `refuseRejectedPassword()` — **one method, one `throw`** | that two different internal causes are one indistinguishable refusal | §10 requires an unknown address and a wrong password to be refused identically. Both paths funnel into a single method that records the §7 failure and throws `InvalidCredentials` — there is exactly **one** `throw this.errorHash.InvalidCredentials.create()` in the resolver, so the two outcomes cannot diverge by construction, and neither can their effect on §7's count. Rejected: different codes (fails 11 tests, and the criterion). **Corrected at checkpoint 13:** this row previously read "distinct names, one shared code", describing two error names converging on one code. That is not what was built and the truth is stronger — two names sharing a code relies on somebody remembering to write the same string twice, whereas one throw site has nothing to remember |
 | `#spendRefreshToken`'s `where` clause — `{ tokenHash, usedAt: null, revokedAt: null, expiredAt: { [Op.gt]: now } }` | **whether a refresh token may be spent at all** | Four conditions evaluated by the database in one guarded `UPDATE`, which a control-flow count reads as **zero**. It is the most security-relevant decision in the feature. A caller-side check would have scored as branches and been *weaker*, because a caller-side check is skippable by construction and this one is not. It is also what makes §10's identical-refusal structural: expired, revoked and spent all reach `updatedCount === 0` |
 | `RotatingSessionResult#shouldRollBack()` — `hasError() && !hasRevokedSeries()` | that a rotation has **three** outcomes, not two | A refusal that revoked must commit; a revocation that itself failed must roll back. Written as a predicate on the result rather than a branch at the call site, because the caller cannot see which of the three it is. Rejected: a second transaction and revoking outside the caller's transaction (both deadlock on the same row under `SERIALIZABLE`); splitting the spend into its own committed transaction (breaks spend/issue atomicity) |
 | the two rate-limit subclasses' **overridden getters** | §7's two limits — the model, the keyed field, the instant field, the window, the threshold | Base plus two thin concretes rather than one parameterized class, because the two do not differ only in values: the sign-in limit normalizes its key and the renewal limit must not, which is an overridden *method*, not a parameter. Parameterizing would also have put §7's numbers at every call site, so each resolver would restate the spec |
@@ -1237,6 +1237,37 @@ reported anything.
 removes the native focus outline and rebuilds the ring from `--color-ring`. Undefined, it did not
 fail to add a ring — it left the removal in place with nothing behind it. An omission degrades to
 the browser default; this one degraded past it.
+
+### The same shape bit the measurement, not just the product
+
+**A method note rather than a finding, because it cost no defect — but it is the third instance of
+mechanism 3 in one day and the first where the thing fooled was a check.**
+
+Push state was being verified with
+
+    git log --oneline origin/<branch>..<branch>
+
+and empty output read as "nothing unpushed". **That range yields empty when `origin/<branch>` does
+not exist at all**, so *fully pushed* and *never pushed* produce byte-identical output. Four
+frontend commits — including the focus-ring fix — read as landed while existing only on one machine.
+
+**It is the focus-ring defect wearing different clothes.** An undefined custom property reads as an
+empty value; a non-existent remote ref reads as an empty diff. In both cases the tool answered the
+question it was asked, correctly, and the question could not distinguish the two states it existed
+to distinguish.
+
+Stated generally, and worth more than either instance:
+
+> **When a check can return the same answer for "satisfied" and "not applicable", it is not a
+> check.** Establish existence before comparing.
+
+The corrected form establishes the ref first — `git rev-parse --verify --quiet origin/<branch>`
+before `git rev-list --count`, or `git ls-remote --heads origin <branch>` for the remote's own
+answer rather than a cached copy of it.
+
+**And the asymmetry is not chance.** Twice in one day, both times a local tree read as a pushed one,
+never the reverse. A missing thing looking like an absent difference fails in exactly one direction:
+toward believing the work is done.
 
 ### The checkpoint that produced no code created the standard a later finding failed against
 
