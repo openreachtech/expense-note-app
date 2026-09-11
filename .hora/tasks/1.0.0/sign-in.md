@@ -92,7 +92,7 @@ Note: **a stub is a public endpoint.** The authentication filter is built from t
 - [x] 13. The frontend modules the implementation needs  <!-- skills: hof-error-handling, hof-modules; digests: hora-skills-ort-furo 0.1.0, both taken at this checkpoint. The kit requires stating WHICH half applies: the error-code mapping applied (13 codes), the shared-module half is n/a -- one screen, `components/` empty, no second call site -- so `app/modules/` was deliberately not created. Static-string variant taken over the i18n locale-path variant, following the no-localization-layer decision already recorded at checkpoint 11 rather than making a new one; no i18n dependency added. `hoc-properties`' Map prohibition and the skill's own "no reverse map" both killed the skill's two-hop design, so the hash is keyed by code directly. `BaseAppGraphqlCapsule` is conflict-proof and was written by the main session, with a test reading removed for using a banned case-generating loop that ESLint does not catch -->
 - [x] 14. API client  <!-- REACHED IN PART, and recorded as such. skills: hof-graphql; digest: hora-skills-ort-furo 0.1.0, taken at this checkpoint. Four Launcher/Payload/Capsule trios. The "matching the contract exactly" clause is MET -- each document extracted from the file on disk and validated against `.hora/contracts/1.0.0/` with graphql 17.0.2, with a negative control that was itself corrected after tripping on the wrong error. The "works against the stub" clause is NOT met and is unmeetable here: Q24 means no server boots on Windows, so nothing listens. Not faked and no mock server called a stub. `types/graphql-schema.d.ts` created -- a type projection, not a second authority, because nothing can validate against it -->
 - [x] 15. UI  <!-- skills: hof-uiux-forge plus every skill covering this project's CSS conventions -- hof-css, hof-css-props-naming, hof-css-props-prohibits, hof-css-units, hof-css-coding-styles, hof-css-prohibits, hof-css-line-height, hof-css-z-index, hof-selector-props-sort, hof-layout-margin, hof-animation; digests: hora-skills-ort-furo 0.1.0, all twelve taken at this checkpoint. All four states built. NO custom property declared, no @layer, no z-index, no animation CSS -- each decided against for a stated reason. The two accessibility gaps recorded at checkpoint 12 are compensated, and THREE further contrast failures were found by measuring the real token hexes rather than trusting their semantic names. Q44 and Q45 raised: no .vue can be unit-tested here, and furo's controls assume a reset nothing ships -- both worked around with removal conditions rather than silently patched -->
-- [ ] 16. Wire the data-fetching logic in
+- [x] 16. Wire the data-fetching logic in  <!-- REACHED IN PART. skills: hof-furo-context-patterns, hof-graphql, hof-nuxt, hof-prohibits, hoc-jest, hof-error-handling; digest hof-furo-context-patterns taken here. Loading and error paths driven by REAL capsules built from real envelopes, and the acceptance-criteria tests pass -- but "shows real data from the actual API" is unmeetable (Q24) and was not faked. Q43 resolved and found worse than recorded: every request header read `localStorage`, not just the gateway. Q40 resolved by NOT needing a shared module -- one consumer, so it lives on the page context with route/router injected from setup. A test that was DEFENDING the defect was rewritten rather than deleted. The gateway still defaults to localStorage and is carried forward to #expense-entry -->
 - [ ] 17. Local test environment
 
 ## Acceptance gate
@@ -1255,6 +1255,88 @@ Both are recorded with removal conditions rather than silently patched:
   screen, with the removal condition written down.
 
 **22 suites, 206 tests, lint clean.** Baseline was 22 and 140.
+
+## Checkpoint 16 — the wiring, and a defect the suite was defending
+
+**Reached in part**, like checkpoint 14 and for the same reason.
+
+| Clause | Verdict |
+|---|---|
+| loading and error paths **driven by real responses** | **met.** Every path is driven by a real capsule built from a real GraphQL envelope — `{ data: … }`, `{ errors: [{ message: '<code>' }] }`, or a transport failure — never by a hand-set flag |
+| the unit tests covering this feature's frontend acceptance criteria pass | **met.** 337 tests |
+| the screen shows real data from **the actual API** | **not met, and unmeetable here** — Q24. No request was sent, no mock server was stood up, and no test pretends otherwise |
+
+The nearest honest evidence, a step short: `nuxt build` succeeds and the built page chunk carries all
+three documents plus `x-renchan-access-token`, which proves the operations are wired into the page
+rather than only into a test. It does not prove a response came back.
+
+### Q43 resolved — and the question understated it
+
+Q43 recorded a conflict between §6's "held in memory, never in a cookie" and the gateway middleware.
+**It was never only the gateway.** `BaseAppGraphqlPayload.loadAccessToken()` reads `localStorage` to
+build the header on **every request**, and the REST base reads `sessionStorage` — so the spec was
+being contradicted on every call, not at one boundary.
+
+`MemoryStorage` is a Web-Storage-shaped class that `StorageClerk.create({ storage })` accepts
+unchanged; `AppAccessTokenClerk` is **the single named place that says the token lives in memory**,
+so the eventual middleware fix is one line rather than a hunt.
+
+**Sharing is by a module-level record rather than a singleton instance, and the reason is structural:**
+the request header is built by a **static** method, so there is nowhere to hand it an instance. A test
+still passes its own record and stays isolated, and one reading pins **both halves of the join at
+once** — the shared record and the key — so a header built off its own clerk finds the token.
+
+### Q40 resolved, and here is where it landed
+
+**Not a class under `app/modules/`, and not the composable.** The redirect has exactly one consumer,
+so it lives on `SignInPageContext`; `route` and `router` are injected from `setup`, because the
+context-patterns skill is explicit that **a context must never call a composable**.
+`composables/useRedirect.js` is **neither used nor deleted** — pre-existing boilerplate, not this
+feature's to remove — and **`app/modules/` still does not exist**, consistent with checkpoint 13's
+finding that nothing in this feature is shared between two places.
+
+So the thread that opened at checkpoint 10 and was deferred at 12 closes here: the ruling was
+honoured by **not needing** a shared module, rather than by building one.
+
+**An open-redirect guard was added that nobody asked for.** `?redirect=` is whatever was in the
+address bar, and `isInternalPath()` refuses `//elsewhere.example/expenses` — a protocol-relative
+address to another origin that reads like a path and that a bare "starts with `/`" check waves
+through.
+
+### The test that was defending the defect
+
+**This is the finding worth keeping.**
+`tests/__tests__/jsdom/app/graphql/client/BaseAppGraphqlPayload.js` asserted that
+`createStorageClerk()` called `StorageClerk.createAsLocal()`, and arranged through `localStorage`
+directly. **So the suite was pinning the behaviour §6 forbids**, and a correct implementation would
+have failed it.
+
+A green suite is not evidence of correctness; it is evidence that the code agrees with the tests. Here
+they agreed with each other and both disagreed with the spec. **The unit reported the change rather
+than making it, and said explicitly it would not hand back a red suite** — which is the right call,
+because the alternative is a unit quietly loosening a test to make its own work pass.
+
+Rewritten rather than deleted, and stronger: it now arranges through `AppAccessTokenClerk`, so it
+exercises the real join between what holds a token and what builds the header rather than reaching
+past both into a browser API. One reading fails if the seam is ever handed back to browser storage.
+
+### Two commits, deliberately, and the first was inert without the second
+
+The three payload base classes are **conflict-proof** — a unit reported the exact change and the main
+session applied it. Until that second commit landed, **the first one did nothing observable**: a token
+held in memory was invisible to a request header still built from `localStorage`. Worth recording
+because "the wiring is done" was true and useless in between.
+
+### Carried forward to `#expense-entry`, not fixed here
+
+`middleware/000.gateway.global.js` calls `AccessTokenClerk.create()` with no arguments, which still
+defaults to `localStorage`. It guards nothing today — `/sign-in` is exempt and the only other route
+is an empty stub — so changing it now would be building for a screen that does not exist. **But the
+first protected screen `#expense-entry` adds will bounce a freshly signed-in person straight back to
+`/sign-in`.** The fix is one line: `AppAccessTokenClerk.create()`. Recorded so it is inherited rather
+than rediscovered.
+
+**24 suites, 337 tests, lint clean.** Baseline was 22 and 206.
 
 ## Where the decisions live, when control flow does not hold them
 
