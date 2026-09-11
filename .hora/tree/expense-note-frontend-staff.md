@@ -45,10 +45,52 @@ directories are empty** — every operation this version needs is written into t
 
 ## Styling
 
-`assets/css/variables.css` and `assets/css/main.css` are this project's own, and they sit on top of
-the stylesheets `@openreachtech/furo-nuxt` ships — a `reset, base, furo, app` `@layer` declaration, a
-palette of colour scales, z-index custom properties, a native-element reset and a base design. The
-`@layer` order is what keeps a project's own rules winning without specificity fights.
+**Corrected at `#sign-in`'s checkpoint 12. The previous text here was wrong in a way that hid a
+defect, so what it said is kept below rather than deleted.**
+
+It read: that this project's two stylesheets "sit on top of the stylesheets
+`@openreachtech/furo-nuxt` ships — a `reset, base, furo, app` `@layer` declaration, a palette of
+colour scales, z-index custom properties, a native-element reset and a base design", and that the
+`@layer` order is what keeps the project's own rules winning.
+
+**Three things in that are false for this repository:**
+
+1. **`@openreachtech/furo-nuxt` 2.x ships ZERO `.css` files** — counted, not inferred. The palette,
+   the z-index properties and the semantic colours are `@openreachtech/furo-vue`'s, a package this
+   repository did not have until checkpoint 12 added it (Q42). The sibling `crm-kit-frontend` loads
+   a reset from `furo-nuxt/lib/assets/css/0100.reset.css`, but it is on furo-nuxt **1.x**; that file
+   does not exist in 2.x.
+2. **There is no `@layer` declaration anywhere in this repository.** `main.css` is seven lines of
+   iOS input sizing and declares none; furo-vue's own token files declare none either. The
+   `reset, base, furo, app` layering described is `crm-kit-frontend`'s, from its own
+   `0000.crm-kit-layers.css`.
+3. **Nothing was sitting on top of anything.** Until checkpoint 12, `nuxt.config.js` loaded only the
+   app's two files, so every `--color-*` the components read resolved to nothing.
+
+### What is actually true now
+
+```
+css: [
+  '@openreachtech/furo-vue/lib/assets/css/furo.css',   <- the library's tokens, FIRST
+  '~/assets/css/variables.css',                         <- the app's own, still empty
+  '~/assets/css/main.css',                              <- 7 lines, iOS input font-size
+]
+```
+
+`furo.css` is the library's documented "single public entry" and imports, in order: palette colour
+scale → z-index → semantic colour → semantic dimension → component overrides → editor content. It is
+loaded first so the app's own files override it rather than the reverse.
+
+**`assets/css/variables.css` is still an empty `:root {}`**, deliberately — the boilerplate's comment
+says what a colour should be is the application's decision. The app declares its own semantic
+properties there when a screen needs one, two-tier (`--palette-*` then `--color-*`) per
+`05-frontend.md` §6-2, on top of furo's.
+
+**Why this mattered rather than being a documentation nit.** `--color-ring` is the only focus
+indicator `FuroButton` has: its stylesheet removes the native outline and rebuilds the ring from
+that property. Undefined, it removed the outline and rebuilt nothing — no visible focus for a
+keyboard user, against a stated WCAG 2.2 AA target. An undefined custom property is not an error,
+it is an empty value, so nothing failed and nothing warned.
 
 ## How tests are written
 

@@ -88,7 +88,7 @@ Note: **a stub is a public endpoint.** The authentication filter is built from t
 ## Frontend gate
 - [x] 10. Open the frontend  <!-- skills: hof-nuxt, hof-furo-env; digests: hora-skills-ort-furo 0.1.0. Neither had a digest at the installed version; both taken before the implementer ran, and both carry a conflicts section naming where `D:\ORT\rules\` wins. Route `/sign-in` was FORCED by the boilerplate's existing `middleware/000.gateway.global.js`, not chosen. Reachability established from the built route table rather than a curl, because `ssr: false` makes nitro answer every path with the same SPA fallback. Env repointed from the boilerplate's customer:3900 to the staff endpoint on 4900, verified against the backend engine. One unit claim checked and rejected: the tree doc was not stale, the word "middleware" is overloaded -->
 - [x] 11. Reconfirm UI/UX and the use cases  <!-- interactive, main session, in conversation; skills: hof-uiux-context, read in full (no digest -- no agent ran). Wrote `expense-note-frontend-staff/ai/contexts/uiux-context.md`, which did not exist; every answer tagged [spec]/[user]/[tree]/[chosen] so checkpoint 18 does not audit an arbitrary answer as a rule. Three questions put to the user: devices, accessibility target, tone. BOTH of section 10's use cases were found to end outside this feature -- the sign-out control lives on section 11.2's screen and "every screen after that" means screens #expense-entry owns -- so neither is closable at this feature's gate. Not sent back to checkpoint 2: the spec is coherent, the paths exist at version level. Q41 raised, and checkpoint 9's claim that the screen half is "checkpoint 18's" is corrected there -->
-- [ ] 12. Component design
+- [x] 12. Component design  <!-- skills: hof-uiux-forge, hof-cp-text-field, hof-cp-button, hof-cp-control-block, hof-prohibits; digests: hora-skills-ort-furo 0.1.0, all five taken at this checkpoint since none existed. Four components exist (FuroEmailField, FuroPasswordField, FuroButton, FuroControlBlock), one is new -- the form-level refusal message, because section 10 requires an identical refusal and `errorMessages` attaches to a single control. Eight source-verified facts contradict the skills or the library's own manifest, two of them WCAG 2.2 AA gaps to compensate for at 15. Three digests independently found that NO component had a working colour: nothing imported furo.css, so `--color-ring` -- FuroButton's only focus indicator -- resolved to nothing. Fixed in 2899424, verified out of the built bundle -->
 - [ ] 13. The frontend modules the implementation needs
 - [ ] 14. API client
 - [ ] 15. UI
@@ -948,6 +948,82 @@ reaches it** — and that question is this checkpoint's alone.
 - **One copy rule that is a requirement, not a preference:** an unknown address and a wrong password
   are refused **identically**. "No account found for that email" is a defect, and a generator left to
   its instincts writes exactly that.
+
+## Checkpoint 12 — the screen broken into components, and what reading five skills bought
+
+**The exit condition is that every component either already exists or has a stated reason for being
+new.** After Q42 was settled the answer is: **four exist, one is new.** But the value of this
+checkpoint was not the breakdown — it was that five digests, read against the installed library
+rather than the skill prose, found eight things that would each have produced working-looking code
+that was wrong.
+
+### The breakdown
+
+| Part of the screen | Component | Status |
+|---|---|---|
+| the page and its context | `pages/sign-in/index.vue` + `SignInPageContext` | **exists** — built at checkpoint 10 |
+| email address input | **`FuroEmailField`** inside **`FuroControlBlock`** | **exists** — furo-vue |
+| password input | **`FuroPasswordField`** inside **`FuroControlBlock`** | **exists** — furo-vue |
+| submit control | **`FuroButton`**, `variant: 'default'`, driven by `loading` | **exists** — furo-vue |
+| the refusal message | — | **NEW.** Reason below |
+
+**The one new thing, and why it has to be new.** §10 requires an unknown address and a wrong
+password to be refused **identically**, so the refusal is a single **form-level** message and not a
+per-field error. `FuroControlBlock`'s `errorMessages` attaches to one control, and the
+`hof-cp-control-block` skill does not cover a form-level message or name anything that does. The
+block can be made to render one mechanically — null label, empty slot — but that is unsanctioned
+use, so this is a small component of this application's own rather than a library one borrowed
+sideways.
+
+### Eight facts that contradict the skills or the library's own manifest
+
+**Every one was verified in the installed source, and every one would have compiled.**
+
+| # | What the skill or manifest says | What the source does |
+|---|---|---|
+| 1 | a `FuroTextField` can take `type="email"` | **`type` is destructured out of the fallthrough attributes and silently discarded.** Using the dedicated `FuroEmailField` is not a preference, it is the only thing that works |
+| 2 | `FuroControlBlock` is a "label, control, **hint** and error wrapper" (manifest) | **there is no hint prop and no hint slot.** The parcel is `label` / `controlId` / `errorMessages` / `required` / `orientation` |
+| 3 | `FuroPasswordField` has a "reveal toggle" (manifest) | **it does not** — a bare `<input type="password">`, `"slots": []`. Nobody should design a show-password affordance around it |
+| 4 | a button variant named `primary` | **no such variant.** `default | secondary | destructive | outline | ghost | link`; the primary-looking one is `'default'`, and a guess would have rendered unstyled |
+| 5 | disabled and loading "set aria-disabled / aria-busy" (manifest) | loading sets **`aria-busy` only**, never `aria-disabled`, while also setting the native `disabled` |
+| 6 | — | **a loading button has no accessible name**: its label is `visibility: hidden` and its spinner is `aria-hidden="true"` |
+| 7 | — | **`autocomplete` is untouched by the library.** `username` and `current-password` are entirely the caller's to pass, and a password manager needs both |
+| 8 | — | **`aria-describedby` is not wired** from the error region to the control it describes — a gap the library's own source comments on |
+
+**Facts 6 and 8 are WCAG 2.2 AA failures that the library hands us**, against the target the user set
+at checkpoint 11. Neither is ours to fix upstream and both are ours to compensate for at checkpoint
+15: the submit needs an accessible name that survives its pending state, and the refusal message
+needs associating with the fields it refuses. Recorded here so 15 builds them in rather than 18
+finding them.
+
+**Fact 2 is the second manifest-versus-source disagreement in one library** (with 3 and 5), which is
+worth noticing as a pattern rather than three separate surprises: `components.json` describes
+intent, and the `.vue` file is what ships.
+
+### The defect this checkpoint actually turned on, found by three digests independently
+
+**Not one of the 52 components had a single working colour, dimension or z-index**, because nothing
+imported the library's stylesheet — `nuxt.config.js` loaded only the app's two files, `variables.css`
+is an empty `:root {}`, `furo-nuxt` 2.x ships no CSS at all, and furo-vue's Nuxt module installs an
+icon renderer and no stylesheet.
+
+**`--color-ring` is the only focus indicator `FuroButton` has.** Its stylesheet removes the native
+outline and rebuilds the ring from that property, so undefined it removed the outline and rebuilt
+**nothing**: no visible focus for a keyboard user.
+
+Fixed in `2899424` by loading `furo.css` first, and **verified out of the built bundle** rather than
+asserted — `--color-ring: var(--palette-blue-500)`, `--palette-blue-500: #3b82f6`,
+`--color-destructive: var(--palette-rose-500)`.
+
+**No test could have failed on it, and that is the point worth keeping: an undefined CSS custom
+property is not an error, it is an empty value.** Nothing throws, nothing warns, the build succeeds,
+the components render. The only way to find it is to ask what a property resolves to, and the only
+reason anybody asked is that three digesters were told to verify the skill against the installed
+package instead of summarising it.
+
+It also corrected the tree doc, which attributed those stylesheets to `furo-nuxt` and described a
+`@layer` system this repository does not have — that is `crm-kit-frontend`'s. The correction is kept
+beside what it replaced.
 
 ## Where the decisions live, when control flow does not hold them
 
