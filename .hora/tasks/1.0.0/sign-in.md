@@ -1205,6 +1205,53 @@ three.
 | 17 | the audience carried upload middleware — 10 files × 10 MB parsed before any resolver or filter — for a feature no section declares, beside a 10 MB JSON limit for an email and a password | **No.** "This middleware serves nothing declared" is a scope question. Nothing misbehaves |
 | 18 | `RotatingSessionResult#hasRevokedSeries()` answers true when zero rows were revoked, because the predicate means "attempted without error" | **No, and no test should** — it has no consequence today. Recorded so a future caller does not read it as "rows changed" |
 
+### Found at the frontend gate
+
+| # | What | Could a test have caught it? |
+|---|---|---|
+| 19 | **every deployed environment logged an email address on every sign-in.** `live`, `staging` and `production` declared no `logging` key, Sequelize defaults to `console.log`, and the address travels in a `WHERE` clause — including the `COUNT(*)` §7's limit runs on every attempt | **No.** `development` already set `logging: false` and the whole suite runs there. The defect lived only in the configuration of environments the suite never opens |
+| 20 | **neither of §10's use cases can be completed on a screen this feature builds** — §11.2 puts `signOut` on the expense-entry screen, and §10.2's screen is for somebody *not* signed in | **No.** Checkpoint 2 asked the same question against the spec and 9 against the API; both answered correctly. Only "which screen holds the control" reaches it |
+| 21 | **not one of the library's 52 components had a working colour, dimension or z-index.** Nothing imported `furo.css`; `--color-ring` is `FuroButton`'s only focus indicator, and its stylesheet removes the native outline and rebuilds the ring from that property | **No** — see below. The build succeeds, lint is clean, the components render |
+| 22 | seven further source-verified facts contradicting the skills or the library's own `components.json` — `type="email"` silently discarded, no `primary` variant, a hint prop and a password reveal toggle that do not exist, `autocomplete` untouched, a loading button with no accessible name | **No.** Every one of them compiles and renders |
+
+### Three distinct reasons no test could fail, which is not the same as "tests are incomplete"
+
+**The four checkpoints that produced findings produced them for three different reasons**, and the
+distinction is worth more than the findings:
+
+| | The mechanism | Instance |
+|---|---|---|
+| **1. Right where the suite looks** | the code is correct in the environment the suite runs in, and wrong only in the configuration of environments it never opens | the logging defect (19) |
+| **2. Right against the referent asked** | the same sentence yields a different answer against the spec, against the API, and against the screen. Each pass answered its own question correctly | §10's use cases (20) |
+| **3. Legal but empty** | nothing is malformed, so nothing is detectable | the undefined tokens (21) |
+
+**The third has no class of automated detector at all**, and that is the one worth stating plainly:
+
+> **An undefined CSS custom property is not an error, it is an empty value.**
+
+Build, lint, unit tests, type check and audit all detect **malformed** things. A legal-but-empty
+value passes every one of them. Fifty-two components had no working colour and nothing anywhere
+reported anything.
+
+**And a missing definition that *subtracts* is worse than one that omits.** The library's stylesheet
+removes the native focus outline and rebuilds the ring from `--color-ring`. Undefined, it did not
+fail to add a ring — it left the removal in place with nothing behind it. An omission degrades to
+the browser default; this one degraded past it.
+
+### The checkpoint that produced no code created the standard a later finding failed against
+
+Checkpoint 11 wrote no code at all. It asked the user for an accessibility target and recorded
+**WCAG 2.2 AA**, tagged `[user]`.
+
+**Without that, the missing focus ring is not a defect.** It is a styling gap for checkpoint 15 to
+notice or not — no standard, nothing failed, a matter of taste. The answer given at 11 is what makes
+it a 2.4.7 failure at 12.
+
+Which is also the argument for the tagging that file carries. **A preference and a requirement look
+identical in a document, and only one of them can be failed against.** `[user]` and `[spec]` can;
+`[chosen]` cannot, and says so in as many words, so checkpoint 18 does not audit somebody's taste as
+though it were a rule.
+
 ### What this says
 
 **Three distinct discovery methods produced these, and none of them is a test.**
