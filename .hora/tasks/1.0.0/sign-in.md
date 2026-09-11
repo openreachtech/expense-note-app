@@ -90,7 +90,7 @@ Note: **a stub is a public endpoint.** The authentication filter is built from t
 - [x] 11. Reconfirm UI/UX and the use cases  <!-- interactive, main session, in conversation; skills: hof-uiux-context, read in full (no digest -- no agent ran). Wrote `expense-note-frontend-staff/ai/contexts/uiux-context.md`, which did not exist; every answer tagged [spec]/[user]/[tree]/[chosen] so checkpoint 18 does not audit an arbitrary answer as a rule. Three questions put to the user: devices, accessibility target, tone. BOTH of section 10's use cases were found to end outside this feature -- the sign-out control lives on section 11.2's screen and "every screen after that" means screens #expense-entry owns -- so neither is closable at this feature's gate. Not sent back to checkpoint 2: the spec is coherent, the paths exist at version level. Q41 raised, and checkpoint 9's claim that the screen half is "checkpoint 18's" is corrected there -->
 - [x] 12. Component design  <!-- skills: hof-uiux-forge, hof-cp-text-field, hof-cp-button, hof-cp-control-block, hof-prohibits; digests: hora-skills-ort-furo 0.1.0, all five taken at this checkpoint since none existed. Four components exist (FuroEmailField, FuroPasswordField, FuroButton, FuroControlBlock), one is new -- the form-level refusal message, because section 10 requires an identical refusal and `errorMessages` attaches to a single control. Eight source-verified facts contradict the skills or the library's own manifest, two of them WCAG 2.2 AA gaps to compensate for at 15. Three digests independently found that NO component had a working colour: nothing imported furo.css, so `--color-ring` -- FuroButton's only focus indicator -- resolved to nothing. Fixed in 2899424, verified out of the built bundle -->
 - [x] 13. The frontend modules the implementation needs  <!-- skills: hof-error-handling, hof-modules; digests: hora-skills-ort-furo 0.1.0, both taken at this checkpoint. The kit requires stating WHICH half applies: the error-code mapping applied (13 codes), the shared-module half is n/a -- one screen, `components/` empty, no second call site -- so `app/modules/` was deliberately not created. Static-string variant taken over the i18n locale-path variant, following the no-localization-layer decision already recorded at checkpoint 11 rather than making a new one; no i18n dependency added. `hoc-properties`' Map prohibition and the skill's own "no reverse map" both killed the skill's two-hop design, so the hash is keyed by code directly. `BaseAppGraphqlCapsule` is conflict-proof and was written by the main session, with a test reading removed for using a banned case-generating loop that ESLint does not catch -->
-- [ ] 14. API client
+- [x] 14. API client  <!-- REACHED IN PART, and recorded as such. skills: hof-graphql; digest: hora-skills-ort-furo 0.1.0, taken at this checkpoint. Four Launcher/Payload/Capsule trios. The "matching the contract exactly" clause is MET -- each document extracted from the file on disk and validated against `.hora/contracts/1.0.0/` with graphql 17.0.2, with a negative control that was itself corrected after tripping on the wrong error. The "works against the stub" clause is NOT met and is unmeetable here: Q24 means no server boots on Windows, so nothing listens. Not faked and no mock server called a stub. `types/graphql-schema.d.ts` created -- a type projection, not a second authority, because nothing can validate against it -->
 - [ ] 15. UI
 - [ ] 16. Wire the data-fetching logic in
 - [ ] 17. Local test environment
@@ -1099,6 +1099,85 @@ reconciliation reading in `constants-error.js`, which is where it belongs. A gre
 evidence that a test is allowed to exist.
 
 10 suites, **73 tests**, lint clean. Baseline was 9 and 34.
+
+## Checkpoint 14 — the four clients, and the first exit condition this feature could only half meet
+
+**Reached in part, deliberately recorded as such.** The condition has two clauses and they had
+different fates.
+
+| Clause | Verdict |
+|---|---|
+| a client exists for every operation, **matching `.hora/contracts/1.0.0/` exactly** | **met**, and verified harder than by eye |
+| **it works against the stub from checkpoint 4** | **not met, and unmeetable here** |
+
+### The half that was met, and why the verification counts
+
+Each document was extracted **out of the Payload file as it stands on disk** — not transcribed from
+a report — and validated against the pinned contract with `graphql@17.0.2`:
+
+```
+SignInMutationGraphqlPayload              VALID
+SignOutMutationGraphqlPayload             VALID
+RenewAccessTokenMutationGraphqlPayload    VALID
+SignedInStaffMemberQueryGraphqlPayload    VALID
+```
+
+**And the checker was shown to produce the negative answer first**, because four VALIDs from a
+validator that always returns VALID would look identical. The first negative control was **wrong and
+was corrected**: it tripped on "Variable `$input` is not defined" rather than on the field, so it
+proved only that the checker rejects *something*. The corrected control asks for `refreshToken` on
+`SignInResult` and is refused with "Cannot query field … Did you mean accessToken?" — the error the
+check exists to catch.
+
+**A negative control that fails for an unintended reason is barely better than none**, and it is the
+same trap as the push check that could not distinguish "pushed" from "no such ref".
+
+### The half that could not be met
+
+**The backend cannot boot on Windows** — Q24, root-caused this session to a single line in renchan's
+`DeepBulkClassLoader`. Nothing listens on a socket, so no client can be driven against the stub.
+**Not faked, and no mock server was stood up and called a stub.**
+
+The nearest honest evidence, which is a step short and is recorded as such: the same four documents
+also validate against the **backend's own staff schema** — the schema the stub server would serve —
+and each stub resolver returns exactly the fields these Capsules read. **No request was ever sent.**
+
+This is the second exit condition this feature has reached in part rather than passed, after §10's
+two use cases at checkpoint 11. Both are recorded with the reason rather than rounded up.
+
+### The trap in the three no-argument operations
+
+`signOut`, `renewAccessToken` and `signedInStaffMember` take **no argument at all**, which is the
+case a skill's examples skip. furo's `invokeRequestWithFormValueHash` wraps unconditionally into
+`{ input: valueHash }` — an `input` those three documents never declare. Each of their Payload tests
+asserts `variables` is `{}`, so a later checkpoint sending an `input` fails a test rather than a
+runtime request.
+
+**The digest found this by reading the installed generator rather than the skill's prose**, which is
+the third time that practice has paid this gate.
+
+### `types/graphql-schema.d.ts` — what it is, since the distinction matters
+
+The file did not exist and now holds the **whole** contract, 23 types. Asked directly whether that is
+a second authority for the contract we just agreed to keep single:
+
+**No, but it is a second representation.** It is a type projection — mechanically derived, consumed
+only by the type checker, and **unusable for validation**, so nothing can pass against a stale copy
+of it the way a vendored SDL would allow. That is precisely the property that made vendoring the SDL
+unacceptable and makes this acceptable. It can still drift if the contract moves and nobody
+regenerates, and that is its recorded risk.
+
+It holds the whole contract rather than four operations because the generator rewrites it whole:
+hand-trimming would guarantee a merge conflict when `#expense-entry` regenerates the same file.
+
+### One forbidden-name standoff, resolved rather than suppressed
+
+`id-denylist` bans `data`; furo's `content` getter requires `data` as a fixture key; and
+`quote-props` rejects quoting it to escape. A module-level `RESPONSE_CONTENT_FIELD = 'data'` used as
+a computed key **suppresses no rule** and names the thing better than `data` did. Both errors were
+reproduced before the workaround was chosen rather than assumed.
+
+**22 suites, 140 tests, lint clean.** Baseline was 10 and 73.
 
 ## Where the decisions live, when control flow does not hold them
 

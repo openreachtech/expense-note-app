@@ -37,11 +37,25 @@ Nuxt's component auto-registration is configured in `nuxt.config.js`, so a compo
 BaseAppGraphqlPayload.js        BaseAppGraphqlCapsule.js        BaseAppGraphqlLauncher.js
 BaseAppSubscriptionGraphqlPayload.js  BaseAppSubscriptionGraphqlCapsule.js  BaseAppGraphqlSubscriber.js
 mutations/  queries/            one Payload/Capsule pair per operation goes here
-graphql.config.js               points the tooling at the schema
+graphql.config.js               two null URLs and nothing else — see below
 ```
 
 So an operation is a class per side, not an inline query string. **The queries and mutations
 directories are empty** — every operation this version needs is written into them.
+
+**`graphql.config.js` does not point at a schema, and this document used to say it did.** Corrected
+at `#sign-in`'s checkpoint 14. The file exports `{ ENDPOINT_URL: null, WEBSOCKET_URL: null }` and
+names no schema anywhere. **There is no schema file in this repository at all** — the contract lives
+in `.hora/contracts/<version>/`, in the hora repository, and is deliberately not vendored here: a
+second copy would be a second authority, and the kit's single-authority design is what keeps a
+client from validating green against a stale schema.
+
+What checkpoint 14 did add is `types/graphql-schema.d.ts`, and it is worth knowing exactly what that
+is. **A type projection, not a schema** — mechanically derived from the contract, consumed only by
+the type checker, and unusable for validation. It is therefore not a second authority, but it *is* a
+second representation, and it drifts silently if the contract moves and nobody regenerates it. It
+holds the whole contract rather than this feature's four operations, because the generator rewrites
+it whole and hand-trimming would guarantee a conflict when `#expense-entry` regenerates.
 
 ## Styling
 
