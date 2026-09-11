@@ -1578,6 +1578,8 @@ three.
 | 20 | **neither of §10's use cases can be completed on a screen this feature builds** — §11.2 puts `signOut` on the expense-entry screen, and §10.2's screen is for somebody *not* signed in | **No.** Checkpoint 2 asked the same question against the spec and 9 against the API; both answered correctly. Only "which screen holds the control" reaches it |
 | 21 | **not one of the library's 52 components had a working colour, dimension or z-index.** Nothing imported `furo.css`; `--color-ring` is `FuroButton`'s only focus indicator, and its stylesheet removes the native outline and rebuilds the ring from that property | **No** — see below. The build succeeds, lint is clean, the components render |
 | 22 | seven further source-verified facts contradicting the skills or the library's own `components.json` — `type="email"` silently discarded, no `primary` variant, a hint prop and a password reveal toggle that do not exist, `autocomplete` untouched, a loading button with no accessible name | **No.** Every one of them compiles and renders |
+| 23 | **SECURITY.** The boilerplate read the access token out of `localStorage` to build the header of **every** GraphQL request, against §6's "held in memory, never in a cookie" — reintroducing, on the access token, exactly the script-readability the httpOnly refresh cookie exists to prevent | **No, and worse: a test was DEFENDING it.** The boilerplate's own test asserted `createStorageClerk()` called `StorageClerk.createAsLocal()`. The suite did not fail to notice — **a correct implementation would have failed it.** Q46 |
+| 24 | three WCAG contrast failures in correctly-named tokens — `--color-destructive` at **3.67:1** as text, `--color-input` at **1.69:1** as a control boundary, and a focus style that removes the outline and replaces it with a hue change of near-identical luminance | **No.** A semantic name is a claim about **purpose, not contrast**. Consuming them by name, as every convention instructs, ships the failures. Only computing the ratio against the real surface finds them |
 
 ### Three distinct reasons no test could fail, which is not the same as "tests are incomplete"
 
@@ -1620,6 +1622,31 @@ else entirely.** A green suite says what it says about the code it runs, and say
 about the path production takes to reach that code. Adding tests does not close this class; only
 running the thing the way it actually runs does — which is what a live acceptance gate is for, and
 which this exercise has never once been able to do.
+
+### A fifth mechanism, and it is the only one where the suite was on the wrong side
+
+**Findings 19 to 22 and 24 were invisible to the tests. Finding 23 was held in place by them.**
+
+| | The mechanism |
+|---|---|
+| 1–4 | the check and the failure never meet — wrong environment, wrong referent, legal-but-empty, wrong door |
+| **5** | **the check meets the failure and takes its side.** A test asserted the defective behaviour, so the defect was not merely unnoticed: **the fix was what failed** |
+
+The boilerplate shipped `createStorageClerk()` returning `StorageClerk.createAsLocal()` **and** a test
+asserting it does. Correcting the first turns the second red, which makes the obvious fix look like a
+regression — a good explanation for why it survived.
+
+**This is the sharpest available statement of what a green suite is worth.** It is not evidence of
+correctness. It is evidence that **the code agrees with the tests**, and here the two agreed with each
+other while both disagreed with the spec. Nothing inside the repository could break that agreement;
+only reading §6 against the code could.
+
+It also bears on what "do not weaken a test to make the suite pass" means. The rule is right, and
+this is its edge: the unit was correct to **report** the test change rather than make it, and correct
+again not to hand back a red suite — but somebody had to rewrite a test for the fix to land at all.
+The distinction that matters is **who** changes a test and **why it is written down**: a unit
+loosening its own test to pass is the failure the rule forbids; the main session replacing a test
+that contradicts the spec, and recording that it did, is not.
 
 ### The same shape bit the measurement, not just the product
 

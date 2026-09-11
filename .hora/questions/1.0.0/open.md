@@ -2127,3 +2127,90 @@ has this problem.
 
 Adjacent to Q42 and Q44: three separate things the frontend boilerplate leaves to each project to
 discover independently.
+
+
+## Q46. The frontend boilerplate holds the access token in browser storage, and ships a test that locks it there
+
+<!-- spec: sign-in -->
+<!-- blocking: no -->
+<!-- category: contradiction -->
+
+Found at `#sign-in`'s checkpoint 16 while wiring the screen. **Fixed in this repository; raised
+because both halves came from `furo-boilerplate-nuxt 2.1.0` and every project built from it has
+them.**
+
+### What it was
+
+`app/graphql/client/BaseAppGraphqlPayload.js`:
+
+```js
+static createStorageClerk () {
+  return StorageClerk.createAsLocal()          // -> window.localStorage
+}
+
+static loadAccessToken () {
+  const storageClerk = this.createStorageClerk()
+
+  return storageClerk.get(STORAGE_KEY.ACCESS_TOKEN)
+}
+```
+
+and `collectBasedHeadersOptions()` attaches the result as `x-renchan-access-token`. **So the access
+token was read out of `localStorage` to build the header of every GraphQL request.** The same shape
+is in `BaseAppSubscriptionGraphqlPayload`, and `BaseAppRenchanRestfulApiPayload` inherits a furo base
+that hard-codes `StorageClerk.createAsSession()`.
+
+### Why it is a security finding rather than a style one
+
+§6: the access token is **"Held in memory, never in a cookie."** §7 declares the whole point of the
+two-credential design — a short-lived access token on a header, and a refresh token as an **httpOnly**
+cookie so that script cannot read it.
+
+**An access token in `localStorage` is readable by any script on the origin.** That is precisely the
+exposure the httpOnly cookie exists to prevent, reintroduced on the other credential. The blast
+radius is bounded — fifteen minutes, one member of staff, an internal system — but the bound is the
+token's lifetime, not any control this product has, and §6 excludes it in as many words.
+
+`sessionStorage` in the REST base is the same class of thing: browser storage that outlives a reload
+within a tab.
+
+### Whose code it is
+
+**The boilerplate's, not this project's.** `git log --diff-filter=A` puts the file in
+`beb2fa6 Initial commit from furo-boilerplate-nuxt 2.1.0`. Nothing here generated it.
+
+### Could a test have caught it? No — and worse than that
+
+**A test existed, and it was defending the defect.**
+`tests/__tests__/jsdom/app/graphql/client/BaseAppGraphqlPayload.js` — **also from `beb2fa6`** —
+asserted that `createStorageClerk()` called `StorageClerk.createAsLocal()`, and arranged its other
+readings by writing to `localStorage` directly:
+
+```js
+describe('to call StorageClerk.createAsLocal()', () => {
+  …
+  expect(createAsLocalSpy)
+    .toHaveBeenCalledWith()
+```
+
+So the suite did not merely fail to notice. **It pinned the behaviour §6 forbids, and a correct
+implementation would have failed it.** Every other finding in this feature was invisible to the
+tests; this one was actively held in place by them.
+
+That is a category the found-while-green list did not previously have: not "no test could fail on
+it", but **"a test failed on the fix"**. A green suite is not evidence of correctness — it is
+evidence that the code agrees with the tests, and here they agreed with each other while both
+disagreed with the spec.
+
+### Where it lands
+
+**Upstream, in `furo-boilerplate-nuxt`**, and it is two changes rather than one: the storage seam,
+and the test that would otherwise reject the corrected seam. **Fixing only the first turns every
+consumer's suite red**, which is a good reason it has survived — the obvious fix looks like a
+regression.
+
+This project's own fix is `MemoryStorage` plus `AppAccessTokenClerk`, with the boilerplate test
+rewritten to arrange through the clerk rather than reach past it into a browser API.
+
+Adjacent to Q42, Q44 and Q45 — four separate things `furo-boilerplate-nuxt 2.1.0` hands every project
+built from it. **This is the only one of the four that is a security defect.**
