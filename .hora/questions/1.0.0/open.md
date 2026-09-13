@@ -2214,3 +2214,71 @@ rewritten to arrange through the clerk rather than reach past it into a browser 
 
 Adjacent to Q42, Q44 and Q45 — four separate things `furo-boilerplate-nuxt 2.1.0` hands every project
 built from it. **This is the only one of the four that is a security defect.**
+
+
+## Q47. furo-vue omits one of its own transitive requirements, and `--legacy-peer-deps` turns that into a CI-only build failure
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Found when `#sign-in`'s frontend pull request went red **after** every local check passed. Fixed in
+this repository; raised because the cause is upstream and the mechanism has now appeared in three
+repositories.
+
+### The failure
+
+```
+Rollup failed to resolve import "@tiptap/suggestion"
+  from node_modules/@tiptap/extension-mention/dist/index.js
+```
+
+**The package is present on a developer's disk and absent in CI.** Four facts, each individually
+reasonable:
+
+1. `@openreachtech/furo-vue` depends on `@tiptap/extension-mention`
+2. that package requires `@tiptap/suggestion@3.31.3` as a peer, and it is **not optional** —
+   `peerDependenciesMeta` is absent from its manifest entirely
+3. so the lockfile carries `node_modules/@tiptap/suggestion` with **`"peer": true`** — present, but
+   only as a peer entry
+4. `.github/workflows/test.yml` installs with **`npm ci --legacy-peer-deps`**, which omits
+   peer-marked entries
+
+### The upstream bug is one line, and counting is what made it precise
+
+`extension-mention` requires **three** exact peers — `@tiptap/core`, `@tiptap/pm`,
+`@tiptap/suggestion` — and only the third failed.
+
+**furo-vue declares nine tiptap packages as direct dependencies, including `core` and `pm`, and omits
+the tenth that one of the nine requires.** That is exactly why the first two carry no `peer` flag and
+resolve normally.
+
+So the report upstream is *"furo-vue's dependency list is missing one entry"* rather than *"furo-vue
+has a peer-dependency problem"* — and, usefully, **fixing `suggestion` alone is complete rather than
+partial.** That was checked before applying, because a partial fix that moves a failure rather than
+removing it is a mistake this feature has already made once (Q38).
+
+### Why the fix was the dependency and not the flag
+
+Declaring `@tiptap/suggestion` at `3.31.3` — the exact version `extension-mention` requires and the
+one the lockfile already resolved — makes no version decision and leaves the entry at `peer: null`,
+which is what `--legacy-peer-deps` keys on.
+
+**A plain `npm ci --dry-run` resolves with no `ERESOLVE`, so the flag is not holding a conflict
+together today.** That is evidence for the upstream conversation and was deliberately *not* treated
+as licence to remove a flag this repository inherited from the boilerplate and whose purpose is not
+established here.
+
+The decisive argument is narrower than "the flag change is bigger": **declaring the dependency works
+under either flag setting; removing the flag only works if a reading of npm's behaviour is right.**
+One fix rests on a fact, the other on an inference.
+
+### Three instances, one mechanism
+
+The same shape has now appeared three times across three repositories — `graphql` peer-only in
+`ort-homepage`, the `js-yaml` chain at one remove, and this. **A peer-only lockfile entry plus
+`npm ci --legacy-peer-deps` is a package that exists everywhere except CI.** That makes it a property
+of the boilerplate's workflow rather than of any project.
+
+**Fifth item against `furo-boilerplate-nuxt 2.1.0`**, with Q42, Q44, Q45 and Q46 — and **the only one
+that breaks the build outright**. Q46 remains the only security one.
