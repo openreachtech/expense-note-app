@@ -86,17 +86,17 @@ Note: **a stub is a public endpoint.** The authentication filter is built from t
 - [x] 9. Verify the use cases again, against the built API  <!-- interactive, run by the main session against the merged tree; no agent, so no digest taken. All eight of §10's acceptance criteria walked one at a time against something that would fail if the criterion stopped holding. Seven held; the eighth -- "none writes one into a log line" -- was FALSE on live, staging and production, where no `logging` key left Sequelize at its `console.log` default and every sign-in wrote an email address to stdout. Fixed in 3ac78a0 with a test that reads the config file rather than a connection, because the suite runs only under `development`, which already had logging off. Both use cases verified as far as a backend can carry them; the screen half is checkpoint 18's -->
 
 ## Frontend gate
-- [ ] 10. Open the frontend
-- [ ] 11. Reconfirm UI/UX and the use cases
-- [ ] 12. Component design
-- [ ] 13. The frontend modules the implementation needs
-- [ ] 14. API client
-- [ ] 15. UI
-- [ ] 16. Wire the data-fetching logic in
-- [ ] 17. Local test environment
+- [x] 10. Open the frontend  <!-- skills: hof-nuxt, hof-furo-env; digests: hora-skills-ort-furo 0.1.0. Neither had a digest at the installed version; both taken before the implementer ran, and both carry a conflicts section naming where `D:\ORT\rules\` wins. Route `/sign-in` was FORCED by the boilerplate's existing `middleware/000.gateway.global.js`, not chosen. Reachability established from the built route table rather than a curl, because `ssr: false` makes nitro answer every path with the same SPA fallback. Env repointed from the boilerplate's customer:3900 to the staff endpoint on 4900, verified against the backend engine. One unit claim checked and rejected: the tree doc was not stale, the word "middleware" is overloaded -->
+- [x] 11. Reconfirm UI/UX and the use cases  <!-- interactive, main session, in conversation; skills: hof-uiux-context, read in full (no digest -- no agent ran). Wrote `expense-note-frontend-staff/ai/contexts/uiux-context.md`, which did not exist; every answer tagged [spec]/[user]/[tree]/[chosen] so checkpoint 18 does not audit an arbitrary answer as a rule. Three questions put to the user: devices, accessibility target, tone. BOTH of section 10's use cases were found to end outside this feature -- the sign-out control lives on section 11.2's screen and "every screen after that" means screens #expense-entry owns -- so neither is closable at this feature's gate. Not sent back to checkpoint 2: the spec is coherent, the paths exist at version level. Q41 raised, and checkpoint 9's claim that the screen half is "checkpoint 18's" is corrected there -->
+- [x] 12. Component design  <!-- skills: hof-uiux-forge, hof-cp-text-field, hof-cp-button, hof-cp-control-block, hof-prohibits; digests: hora-skills-ort-furo 0.1.0, all five taken at this checkpoint since none existed. Four components exist (FuroEmailField, FuroPasswordField, FuroButton, FuroControlBlock), one is new -- the form-level refusal message, because section 10 requires an identical refusal and `errorMessages` attaches to a single control. Eight source-verified facts contradict the skills or the library's own manifest, two of them WCAG 2.2 AA gaps to compensate for at 15. Three digests independently found that NO component had a working colour: nothing imported furo.css, so `--color-ring` -- FuroButton's only focus indicator -- resolved to nothing. Fixed in 2899424, verified out of the built bundle -->
+- [x] 13. The frontend modules the implementation needs  <!-- skills: hof-error-handling, hof-modules; digests: hora-skills-ort-furo 0.1.0, both taken at this checkpoint. The kit requires stating WHICH half applies: the error-code mapping applied (13 codes), the shared-module half is n/a -- one screen, `components/` empty, no second call site -- so `app/modules/` was deliberately not created. Static-string variant taken over the i18n locale-path variant, following the no-localization-layer decision already recorded at checkpoint 11 rather than making a new one; no i18n dependency added. `hoc-properties`' Map prohibition and the skill's own "no reverse map" both killed the skill's two-hop design, so the hash is keyed by code directly. `BaseAppGraphqlCapsule` is conflict-proof and was written by the main session, with a test reading removed for using a banned case-generating loop that ESLint does not catch -->
+- [x] 14. API client  <!-- REACHED IN PART, and recorded as such. skills: hof-graphql; digest: hora-skills-ort-furo 0.1.0, taken at this checkpoint. Four Launcher/Payload/Capsule trios. The "matching the contract exactly" clause is MET -- each document extracted from the file on disk and validated against `.hora/contracts/1.0.0/` with graphql 17.0.2, with a negative control that was itself corrected after tripping on the wrong error. The "works against the stub" clause is NOT met and is unmeetable here: Q24 means no server boots on Windows, so nothing listens. Not faked and no mock server called a stub. `types/graphql-schema.d.ts` created -- a type projection, not a second authority, because nothing can validate against it -->
+- [x] 15. UI  <!-- skills: hof-uiux-forge plus every skill covering this project's CSS conventions -- hof-css, hof-css-props-naming, hof-css-props-prohibits, hof-css-units, hof-css-coding-styles, hof-css-prohibits, hof-css-line-height, hof-css-z-index, hof-selector-props-sort, hof-layout-margin, hof-animation; digests: hora-skills-ort-furo 0.1.0, all twelve taken at this checkpoint. All four states built. NO custom property declared, no @layer, no z-index, no animation CSS -- each decided against for a stated reason. The two accessibility gaps recorded at checkpoint 12 are compensated, and THREE further contrast failures were found by measuring the real token hexes rather than trusting their semantic names. Q44 and Q45 raised: no .vue can be unit-tested here, and furo's controls assume a reset nothing ships -- both worked around with removal conditions rather than silently patched -->
+- [x] 16. Wire the data-fetching logic in  <!-- REACHED IN PART. skills: hof-furo-context-patterns, hof-graphql, hof-nuxt, hof-prohibits, hoc-jest, hof-error-handling; digest hof-furo-context-patterns taken here. Loading and error paths driven by REAL capsules built from real envelopes, and the acceptance-criteria tests pass -- but "shows real data from the actual API" is unmeetable (Q24) and was not faked. Q43 resolved and found worse than recorded: every request header read `localStorage`, not just the gateway. Q40 resolved by NOT needing a shared module -- one consumer, so it lives on the page context with route/router injected from setup. A test that was DEFENDING the defect was rewritten rather than deleted. The gateway still defaults to localStorage and is carried forward to #expense-entry -->
+- [x] 17. Local test environment  <!-- PARTLY PROVEN. Main session, on its own branch `update/e2e-seeded-mariadb-for-sign-in` in the BACKEND repository per commits.md line 53. Applicable rather than n/a: the environment existed, but this feature added seed data and nothing could put it into the container -- `db:refresh` is SQLite-only and tears down with `rm *.sqlite3`. Added `db:teardown:live` / `db:refresh:live` and documented them. Section 10.3's table checked against REAL MariaDB for the first time -- bigint(20), varchar(191), datetime(3), composite (email, attempted_at) index, all as declared. Counting the rows corrected the record's "eleven with a working credential" to TEN. "Runs locally" and "each role can sign in" stay blocked by Q24 -->
 
 ## Acceptance gate
-- [ ] 18. Acceptance (E2E and unit both)
+- [x] 18. Acceptance (E2E and unit both)  <!-- PASSED on unit and in-process evidence only. skills matched at run time: hor-backend-testing, hoc-jest, hoc-test-execution, hof-e2e-test-specification, hof-acceptance-review. Recorded at `.hora/acceptance/1.0.0/sign-in.md`. Unit suites in every repository: 720 + 195 backend, 337 frontend, lint clean in all three. Acceptance review ran in scoped mode, phases 0-3 and 5; PHASE 4, the live sweep, did not run and is recorded rather than omitted -- a gate run skips it by default AND Q24 means it could not have run if requested. One static finding, and it is the deliberate exclusion Q41 predicted: `signOut`'s control lives on section 11.2's screen. `find-orphan-template-members` returned exit 2 because the rule-compliant binding shape is the one it cannot see, so the check was done by reading -- 14 of 14 members resolve, labelled Inferred -->
 
 ## Checkpoint 1 — what the close reading found
 
@@ -499,7 +499,7 @@ factor into each digest so no seeder ever needs it — so it sits at the top of 
 
 ### Q22 closed in substance, and the trap it existed to avoid
 
-Thirteen members of staff, eleven with a working credential, **verified against the running
+Thirteen members of staff, **TEN** with a working credential — the figure read *eleven* until checkpoint 17 counted the join against real MariaDB; eleven hold a digest and eleven hold an address, but they are not the same eleven. **The claim below was still true of what it checked** — it verified digests, and signing in needs both halves. **Verified against the running
 database** rather than reported: every address already lower-cased, every digest matching the
 shape the testing rule asserts, `compare` true for all eleven recorded plaintexts and false for a
 near-miss on all eleven, and `down` reverting cleanly.
@@ -514,7 +514,7 @@ on master seeds only, *then* `db:seed:dev` — so no account exists in phase one
 the split §10's "an address with no account" criterion wants (Q29). Under `dev-master/` phase one
 would already hold accounts and the distinction would be gone.
 
-**Two members of staff deliberately hold no complete credential**, and Q22 is why: accounts are
+**Three members of staff deliberately hold no complete credential** — the record said two until checkpoint 17 counted them — and Q22 is why: accounts are
 issued by hand across three tables, so a half-issued one is the most likely way one goes wrong
 here, not a hypothetical — and §10's identical-refusal criterion needs a row to test against.
 
@@ -811,6 +811,610 @@ verified as far as a backend can carry them, with the screen half recorded as ch
 **715 + 195 = 910 before this checkpoint, 720 + 195 = 915 after it**, lint clean, and both CI
 dialects green — SQLite and MariaDB, the latter running the same suite on every pull request (Q37).
 
+## Checkpoint 10 — the frontend opened, and a route that was already decided
+
+**The route is `/sign-in`, and that was not a free choice.** The boilerplate already ships
+`middleware/000.gateway.global.js`, a global route middleware holding
+
+    const SIGN_IN_PATH = '/sign-in'
+
+which redirects every unauthenticated request to `` `${SIGN_IN_PATH}?redirect=${to.fullPath}` ``.
+So §10.2's "every other screen sends somebody here when theirs has gone" is **already true** rather
+than something a later checkpoint wires — and any other path would have quietly broken it. The unit
+found this by reading the tree rather than by picking a plausible name, which is the difference
+between a route that works and one that looks right.
+
+`pages/sign-in/index.vue` is the routable leaf, paired with `SignInPageContext` beside it as a `.js`
+sibling that `nuxt.config.js`'s existing `pages:extend` hook strips from the route table. The page
+is a title and nothing else — no fields, no validation, no submit. Components are 12, the UI is 15,
+the wiring is 16.
+
+### Reachability was established, not asserted
+
+A `nuxt build` was run and the generated route table read out of the client bundle: `path:"/sign-in"`
+appears with its page chunk, and **only the two `index.vue` routes appear**, which is what proves the
+`.js` sibling really is stripped rather than merely believed to be.
+
+**Curling a running server would have proved less, and the reason is worth keeping.** With
+`ssr: false` nitro serves the same SPA fallback for every path, so a `200` on `/sign-in` is
+indistinguishable from a `200` on `/nonsense`. The weaker check is the one that looks more like
+real verification.
+
+### The endpoint was wrong for this audience in every tracked env file
+
+The boilerplate shipped `http://localhost:3900/graphql-customer`, and `.furo-env.test` pointed at
+`/graphql-stub`. Both now read the staff endpoint, verified against the backend rather than assumed
+— `StaffGraphqlServerEngine` declares `graphqlEndpoint: '/graphql-staff'` and `server/index.js`
+listens that engine on `4900`:
+
+    ENDPOINT_URL   = http://localhost:4900/graphql-staff
+    WEBSOCKET_URL  = ws://localhost:4900/graphql-staff
+
+`WEBSOCKET_URL` also gained its field in both `RuntimeConfig` and `PublicRuntimeConfig`;
+`plugins/000.furo.js` had always read it off `runtimeConfig.public`, but only `ENDPOINT_URL` was
+ever declared. And `.furo-env.development` is gitignored, so it does not exist until somebody copies
+the example — `NuxtFuroEnvLoader.loadEnv()` returns `{}` for a missing file **silently**, which would
+leave `ENDPOINT_URL` undefined at dev time with nothing said.
+
+### A unit's finding I checked and did not take
+
+The unit reported the tree doc "stale" for saying **Middleware: None** while the repo ships two
+global middleware files. **It is not stale — the word is overloaded.** That section reads "A frontend
+row holds neither a DB client nor a Redis client, and no compose file is placed here", which is §8's
+sense of middleware, the one whose table lists MariaDB. Nuxt route middleware is a different thing.
+
+The doc was right and the reading was wrong, so nothing was corrected. **What was genuinely missing
+is different and now recorded:** the tree doc named the directories without saying that one of them
+decides this feature's route. `.hora/tree/expense-note-frontend-staff.md` now carries what the
+boilerplate ships and which parts are load-bearing, plus the overload itself, so the next reader does
+not repeat the misreading.
+
+### Two gaps this checkpoint did not close, both recorded rather than worked around
+
+- **There is no `gateway` layout.** The `hof-nuxt` digest expects an auth page to take one; this
+  repository ships only `layouts/default.vue`, a bare `<slot />`. The page uses the default
+  implicitly. Creating a layout is checkpoint 12's or 15's, not this one's.
+- **`composables/useRedirect.js` is a bare exported function**, which the tree doc's own "shared logic
+  is a class, never a composable and never a bare function" rules out. Pre-existing boilerplate,
+  untouched, raised as **Q40** — it becomes a decision at checkpoint 16, which is what wires the
+  post-sign-in redirect.
+
+**9 suites, 34 tests, lint clean.** Baseline was 8 and 27.
+
+## Checkpoint 11 — the third pass over the use cases, and what it found that the first two could not
+
+**Run interactively by the main session.** Its real output is
+`expense-note-frontend-staff/ai/contexts/uiux-context.md`, which did not exist — only the blank
+questionnaire ships with the skill. Both the UI generator (checkpoints 12 and 15) and the auditor
+(checkpoint 18) read that file, so **an answer written into it becomes both the instruction and the
+standard it is later judged against.** Every answer is therefore tagged with where it came from:
+`[spec]` with the section named, `[user]`, `[tree]`, or **`[chosen]` — arbitrary, so checkpoint 18
+does not audit a preference as though it were a rule.**
+
+### Three answers the spec could not give, put to the user
+
+| | Decided | Why it was not inferable |
+|---|---|---|
+| devices | **desktop-first, usable on a phone browser** | §4 rules out a phone **app**. That says nothing about a phone **browser**, and the two are different questions |
+| accessibility | **WCAG 2.2 AA** | the spec is silent. This is the standard checkpoint 18 fails against, so it had to be stated before 12 generates anything |
+| tone | **plain and neutral** | §5 inherits nothing, so there was no house voice to match |
+
+**One thing that looked like a question and was not.** The interface language is **English**, and it
+is derived rather than chosen: §6 names the categories "transport, meals, supplies, other", so the
+domain vocabulary the UI displays is English. §1's `Question language | English` is about questions
+put to the user during specification and is **not** evidence for the interface — reading it that way
+would have been a guess wearing a citation.
+
+### The finding: both of §10's use cases end outside this feature
+
+This is the checkpoint that asks whether *a person can actually do the use case on a screen* — 2
+asked whether the spec supports it, 9 whether the API does. Walking both:
+
+| §10 use case | The path, as far as it goes | Where it stops |
+|---|---|---|
+| signs in on a Monday morning, "**and every screen after that knows who they are**" | open any path → the gateway sees no token → `/sign-in?redirect=<path>` → form → `signIn` → token in memory → redirected back | **there is no screen after that.** The only routes are `/sign-in` and `/`, and `/` is still the boilerplate stub with an empty template. The clause is about screens this feature does not own |
+| "finishes on a shared machine, **signs out**, and the next person is asked to sign in" | — | **there is nowhere to put the control.** §11.2 puts `signOut` on the **expense-entry** screen, and §10.2's screen is explicitly "for a member of staff who is **not** signed in". `#sign-in` has no screen a signed-in person ever sees |
+
+**This is not a spec defect and was not sent back to checkpoint 2.** The kit says a use case with no
+path through the interface goes back, because either the interface or the use case is wrong. Neither
+is wrong here: the paths exist at **version** level — §11.2 carries the sign-out control, and the
+later screens are what "every screen after that" refers to. What is true is narrower and sharper:
+**§10's use cases are not closable at `#sign-in`'s own gate.** They close when `#expense-entry`
+exists, or at the whole-version sweep.
+
+**And that corrects something I wrote at checkpoint 9.** The record there says the screen half of
+these two use cases "is checkpoint 18's". **It is not** — `#sign-in`'s checkpoint 18 cannot close
+them either, because the control and the destination both belong to a feature that does not exist
+yet. The right statement is the one above, and Q41 records it so checkpoint 18 does not report a
+missing sign-out button as a defect of this feature.
+
+**Why the earlier passes could not have caught it.** Checkpoint 2 read the use case against the
+spec, where §11.2's `signOut` row makes the path complete. Checkpoint 9 read it against the API,
+where the `signOut` operation exists and works. **Only the question "which screen has the button"
+reaches it** — and that question is this checkpoint's alone.
+
+### What the context file records that nothing else does
+
+- **No design tokens exist.** `assets/css/variables.css` declares `:root { }` and a comment saying
+  the boilerplate deliberately makes no decision. So there is no answer to "what is the primary
+  colour" until a checkpoint declares one — which is why checkpoint 10's page carries no `<style>`
+  block at all: with no tokens, any colour would be a literal, and `05-frontend.md` forbids those.
+- **Eighteen project UX rules**, lifted from `D:\ORT\rules\05-frontend.md` rather than invented, so
+  the generator produces code that passes review instead of code that gets rejected.
+- **Three things that must never be built**, each with its spec citation: a sign-up or
+  password-reset link (§3 — there is no such screen and no such flow), a "remember me" checkbox (§9.6
+  — the access token lives in memory and the refresh token is httpOnly, so it would control nothing),
+  and any UI for `renewAccessToken` (§10.2 — it belongs to the client layer and happens invisibly).
+- **One copy rule that is a requirement, not a preference:** an unknown address and a wrong password
+  are refused **identically**. "No account found for that email" is a defect, and a generator left to
+  its instincts writes exactly that.
+
+## Checkpoint 12 — the screen broken into components, and what reading five skills bought
+
+**The exit condition is that every component either already exists or has a stated reason for being
+new.** After Q42 was settled the answer is: **four exist, one is new.** But the value of this
+checkpoint was not the breakdown — it was that five digests, read against the installed library
+rather than the skill prose, found eight things that would each have produced working-looking code
+that was wrong.
+
+### The breakdown
+
+| Part of the screen | Component | Status |
+|---|---|---|
+| the page and its context | `pages/sign-in/index.vue` + `SignInPageContext` | **exists** — built at checkpoint 10 |
+| email address input | **`FuroEmailField`** inside **`FuroControlBlock`** | **exists** — furo-vue |
+| password input | **`FuroPasswordField`** inside **`FuroControlBlock`** | **exists** — furo-vue |
+| submit control | **`FuroButton`**, `variant: 'default'`, driven by `loading` | **exists** — furo-vue |
+| the refusal message | — | **NEW.** Reason below |
+
+**The one new thing, and why it has to be new.** §10 requires an unknown address and a wrong
+password to be refused **identically**, so the refusal is a single **form-level** message and not a
+per-field error. `FuroControlBlock`'s `errorMessages` attaches to one control, and the
+`hof-cp-control-block` skill does not cover a form-level message or name anything that does. The
+block can be made to render one mechanically — null label, empty slot — but that is unsanctioned
+use, so this is a small component of this application's own rather than a library one borrowed
+sideways.
+
+### Eight facts that contradict the skills or the library's own manifest
+
+**Every one was verified in the installed source, and every one would have compiled.**
+
+| # | What the skill or manifest says | What the source does |
+|---|---|---|
+| 1 | a `FuroTextField` can take `type="email"` | **`type` is destructured out of the fallthrough attributes and silently discarded.** Using the dedicated `FuroEmailField` is not a preference, it is the only thing that works |
+| 2 | `FuroControlBlock` is a "label, control, **hint** and error wrapper" (manifest) | **there is no hint prop and no hint slot.** The parcel is `label` / `controlId` / `errorMessages` / `required` / `orientation` |
+| 3 | `FuroPasswordField` has a "reveal toggle" (manifest) | **it does not** — a bare `<input type="password">`, `"slots": []`. Nobody should design a show-password affordance around it |
+| 4 | a button variant named `primary` | **no such variant.** `default | secondary | destructive | outline | ghost | link`; the primary-looking one is `'default'`, and a guess would have rendered unstyled |
+| 5 | disabled and loading "set aria-disabled / aria-busy" (manifest) | loading sets **`aria-busy` only**, never `aria-disabled`, while also setting the native `disabled` |
+| 6 | — | **a loading button has no accessible name**: its label is `visibility: hidden` and its spinner is `aria-hidden="true"` |
+| 7 | — | **`autocomplete` is untouched by the library.** `username` and `current-password` are entirely the caller's to pass, and a password manager needs both |
+| 8 | — | **`aria-describedby` is not wired** from the error region to the control it describes — a gap the library's own source comments on |
+
+**Facts 6 and 8 are WCAG 2.2 AA failures that the library hands us**, against the target the user set
+at checkpoint 11. Neither is ours to fix upstream and both are ours to compensate for at checkpoint
+15: the submit needs an accessible name that survives its pending state, and the refusal message
+needs associating with the fields it refuses. Recorded here so 15 builds them in rather than 18
+finding them.
+
+**Fact 2 is the second manifest-versus-source disagreement in one library** (with 3 and 5), which is
+worth noticing as a pattern rather than three separate surprises: `components.json` describes
+intent, and the `.vue` file is what ships.
+
+### The defect this checkpoint actually turned on, found by three digests independently
+
+**Not one of the 52 components had a single working colour, dimension or z-index**, because nothing
+imported the library's stylesheet — `nuxt.config.js` loaded only the app's two files, `variables.css`
+is an empty `:root {}`, `furo-nuxt` 2.x ships no CSS at all, and furo-vue's Nuxt module installs an
+icon renderer and no stylesheet.
+
+**`--color-ring` is the only focus indicator `FuroButton` has.** Its stylesheet removes the native
+outline and rebuilds the ring from that property, so undefined it removed the outline and rebuilt
+**nothing**: no visible focus for a keyboard user.
+
+Fixed in `2899424` by loading `furo.css` first, and **verified out of the built bundle** rather than
+asserted — `--color-ring: var(--palette-blue-500)`, `--palette-blue-500: #3b82f6`,
+`--color-destructive: var(--palette-rose-500)`.
+
+**No test could have failed on it, and that is the point worth keeping: an undefined CSS custom
+property is not an error, it is an empty value.** Nothing throws, nothing warns, the build succeeds,
+the components render. The only way to find it is to ask what a property resolves to, and the only
+reason anybody asked is that three digesters were told to verify the skill against the installed
+package instead of summarising it.
+
+It also corrected the tree doc, which attributed those stylesheets to `furo-nuxt` and described a
+`@layer` system this repository does not have — that is `crm-kit-frontend`'s. The correction is kept
+beside what it replaced.
+
+## Checkpoint 13 — one half applicable, one half not, and the kit made me say which
+
+**The exit condition has two halves and the kit is explicit: "State which of the two, do not assume
+both."** That instruction did real work here.
+
+| Half | Verdict |
+|---|---|
+| this feature's backend error codes map to user-facing messages | **applicable.** 13 codes, all mapped |
+| logic used by more than one component or page exists as a class under `app/modules/` | **not applicable**, and nothing was built for it |
+
+**The n/a is evidenced rather than asserted.** `#sign-in` has one screen; `components/` holds only a
+`.gitkeep`; `pages/index.vue` is still an empty stub; and the feature's other two operations have no
+second call site either — `signOut`'s control belongs to §11.2's screen (Q41) and `renewAccessToken`
+is transparent client-layer work no screen calls (§10.2). The skill's own trigger is "reusing
+general logic across multiple files", and nothing clears it. **`app/modules/` still does not exist,
+which is the right outcome**: inventing a shared module to have something to show would be premature
+extraction, and the checkpoint explicitly permits n/a.
+
+### The i18n fork, decided from what was already recorded
+
+The skill offers two **mutually exclusive** mechanisms and says an app uses one or the other: a
+locale-path variant (`ERROR_LOCALE_HASH` + `t()`) that needs an i18n layer **even for a single
+language**, and a static-string variant that needs none.
+
+**Static strings, no new dependency.** Not a fresh judgement — `ai/contexts/uiux-context.md` §7
+already records English, single language, no localization layer, and that was derived at checkpoint
+11 from §6 naming the categories "transport, meals, supplies, other". The decision was made two
+checkpoints ago; this one only had to notice it applied.
+
+### An always-on rule forced a better design than the skill's
+
+The skill's static variant resolves in **two** hops — code → semantic name via `ERROR_CODE_MAP`,
+then name → message — and writes `ERROR_CODE_MAP` as a `Map`.
+
+Two rules kill that. `hoc-properties` prohibits `Map` and **names a string-keyed one as the exact
+circumvention it is banning**. And the skill's own `dictionaries.md` says "no reverse map", which
+`ERROR_CODE_MAP` is. So the hash is keyed by the code directly, one hop — and `ERROR_CODE_HASH`
+still earns its place by supplying the computed keys, so no dotted string is typed twice.
+
+**A skill contradicting itself, resolved by a rule that reached both halves.** Category 1 of the
+arbitration taxonomy, and the cheapest kind.
+
+### The three messages worth recording
+
+- **`204.M001.001`** — "That email address and password do not match." One code for two outcomes, so
+  the message names neither. A reading pins that exact text, so restoring "No account found for that
+  email" fails a test rather than surviving review. §10's criterion is now held in three places: one
+  `throw` site in the backend, one code in the contract, one string here.
+- **`203.M001.004`** — quotes **no figure**. The limit is 72 **bytes**, measured with
+  `Buffer.byteLength` because bcrypt truncates there, so "72 characters" is false for any non-ASCII
+  password. A helpful-sounding number would have been a lie, and the honest message is vaguer.
+- **`204.Q001.002`** — the account row exists, its secret row does not. **The one case where "try
+  again" would be a lie**, because a missing row does not heal on a retry. It points at whoever
+  issues accounts, which §4 puts outside the product — and not at a screen, because there is none.
+
+### The conflict-proof file, and a rule ESLint does not enforce
+
+`BaseAppGraphqlCapsule` is a base class every operation's capsule derives from, so the unit reported
+it rather than editing it and the main session wrote it. It carries the **single** resolution point:
+a context that mapped a code to a message itself would be a second place where §10's identical
+refusal can quietly stop holding.
+
+`getErrorMessage()` is inherited from furo and **returns a code despite its name** — confirmed in the
+base, which answers `null`, one of four transport codes of its own, or the backend's. The name
+cannot be changed, so the docblock warns.
+
+**And one reading was written and deleted before committing.** It generated its cases with
+`Object.entries(ERROR_MESSAGE_HASH).map(...)`, which `testing.md` bans — "complex case-generating
+loops are banned". **ESLint does not catch that one**, lint was clean, and 86 tests passed. It was
+removed because the rule says so and because the completeness it was testing already lives in the
+reconciliation reading in `constants-error.js`, which is where it belongs. A green suite is not
+evidence that a test is allowed to exist.
+
+10 suites, **73 tests**, lint clean. Baseline was 9 and 34.
+
+## Checkpoint 14 — the four clients, and the first exit condition this feature could only half meet
+
+**Reached in part, deliberately recorded as such.** The condition has two clauses and they had
+different fates.
+
+| Clause | Verdict |
+|---|---|
+| a client exists for every operation, **matching `.hora/contracts/1.0.0/` exactly** | **met**, and verified harder than by eye |
+| **it works against the stub from checkpoint 4** | **not met, and unmeetable here** |
+
+### The half that was met, and why the verification counts
+
+Each document was extracted **out of the Payload file as it stands on disk** — not transcribed from
+a report — and validated against the pinned contract with `graphql@17.0.2`:
+
+```
+SignInMutationGraphqlPayload              VALID
+SignOutMutationGraphqlPayload             VALID
+RenewAccessTokenMutationGraphqlPayload    VALID
+SignedInStaffMemberQueryGraphqlPayload    VALID
+```
+
+**And the checker was shown to produce the negative answer first**, because four VALIDs from a
+validator that always returns VALID would look identical. The first negative control was **wrong and
+was corrected**: it tripped on "Variable `$input` is not defined" rather than on the field, so it
+proved only that the checker rejects *something*. The corrected control asks for `refreshToken` on
+`SignInResult` and is refused with "Cannot query field … Did you mean accessToken?" — the error the
+check exists to catch.
+
+**A negative control that fails for an unintended reason is barely better than none**, and it is the
+same trap as the push check that could not distinguish "pushed" from "no such ref".
+
+### The half that could not be met
+
+**The backend cannot boot on Windows** — Q24, root-caused this session to a single line in renchan's
+`DeepBulkClassLoader`. Nothing listens on a socket, so no client can be driven against the stub.
+**Not faked, and no mock server was stood up and called a stub.**
+
+The nearest honest evidence, which is a step short and is recorded as such: the same four documents
+also validate against the **backend's own staff schema** — the schema the stub server would serve —
+and each stub resolver returns exactly the fields these Capsules read. **No request was ever sent.**
+
+This is the second exit condition this feature has reached in part rather than passed, after §10's
+two use cases at checkpoint 11. Both are recorded with the reason rather than rounded up.
+
+### The trap in the three no-argument operations
+
+`signOut`, `renewAccessToken` and `signedInStaffMember` take **no argument at all**, which is the
+case a skill's examples skip. furo's `invokeRequestWithFormValueHash` wraps unconditionally into
+`{ input: valueHash }` — an `input` those three documents never declare. Each of their Payload tests
+asserts `variables` is `{}`, so a later checkpoint sending an `input` fails a test rather than a
+runtime request.
+
+**The digest found this by reading the installed generator rather than the skill's prose**, which is
+the third time that practice has paid this gate.
+
+### `types/graphql-schema.d.ts` — what it is, since the distinction matters
+
+The file did not exist and now holds the **whole** contract, 23 types. Asked directly whether that is
+a second authority for the contract we just agreed to keep single:
+
+**No, but it is a second representation.** It is a type projection — mechanically derived, consumed
+only by the type checker, and **unusable for validation**, so nothing can pass against a stale copy
+of it the way a vendored SDL would allow. That is precisely the property that made vendoring the SDL
+unacceptable and makes this acceptable. It can still drift if the contract moves and nobody
+regenerates, and that is its recorded risk.
+
+It holds the whole contract rather than four operations because the generator rewrites it whole:
+hand-trimming would guarantee a merge conflict when `#expense-entry` regenerates the same file.
+
+### One forbidden-name standoff, resolved rather than suppressed
+
+`id-denylist` bans `data`; furo's `content` getter requires `data` as a fixture key; and
+`quote-props` rejects quoting it to escape. A module-level `RESPONSE_CONTENT_FIELD = 'data'` used as
+a computed key **suppresses no rule** and names the thing better than `data` did. Both errors were
+reproduced before the workaround was chosen rather than assumed.
+
+**22 suites, 140 tests, lint clean.** Baseline was 10 and 73.
+
+## Checkpoint 15 — the screen, and three contrast failures found by measuring rather than trusting
+
+**All four states built, which is the whole exit condition** — the kit says outright that loading,
+empty and error "are the ones that get skipped and the ones acceptance fails on".
+
+Each is reached by setting a field on injected reactive state, so each is asserted without a browser:
+
+| State | Reached by | What proves it |
+|---|---|---|
+| **empty** | both values `null`, no refusal | the value getters answer `null`; the submit parcel is `loading: false` |
+| **filled** | a value on either field | the value getters, including `''` — **cleared is distinct from untouched**, which is why a `ref` starts at `null` |
+| **loading** | one boolean | the submit parcel is `loading: true`. **That single field is the double-submission guard**: the library suppresses the click emit *and* sets native `disabled`, which also blocks a form's implicit Enter submit. No template guard |
+| **error** | the refusal message present | the refusal getter, and **both** fields marked invalid |
+
+### §10's identical refusal is now held in the markup as well
+
+The control-block parcels are asserted with a **full** `toEqual` carrying **no `errorMessages`**, in
+all four states. A per-field message is the shape that would let the two credential outcomes diverge
+on screen, so the test fails the moment one appears. A refusal marks **both** fields, never one.
+
+**That criterion is now enforced in four places**, each independently: one `throw` site in the
+resolver, one code in the contract, one string in `constants-error.js`, and one form-level region
+here. It is structural at every layer rather than agreed at any of them.
+
+### The two accessibility gaps, compensated — which is why they were recorded at 12
+
+- **The pending button keeps an accessible name.** `aria-label` matching the visible text, so it
+  survives the library hiding the label with `visibility: hidden` and marking the spinner
+  `aria-hidden`. Matching the visible text also keeps name and label in agreement (2.5.3).
+- **The refusal region is ALWAYS rendered**, empty or not, giving both fields a stable
+  `aria-describedby` target — the library's own source admits the omission in a comment — and letting
+  `role="alert"` announce reliably, since an assertive region announces text **inserted into it**,
+  not its own insertion. It reserves one line, so a refusal appearing moves nothing.
+
+### Three further contrast failures, found by measuring the real hexes rather than trusting names
+
+**This is the finding worth keeping from this checkpoint.** The tokens are named semantically and
+correctly — `--color-destructive` for an error, `--color-input` for a control boundary — and a build
+that consumed them by name, as every convention says to, would have shipped three WCAG failures:
+
+| Token | Measured | Required |
+|---|---|---|
+| `--color-destructive` as text | **3.67:1** | 4.5:1 |
+| `--color-input` as a control boundary | **1.69:1** | 3:1 (1.4.11) |
+| the library's field focus style | `outline: none` plus a hue change of near-identical luminance | a visible indicator |
+
+**A semantic name is a claim about purpose, not about contrast.** Nothing in the naming convention,
+the digests or the linter can tell you that `--color-destructive` is too light to be error text; only
+computing the ratio against the surface it actually sits on can. Fixed on this screen with tokens
+that clear the thresholds, and recorded as a library-level problem rather than a screen-level one.
+
+### What was deliberately not built
+
+- **No custom property declared** — `variables.css` is still an empty `:root {}`. furo supplies
+  everything this screen needs, so the five-step scale conflict never had to be adjudicated.
+- **No `@layer`, no `z-index`, no animation or transition CSS.** Each decided against for a stated
+  reason, the last following the animation skill's own rule never to animate a keyboard-initiated
+  action — and a form submits on Enter.
+- **`onSubmitForm()` does the UI half only and does not invoke `signIn`.** The button spins and stays
+  spun. **Stubbing a fake resolution to make the screen look finished would have made checkpoint 16
+  harder to verify, not easier** — there would be nothing left that failed.
+
+### Two repository-level gaps found, worked around rather than fixed
+
+Both are recorded with removal conditions rather than silently patched:
+
+- **Q44 — no `.vue` file in this repository can be unit-tested.** vue3-jest's output is not
+  interop-flagged, so a default import yields `{ default, render }` and `.props` is undefined. The
+  unit wrote a mount test, hit it, and **deleted the test rather than write `.default` into it and
+  encode the bug**. Not fixed here because there is nothing to verify a fix against: the one new
+  component holds no logic. `#expense-entry` will have a real failing test to fix against.
+- **Q45 — furo's controls assume a `box-sizing` reset nothing in the stack ships.** Every control
+  overflows its container at every viewport. Worked around with three declarations scoped to this
+  screen, with the removal condition written down.
+
+**22 suites, 206 tests, lint clean.** Baseline was 22 and 140.
+
+## Checkpoint 16 — the wiring, and a defect the suite was defending
+
+**Reached in part**, like checkpoint 14 and for the same reason.
+
+| Clause | Verdict |
+|---|---|
+| loading and error paths **driven by real responses** | **met.** Every path is driven by a real capsule built from a real GraphQL envelope — `{ data: … }`, `{ errors: [{ message: '<code>' }] }`, or a transport failure — never by a hand-set flag |
+| the unit tests covering this feature's frontend acceptance criteria pass | **met.** 337 tests |
+| the screen shows real data from **the actual API** | **not met, and unmeetable here** — Q24. No request was sent, no mock server was stood up, and no test pretends otherwise |
+
+The nearest honest evidence, a step short: `nuxt build` succeeds and the built page chunk carries all
+three documents plus `x-renchan-access-token`, which proves the operations are wired into the page
+rather than only into a test. It does not prove a response came back.
+
+### Q43 resolved — and the question understated it
+
+Q43 recorded a conflict between §6's "held in memory, never in a cookie" and the gateway middleware.
+**It was never only the gateway.** `BaseAppGraphqlPayload.loadAccessToken()` reads `localStorage` to
+build the header on **every request**, and the REST base reads `sessionStorage` — so the spec was
+being contradicted on every call, not at one boundary.
+
+`MemoryStorage` is a Web-Storage-shaped class that `StorageClerk.create({ storage })` accepts
+unchanged; `AppAccessTokenClerk` is **the single named place that says the token lives in memory**,
+so the eventual middleware fix is one line rather than a hunt.
+
+**Sharing is by a module-level record rather than a singleton instance, and the reason is structural:**
+the request header is built by a **static** method, so there is nowhere to hand it an instance. A test
+still passes its own record and stays isolated, and one reading pins **both halves of the join at
+once** — the shared record and the key — so a header built off its own clerk finds the token.
+
+### Q40 resolved, and here is where it landed
+
+**Not a class under `app/modules/`, and not the composable.** The redirect has exactly one consumer,
+so it lives on `SignInPageContext`; `route` and `router` are injected from `setup`, because the
+context-patterns skill is explicit that **a context must never call a composable**.
+`composables/useRedirect.js` is **neither used nor deleted** — pre-existing boilerplate, not this
+feature's to remove — and **`app/modules/` still does not exist**, consistent with checkpoint 13's
+finding that nothing in this feature is shared between two places.
+
+So the thread that opened at checkpoint 10 and was deferred at 12 closes here: the ruling was
+honoured by **not needing** a shared module, rather than by building one.
+
+**An open-redirect guard was added that nobody asked for.** `?redirect=` is whatever was in the
+address bar, and `isInternalPath()` refuses `//elsewhere.example/expenses` — a protocol-relative
+address to another origin that reads like a path and that a bare "starts with `/`" check waves
+through.
+
+### The test that was defending the defect
+
+**This is the finding worth keeping.**
+`tests/__tests__/jsdom/app/graphql/client/BaseAppGraphqlPayload.js` asserted that
+`createStorageClerk()` called `StorageClerk.createAsLocal()`, and arranged through `localStorage`
+directly. **So the suite was pinning the behaviour §6 forbids**, and a correct implementation would
+have failed it.
+
+A green suite is not evidence of correctness; it is evidence that the code agrees with the tests. Here
+they agreed with each other and both disagreed with the spec. **The unit reported the change rather
+than making it, and said explicitly it would not hand back a red suite** — which is the right call,
+because the alternative is a unit quietly loosening a test to make its own work pass.
+
+Rewritten rather than deleted, and stronger: it now arranges through `AppAccessTokenClerk`, so it
+exercises the real join between what holds a token and what builds the header rather than reaching
+past both into a browser API. One reading fails if the seam is ever handed back to browser storage.
+
+### Two commits, deliberately, and the first was inert without the second
+
+The three payload base classes are **conflict-proof** — a unit reported the exact change and the main
+session applied it. Until that second commit landed, **the first one did nothing observable**: a token
+held in memory was invisible to a request header still built from `localStorage`. Worth recording
+because "the wiring is done" was true and useless in between.
+
+### Carried forward to `#expense-entry`, not fixed here
+
+`middleware/000.gateway.global.js` calls `AccessTokenClerk.create()` with no arguments, which still
+defaults to `localStorage`. It guards nothing today — `/sign-in` is exempt and the only other route
+is an empty stub — so changing it now would be building for a screen that does not exist. **But the
+first protected screen `#expense-entry` adds will bounce a freshly signed-in person straight back to
+`/sign-in`.** The fix is one line: `AppAccessTokenClerk.create()`. Recorded so it is inherited rather
+than rediscovered.
+
+**24 suites, 337 tests, lint clean.** Baseline was 22 and 206.
+
+## Checkpoint 17 — the environment, and the first time the real dialect was ever exercised
+
+**Applicable, not skippable.** An environment has existed since `#data-model`, but the not-applicable
+test is "one already exists **and** this feature added no service, no role and no seed data it
+needs". This feature added seed data — three staff-account seeders — and §10.3's table.
+
+**On its own branch**, `update/e2e-seeded-mariadb-for-sign-in` in the **backend** repository, per
+`commits.md` line 53: a local end-to-end environment is shared by every feature, so a change to it is
+planned growth of something common rather than part of one feature's change set.
+
+### The gap: the container had no way to be filled
+
+`db:refresh` is SQLite-only and tears down with `rm sequelize/storage/*.sqlite3`, **which does nothing
+to a database in a container.** No script wired `NODE_ENV=live` to the migrate-and-seed chain, and the
+README did not describe one. So the environment existed and nothing could put this version's schema or
+this feature's accounts into it.
+
+`db:teardown:live` unwinds with `db:migrate:undo:all` rather than `rm`, because MariaDB cannot be torn
+down by deleting a file — and without a teardown the seeders fail on a duplicate primary key, since
+sequelize-cli's seeder storage here is `none` (Q33).
+
+### §10.3 checked against MariaDB, which nothing had ever done
+
+The compose file's own comment is the reason this matters: **a migration can pass every local check
+and still be wrong**, because SQLite reads a `bigint` primary key back as `INTEGER`, every
+`datetime(3)` as a bare `DATETIME`, and is lax about `varchar(191)`. Every gate this feature passed
+ran on SQLite.
+
+```
+id            bigint(20)     NOT NULL   PRIMARY
+email         varchar(191)   NOT NULL
+attempted_at  datetime(3)    NOT NULL
+created_at    datetime(3)    NOT NULL
+updated_at    datetime(3)    NOT NULL
+
+sign_in_attempts_email_aa_index  (email, attempted_at)  NON_UNIQUE
+```
+
+**Every type is what §10.3 declares**, and the composite index is on the pair the section says it
+counts by. This is the one clause of this checkpoint that is not merely built but proven.
+
+### Counting the rows corrected a claim the project had been repeating
+
+**The record said thirteen members of staff, eleven with a working credential. The join says ten.**
+
+Eleven have a digest and eleven have an address — **but they are not the same eleven.** One has an
+address and no digest, one has a digest and no address, and one has neither. Signing in needs both
+halves, so the count that matters is the join rather than either table's row count.
+
+**Checkpoint 5's record claimed that figure "verified against the running database", and it was
+wrong** — which makes it a better example than a plain error: the verification was real, and the
+thing verified was the wrong quantity. Counting digests answers "how many rows exist"; only the join
+answers "how many people can sign in". Corrected in place at checkpoint 5, with what it said kept.
+
+The README had also claimed the seeders produce expenses. They do not — `development/` holds only the
+three staff-account seeders, and `expenses` is empty until `#expense-entry`.
+
+### What is built and unproven, and why
+
+| Clause | Verdict |
+|---|---|
+| there is reviewable data **or a command that produces it** | **met, and proven** against real MariaDB |
+| the application **runs locally** together with every service behind it | **blocked** — Q24, no renchan server starts on Windows |
+| **each role can sign in** | **blocked** by the same root cause; there is no server to sign in to |
+
+**Two honest qualifications on the proven clause**, because a verification that needed help is not
+the same claim as one that did not:
+
+1. **The composed `db:refresh:live` one-liner was not run.** It begins with `export`, which npm runs
+   through `cmd.exe` on Windows where it is not a command — a pre-existing property of `db:refresh`,
+   now documented rather than discovered by the next person. Its **four steps were each run
+   individually** against the container.
+2. **The run used a throwaway port override outside the repository.** `127.0.0.1:3306` is held by
+   `wslrelay.exe` on this machine, so the container was published on 3307 via an override in the
+   scratchpad, with a matching `--config`. **The committed 3306 is correct and stays** — CI publishes
+   it, and the file has to agree with CI rather than with one machine's accidents.
+
 ## Where the decisions live, when control flow does not hold them
 
 **Asked for at the gate, and it cannot be recovered from the tree afterwards.** A reader counting
@@ -823,7 +1427,7 @@ would have scored better on a branch count and been worse.
 |---|---|---|
 | `generateValidationEntries()` — an array of `[() => boolean, errorClass]` tuples | which checks run, **in which order**, and which error each produces | Order is the decision: presence before format before length, so the first failure is the most specific thing wrong. As `if` statements the order would be implicit in the nesting and a new rule would edit an existing branch. Rejected: one `if` per rule (five branches, OCP violation); a single regex doing all five (one branch, five indistinguishable refusals — and §10 needs the address cases to differ from the password cases) |
 | `schemasToSkipFiltering` — a three-element array | **which operations are reachable without a session** | The framework maps listed entries to `null` and calls `filter?.(…)`, so a listed operation gets no `Unauthenticated`, no `Unauthorized`, no `DeniedSchemaPermission`. This array *is* §7's Authentication row, and a wrong entry is a public endpoint. Rejected: the boilerplate's `'*'`, which is what made the audience open (audit finding 1); and a per-resolver opt-out, which spreads one security decision over four files |
-| `errorCodeHash` — distinct names, **one shared code** | that two different internal causes are one indistinguishable refusal | §10 requires an unknown address and a wrong password to be refused identically. The names stay separate so the code reads honestly about which path it is on; the *code* is shared so the wire cannot tell. A branch would have to remember to return the same string twice. Rejected: one error name for both (loses the internal distinction the code needs); different codes (fails 11 tests, and the criterion) |
+| `refuseRejectedPassword()` — **one method, one `throw`** | that two different internal causes are one indistinguishable refusal | §10 requires an unknown address and a wrong password to be refused identically. Both paths funnel into a single method that records the §7 failure and throws `InvalidCredentials` — there is exactly **one** `throw this.errorHash.InvalidCredentials.create()` in the resolver, so the two outcomes cannot diverge by construction, and neither can their effect on §7's count. Rejected: different codes (fails 11 tests, and the criterion). **Corrected at checkpoint 13:** this row previously read "distinct names, one shared code", describing two error names converging on one code. That is not what was built and the truth is stronger — two names sharing a code relies on somebody remembering to write the same string twice, whereas one throw site has nothing to remember |
 | `#spendRefreshToken`'s `where` clause — `{ tokenHash, usedAt: null, revokedAt: null, expiredAt: { [Op.gt]: now } }` | **whether a refresh token may be spent at all** | Four conditions evaluated by the database in one guarded `UPDATE`, which a control-flow count reads as **zero**. It is the most security-relevant decision in the feature. A caller-side check would have scored as branches and been *weaker*, because a caller-side check is skippable by construction and this one is not. It is also what makes §10's identical-refusal structural: expired, revoked and spent all reach `updatedCount === 0` |
 | `RotatingSessionResult#shouldRollBack()` — `hasError() && !hasRevokedSeries()` | that a rotation has **three** outcomes, not two | A refusal that revoked must commit; a revocation that itself failed must roll back. Written as a predicate on the result rather than a branch at the call site, because the caller cannot see which of the three it is. Rejected: a second transaction and revoking outside the caller's transaction (both deadlock on the same row under `SERIALIZABLE`); splitting the spend into its own committed transaction (breaks spend/issue atomicity) |
 | the two rate-limit subclasses' **overridden getters** | §7's two limits — the model, the keyed field, the instant field, the window, the threshold | Base plus two thin concretes rather than one parameterized class, because the two do not differ only in values: the sign-in limit normalizes its key and the renewal limit must not, which is an overridden *method*, not a parameter. Parameterizing would also have put §7's numbers at every call site, so each resolver would restate the spec |
@@ -893,6 +1497,93 @@ conventional build is partly measuring the existence of the arbitration, not onl
 settles on. Three of the five structural outcomes — #1, #2 and #4 — would have been *different
 code* under the skill, and nothing in the merged tree records that a choice was made.
 
+
+### The eighteen are one category of three, and the frontend gate found the other two
+
+**Written at checkpoint 12, because the list above is titled for a disagreement that turns out to be
+only one of the kinds that happen.** All eighteen entries are *an equipped skill versus an always-on
+rule*, and Q10 settles every one of them. That is worth stating precisely, because it changes what
+the list is evidence of:
+
+**An arbitration with a standing authority is cheap; an arbitration without one is the only kind
+that needs a person.**
+
+Q10 is a standing authority. So once a skill-versus-rule conflict is **noticed**, resolving it is
+mechanical — the rule wins, every time, with no judgement exercised. **The entire cost of those
+eighteen is detection.** They are not eighteen judgement calls; they are eighteen detections against
+a rule somebody had already written. Those are very different products, and conflating them
+overstates what the arbitration step did.
+
+The frontend gate produced the other two categories:
+
+| | What it is | Adjudicator | Cost | Instances |
+|---|---|---|---|---|
+| **1. skill versus rule** | the skill says one thing, `D:\ORT\rules\` another | **Q10** — the rule wins | detection only | 18, listed above |
+| **2. skill versus boilerplate** | twenty component skills document `@openreachtech/furo-vue`; `furo-boilerplate-nuxt 2.1.0` ships neither it nor any component | **none.** A boilerplate is not a rule, a skill is not a rule, and neither `specs/` nor `D:\ORT\rules\` says which component library a frontend uses | **a person** | 1 — **Q42** |
+| **3. skill stricter than rule** | `hof-prohibits` forbids, in template position, both a chopped ternary and the `.map()`/`.filter()` that `javascript-style.md` positively *requires* over loops | not needed — the strict side is safe | **nothing** | 1 so far |
+| **4. rule and skill together imply a third form neither states** | the CSS prohibits skill mandates logical properties (`padding-block`, `margin-inline`) as the sanctioned replacement for physical ones; `05-frontend.md` §6-4 bans **all** shorthands, and those logical forms are two-value shorthands | **neither document** — only their intersection | **a derivation**, and nothing announces it | the logical **longhands**: `padding-block-start` + `padding-block-end` |
+
+**Category 4 is the one with no detector at all, and the frontend gate is where it appeared.** Obeying
+either document literally produces a violation of the other, so there is no "follow the authority"
+move available: `padding-block` breaks the shorthand ban, `padding-top` breaks the logical mandate,
+and the correct answer — `padding-block-start` — is written nowhere. **An implementer copying the
+skill's own sanctioned example would breach the rule on every spacing declaration**, and an
+implementer obeying the rule's examples would breach the skill. Category 1's cost is detection;
+category 4's cost is *derivation*, and only after noticing that both documents are unusable as
+written.
+
+**Category 2 is why Q42 went to the user rather than into a unit**, and the reason is better than
+"it changes the stack": there was nothing to appeal to. No rule reached it, the spec is silent, and
+two readings led to materially different work.
+
+**Category 3 is the only one of the three that is a positive finding about the skill set**, and it
+is worth counting separately for a reason the other two do not have: an implementer who knew only
+the always-on rules would write a `.map()` into a template and be **correct by the rules while being
+wrong**. The skill is carrying knowledge the rules cannot express. Free to obey, and nothing detects
+it except reading the skill.
+
+### What twelve CSS digests actually bought, counted honestly
+
+**Checkpoint 15 delegates to "every skill covering this project's CSS conventions", and there are
+twelve.** That is a large read for one form, so it is worth recording what it returned rather than
+assuming the volume justified itself.
+
+**Four decisions, each of which removed work rather than adding it:**
+
+| Settled | Effect |
+|---|---|
+| furo supplies **122 semantic colours**, the `--size-space-*` and `--font-size-*` scales, and `--value-golden-ratio` | the app declares **no custom property at all**; `variables.css` stays an empty `:root {}` |
+| furo wraps components in `@layer furo` but **declares no order**, and unlayered app CSS already outranks layered rules | **`@layer` not adopted.** The precedence the order exists to produce is already the status quo, and adopting one is a project-wide change |
+| a flat form is ordinary content | **no `z-index`** |
+| the animation skill's own rules — "never animate keyboard-initiated actions", and a form submits on Enter — plus `FuroButton` owning its spinner | **no animation or transition CSS authored at all** |
+
+**Three findings that would have produced wrong code, and one that was simply absent:**
+
+1. **Property order was not in the skill the kit's wording points at.** `hof-css-coding-styles` turned
+   out to govern only line breaks *between* selectors; property order lives in
+   `hof-selector-props-sort`, which had to be digested separately after the first digest identified
+   its own gap and named the real owner. **A digest finding its own boundary is worth more than one
+   that answers confidently.**
+2. **That skill then disagreed with the rule on a real ordering.** §6-5 puts `background` with
+   `width`/`height`, **before** padding; the skill puts it in a later category, **after** padding.
+   Shown side by side rather than averaged; the rule wins.
+3. **The five-step size scale versus furo's own.** `huge / large / medium / small / tiny`, no escape
+   hatch, and `x-large`-style labels banned outright — while furo's shipped scale is built from
+   exactly those banned labels (`--size-space-x-large`, `2x-large` through `5x-large`,
+   `--font-size-4x-large`). **It does not bite, for a reason worth stating:** the ban binds names *we*
+   declare, consuming a third party's interface is carved out, and the app declares nothing. The
+   conflict is satisfied by having no declarations rather than by adjudicating it.
+4. **The animation skill is silent on `prefers-reduced-motion`** — verified across all 239 lines of it
+   and its six references. The project has committed to WCAG 2.2 AA, so checkpoint 18 needs a source
+   for that requirement which the equipped skills do not provide.
+
+**And the pattern across all twelve, which is the finding rather than any single conflict:** nearly
+every skill's own canonical example violates `05-frontend.md` somewhere — hex literals at a
+`--color-*` definition, `gap:` and `margin:` and `transition:` and `border:` shorthands, a decimal on a
+block width, `item` as a class name, `px` in a blur radius. **The examples are the part an implementer
+copies**, so a build that trusted the skills' snippets would have breached the always-on rule in
+roughly a dozen places, each of them lint-clean.
+
 ### The clearest case of the metric and the quality pointing opposite ways
 
 Kept verbatim because it is the one worth quoting: **`#spendRefreshToken`'s guard was written
@@ -955,6 +1646,130 @@ three.
 | 16 | a session whose refresh half could not be delivered was **minted anyway** — over the framework's unconditional WebSocket channel there is no express response, so the cookie write is a silent no-op and `signIn` returned a working access token while discarding the refresh token | **Yes, by a test nobody thought to write**: pass a null response on a *success* path. Every existing null-response case was on a refusal path. Now 4 fail |
 | 17 | the audience carried upload middleware — 10 files × 10 MB parsed before any resolver or filter — for a feature no section declares, beside a 10 MB JSON limit for an email and a password | **No.** "This middleware serves nothing declared" is a scope question. Nothing misbehaves |
 | 18 | `RotatingSessionResult#hasRevokedSeries()` answers true when zero rows were revoked, because the predicate means "attempted without error" | **No, and no test should** — it has no consequence today. Recorded so a future caller does not read it as "rows changed" |
+
+### Found at the frontend gate
+
+| # | What | Could a test have caught it? |
+|---|---|---|
+| 19 | **every deployed environment logged an email address on every sign-in.** `live`, `staging` and `production` declared no `logging` key, Sequelize defaults to `console.log`, and the address travels in a `WHERE` clause — including the `COUNT(*)` §7's limit runs on every attempt | **No.** `development` already set `logging: false` and the whole suite runs there. The defect lived only in the configuration of environments the suite never opens |
+| 20 | **neither of §10's use cases can be completed on a screen this feature builds** — §11.2 puts `signOut` on the expense-entry screen, and §10.2's screen is for somebody *not* signed in | **No.** Checkpoint 2 asked the same question against the spec and 9 against the API; both answered correctly. Only "which screen holds the control" reaches it |
+| 21 | **not one of the library's 52 components had a working colour, dimension or z-index.** Nothing imported `furo.css`; `--color-ring` is `FuroButton`'s only focus indicator, and its stylesheet removes the native outline and rebuilds the ring from that property | **No** — see below. The build succeeds, lint is clean, the components render |
+| 22 | seven further source-verified facts contradicting the skills or the library's own `components.json` — `type="email"` silently discarded, no `primary` variant, a hint prop and a password reveal toggle that do not exist, `autocomplete` untouched, a loading button with no accessible name | **No.** Every one of them compiles and renders |
+| 23 | **SECURITY.** The boilerplate read the access token out of `localStorage` to build the header of **every** GraphQL request, against §6's "held in memory, never in a cookie" — reintroducing, on the access token, exactly the script-readability the httpOnly refresh cookie exists to prevent | **No, and worse: a test was DEFENDING it.** The boilerplate's own test asserted `createStorageClerk()` called `StorageClerk.createAsLocal()`. The suite did not fail to notice — **a correct implementation would have failed it.** Q46 |
+| 25 | **337 frontend tests passed and lint was clean on a tree that could not build.** `@tiptap/suggestion` was missing from CI's install, so `nuxt build` died at a Rollup resolution error while every other check was green | **No — and this is the cleanest form of it.** The suites do not build, so nothing in them could fail on it. `nuxt build` is the only check that meets this failure, and it runs **only in CI**. Q47 |
+| 24 | three WCAG contrast failures in correctly-named tokens — `--color-destructive` at **3.67:1** as text, `--color-input` at **1.69:1** as a control boundary, and a focus style that removes the outline and replaces it with a hue change of near-identical luminance | **No.** A semantic name is a claim about **purpose, not contrast**. Consuming them by name, as every convention instructs, ships the failures. Only computing the ratio against the real surface finds them |
+
+### Three distinct reasons no test could fail, which is not the same as "tests are incomplete"
+
+**The four checkpoints that produced findings produced them for three different reasons**, and the
+distinction is worth more than the findings:
+
+| | The mechanism | Instance |
+|---|---|---|
+| **1. Right where the suite looks** | the code is correct in the environment the suite runs in, and wrong only in the configuration of environments it never opens | the logging defect (19) |
+| **2. Right against the referent asked** | the same sentence yields a different answer against the spec, against the API, and against the screen. Each pass answered its own question correctly | §10's use cases (20) |
+| **3. Legal but empty** | nothing is malformed, so nothing is detectable | the undefined tokens (21) |
+| **4. Tested through a door production does not use** | the suite reaches the code by a different route than the running product does, so the failing path is never entered | the Windows boot defect (Q24) |
+
+**The third has no class of automated detector at all**, and that is the one worth stating plainly:
+
+> **An undefined CSS custom property is not an error, it is an empty value.**
+
+Build, lint, unit tests, type check and audit all detect **malformed** things. A legal-but-empty
+value passes every one of them. Fifty-two components had no working colour and nothing anywhere
+reported anything.
+
+**And a missing definition that *subtracts* is worse than one that omits.** The library's stylesheet
+removes the native focus outline and rebuilds the ring from `--color-ring`. Undefined, it did not
+fail to add a ring — it left the removal in place with nothing behind it. An omission degrades to
+the browser default; this one degraded past it.
+
+**Mechanism 4 is the one the backend gate could not have found, and it is worth its own paragraph.**
+`@openreachtech/renchan`'s `DeepBulkClassLoader` passes a raw absolute path to `await import()`,
+which on Windows is `D:\...` — protocol `d:` — and the ESM loader refuses it. **No renchan server
+starts on Windows**, and the same line appears in two packages, covering models, GraphQL resolvers,
+post-workers and REST routes.
+
+**915 tests pass anyway, for two independent reasons that both have to be true.** Jest supplies its
+own module registry and intercepts `import()`, so a specifier Node's loader would refuse is resolved
+by jest instead. And **no test exercises `loadClasses()` at all** — the suite reaches models and
+resolvers by importing them directly, never through the loader that boots them.
+
+So the suite is not weak here and no extra assertion would have helped: **it is pointed somewhere
+else entirely.** A green suite says what it says about the code it runs, and says nothing whatever
+about the path production takes to reach that code. Adding tests does not close this class; only
+running the thing the way it actually runs does — which is what a live acceptance gate is for, and
+which this exercise has never once been able to do.
+
+### A fifth mechanism, and it is the only one where the suite was on the wrong side
+
+**Findings 19 to 22 and 24 were invisible to the tests. Finding 23 was held in place by them.**
+
+| | The mechanism |
+|---|---|
+| 1–4 | the check and the failure never meet — wrong environment, wrong referent, legal-but-empty, wrong door |
+| **5** | **the check meets the failure and takes its side.** A test asserted the defective behaviour, so the defect was not merely unnoticed: **the fix was what failed** |
+
+The boilerplate shipped `createStorageClerk()` returning `StorageClerk.createAsLocal()` **and** a test
+asserting it does. Correcting the first turns the second red, which makes the obvious fix look like a
+regression — a good explanation for why it survived.
+
+**This is the sharpest available statement of what a green suite is worth.** It is not evidence of
+correctness. It is evidence that **the code agrees with the tests**, and here the two agreed with each
+other while both disagreed with the spec. Nothing inside the repository could break that agreement;
+only reading §6 against the code could.
+
+It also bears on what "do not weaken a test to make the suite pass" means. The rule is right, and
+this is its edge: the unit was correct to **report** the test change rather than make it, and correct
+again not to hand back a red suite — but somebody had to rewrite a test for the fix to land at all.
+The distinction that matters is **who** changes a test and **why it is written down**: a unit
+loosening its own test to pass is the failure the rule forbids; the main session replacing a test
+that contradicts the spec, and recording that it did, is not.
+
+### The same shape bit the measurement, not just the product
+
+**A method note rather than a finding, because it cost no defect — but it is the third instance of
+mechanism 3 in one day and the first where the thing fooled was a check.**
+
+Push state was being verified with
+
+    git log --oneline origin/<branch>..<branch>
+
+and empty output read as "nothing unpushed". **That range yields empty when `origin/<branch>` does
+not exist at all**, so *fully pushed* and *never pushed* produce byte-identical output. Four
+frontend commits — including the focus-ring fix — read as landed while existing only on one machine.
+
+**It is the focus-ring defect wearing different clothes.** An undefined custom property reads as an
+empty value; a non-existent remote ref reads as an empty diff. In both cases the tool answered the
+question it was asked, correctly, and the question could not distinguish the two states it existed
+to distinguish.
+
+Stated generally, and worth more than either instance:
+
+> **When a check can return the same answer for "satisfied" and "not applicable", it is not a
+> check.** Establish existence before comparing.
+
+The corrected form establishes the ref first — `git rev-parse --verify --quiet origin/<branch>`
+before `git rev-list --count`, or `git ls-remote --heads origin <branch>` for the remote's own
+answer rather than a cached copy of it.
+
+**And the asymmetry is not chance.** Twice in one day, both times a local tree read as a pushed one,
+never the reverse. A missing thing looking like an absent difference fails in exactly one direction:
+toward believing the work is done.
+
+### The checkpoint that produced no code created the standard a later finding failed against
+
+Checkpoint 11 wrote no code at all. It asked the user for an accessibility target and recorded
+**WCAG 2.2 AA**, tagged `[user]`.
+
+**Without that, the missing focus ring is not a defect.** It is a styling gap for checkpoint 15 to
+notice or not — no standard, nothing failed, a matter of taste. The answer given at 11 is what makes
+it a 2.4.7 failure at 12.
+
+Which is also the argument for the tagging that file carries. **A preference and a requirement look
+identical in a document, and only one of them can be failed against.** `[user]` and `[spec]` can;
+`[chosen]` cannot, and says so in as many words, so checkpoint 18 does not audit somebody's taste as
+though it were a rule.
 
 ### What this says
 

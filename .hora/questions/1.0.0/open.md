@@ -1002,6 +1002,75 @@ Error [ERR_UNSUPPORTED_ESM_URL_SCHEME]: On Windows, absolute paths must be valid
 Received protocol 'd:'
 ```
 
+### Root cause found at checkpoint 14, and the scope was wider than this entry claimed
+
+**This entry said "on this machine". It is not this machine, and it is not this project — it is a
+one-line defect in `@openreachtech/renchan` that stops any renchan server booting on Windows.**
+
+`DeepBulkClassLoader.loadClasses()` builds absolute filesystem paths with `path`, then:
+
+```js
+const exported = await import(it)      // lib/tools/DeepBulkClassLoader.js:61
+```
+
+`pathToFileURL` is never imported by that file — only `fs` and `path`. On Windows an absolute path
+is `D:\...`, whose scheme Node reads as the protocol `d:`, and the ESM loader refuses it. On Linux
+and macOS an absolute path begins `/`, which Node tolerates, so the defect is invisible everywhere
+except Windows.
+
+**Proved rather than diagnosed**, in isolation and without modifying anything installed — importing
+one real model file both ways:
+
+```
+the absolute path the loader passes: D:\ORT\...\sequelize\models\StaffMember.js
+raw absolute path        -> ERR_UNSUPPORTED_ESM_URL_SCHEME
+pathToFileURL(path).href -> IMPORTED
+```
+
+So the fix is `await import(pathToFileURL(it).href)`, and it is confirmed to work.
+
+**The same defect exists twice, at the same line number, in two packages:**
+
+| Package | Version | File |
+|---|---|---|
+| `@openreachtech/renchan` | 2.9.3 | `lib/tools/DeepBulkClassLoader.js:61` |
+| `@openreachtech/renchan-sequelize` | 2.2.2 | `lib/tools/DeepBulkClassLoader.js:61` |
+
+**And the blast radius is every class-loading path a server has at startup**, not only models:
+
+- `RenchanModelsLoader` / `SequelizeActivator` — the Sequelize models
+- `GraphqlResolversLoader` — **the GraphQL resolvers**
+- `GraphqlPostWorkersLoader` — the post-workers
+- `RestfulApiRoutesBuilder` — the REST routes
+
+So it is not that this product's entry point happens to die early. **No renchan application can start
+on Windows at all**, and it would die at the next loader even if the first were fixed.
+
+### Why a green suite says nothing about it
+
+**Jest never reaches the failing path, for two independent reasons**, which is why 915 passing tests
+coexist with a server that cannot start:
+
+1. Jest supplies its own module registry and intercepts `import()`, so a specifier that Node's ESM
+   loader would refuse is resolved by Jest instead.
+2. **No test exercises `loadClasses()` at all.** The suite reaches models and resolvers by importing
+   them directly, never through the loader that boots them.
+
+This is another instance of the pattern recorded at the frontend gate: the check and the failure do
+not meet. The suite is not weak here — it is pointed somewhere else entirely.
+
+### Where it lands
+
+**Upstream, in `@openreachtech/renchan` and `@openreachtech/renchan-sequelize`**, as a one-line change
+in each. Not fixable in this project except by patching `node_modules`, which would be undone by the
+next install and is not this feature's to do.
+
+Until it is fixed, **nothing in this product has ever been exercised through a running server on this
+machine.** Every gate has been met in-process — checkpoint 4 said so explicitly, and checkpoint 14
+reports the same split. That is a real and stated limit on what any verification here can claim, and
+it is worth keeping attached to this entry rather than rediscovered.
+
+
 Traced to `@openreachtech/renchan-sequelize/lib/tools/DeepBulkClassLoader.js`, which
 `await import(it)`s a bare `D:\...` path that `rootPath.to()` returned.
 
@@ -1721,3 +1790,495 @@ reasoning was sound about where such a test belongs and wrong about the phase be
 its workflow runs a bare `npm test`. Any other ORT backend on this boilerplate carries the same two
 files. Adjacent to Q26, Q31 and Q38: things the built or deployed product carries that no gate of a
 feature exercises.
+
+
+## Q40. The boilerplate's one composable is a bare function, and the redirect this feature needs is inside it
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Raised at `#sign-in`'s checkpoint 10 by the unit opening the frontend, which flagged it rather than
+using it or rewriting it. **It becomes a decision at checkpoint 16**, which is what wires what
+happens after a successful sign-in.
+
+`.hora/tree/expense-note-frontend-staff.md` records this project's ruling plainly: **"shared logic is
+a class under the app's own folders — never a composable and never a bare function."** The
+`hof-nuxt` digest's Composables section is overridden by it, and that override is already written
+down.
+
+`composables/useRedirect.js` is exactly what the ruling excludes — `export default function
+useRedirect ({ defaultPath = '/' } = {})`, returning `{ redirectTo }` closed over two inner function
+declarations. It reads `?redirect=` off the route query and navigates, defaulting to `/`.
+
+**It is not dead code, which is what makes this a decision rather than a tidy-up.** The gateway
+middleware redirects an unauthenticated visitor to `` `/sign-in?redirect=${to.fullPath}` ``, so the
+query parameter this composable exists to read is written on every such redirect. Something has to
+consume it after `signIn` succeeds, or a member of staff sent to the sign-in screen from a deep link
+lands on `/` instead of where they were going.
+
+| The options | What it costs |
+|---|---|
+| use it as it is | the one place this project breaks its own class-only rule is the sign-in path, and the next frontend feature has a precedent for adding composables |
+| replace it with a class under `app/` | consistent, testable the way everything else here is, and `#sign-in` pays for a boilerplate file it did not write |
+| leave it and write the redirect fresh in the page context | two implementations of one behaviour, which is worse than either |
+
+**Not blocking and not this checkpoint's.** Recorded now because the unit that found it was not the
+unit that will have to choose, and because the reasoning is invisible from the file itself — nothing
+in `useRedirect.js` says a project rule forbids its shape.
+
+Adjacent to Q38 and Q39: a convention this repository inherited rather than wrote.
+
+
+## Q41. Neither of §10's use cases can be completed on a screen this feature builds
+
+<!-- spec: sign-in -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#sign-in`'s checkpoint 11, the pass that asks whether a person can actually perform each
+use case **on a screen**. **This is not a spec defect** — it is a statement about what this
+feature's acceptance can and cannot claim, recorded so checkpoint 18 does not report it as one.
+
+§10's two use cases:
+
+> - a member of staff opens the app on a Monday morning, signs in with the address and password they
+>   were issued, and is signed in — **every screen after that knows who they are**
+> - a member of staff who has finished on a shared machine **signs out**, and the next person to open
+>   the app is asked to sign in rather than landing in somebody else's account
+
+**Both end outside `#sign-in`.**
+
+| | Why |
+|---|---|
+| "every screen after that" | there is no screen after that. `#sign-in` owns exactly one screen, §10.2's, and the only other route is `/` — still the boilerplate stub with an empty template. The clause refers to screens `#expense-entry` and `#monthly-summary` own |
+| "signs out" | **§11.2 puts the `signOut` call on the expense-entry screen.** §10.2's screen is explicitly "For: a member of staff who is **not** signed in", so there is nowhere in this feature for a sign-out control to live — a signed-in person never sees this feature's only screen |
+
+**The spec is coherent and nothing should change in it.** The paths are complete at **version**
+level: §11.2 carries the control, and the later screens are what "every screen after that" means.
+What is not true is that `#sign-in` can demonstrate either one end to end.
+
+**Where they actually close.** At `#expense-entry`'s gate, or at the whole-version sweep — which is
+the run `_plan.md` already reserves for behaviour spanning several features, and which is the only
+run that judges §14's version-wide criteria.
+
+**This corrects a claim in checkpoint 9's own record.** That record says the screen half of these
+two use cases "is checkpoint 18's". It is not: `#sign-in`'s checkpoint 18 cannot close them either,
+for the reason above. The claim was written before anybody asked *which screen has the button*.
+
+**Why neither earlier pass could have caught it, which is the part worth keeping.** Checkpoint 2
+read the use cases against the **spec**, where §11.2's `signOut` row makes the path complete.
+Checkpoint 9 read them against the **API**, where the `signOut` operation exists, is tested and
+works. Both were right about what they were asked. **Only "which screen has the control" reaches
+this**, and no gate before 11 asks it.
+
+**What checkpoint 18 should do with this.** Not report a missing sign-out control as a defect of
+`#sign-in`, and not mark §10's use cases as passed either. Record them as reached-as-far-as-the-
+feature-goes, with the remainder owed to `#expense-entry`. Adjacent to Q40, also deferred to a later
+frontend checkpoint.
+
+
+## Q42. Twenty equipped component skills document a package the boilerplate does not ship
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Found at `#sign-in`'s checkpoint 12, the first checkpoint in this project that needed a text field.
+**Resolved for this repository by a user decision; recorded because the cause is upstream and every
+project built from the same boilerplate meets it identically, at the same checkpoint.**
+
+### What disagrees with what
+
+`furo-boilerplate-nuxt 2.1.0` gives this row `@openreachtech/furo-nuxt ^2.0.0`, which depends on
+`@openreachtech/furo ^1.11.0`. **Neither package contains a single `.vue` file** — verified by
+counting, not inferred — and `components/` ships empty but for a `.gitkeep`.
+
+Every one of the **twenty** `hof-cp-*` skills opens with the same clause: *"in a repo that consumes
+`@openreachtech/furo-vue`"*. Button, text field, control block, select, table, dialog, toast,
+tabs, and the rest. Their examples import from that package — nine such imports in the two skills
+read closely.
+
+**`@openreachtech/furo-vue` is referenced nowhere in this project**: not `package.json`, not the
+boilerplate, not `.hora/tree/expense-note-frontend-staff.md`, not `specs/`. Only the skills name it.
+
+So the skills and the boilerplate disagree about what the stack is, and **the disagreement is
+invisible until a checkpoint needs a component.** Checkpoints 1 to 11 all passed without touching
+it. Checkpoint 12 cannot.
+
+### Why this is a different kind of arbitration from the eighteen already logged
+
+The eighteen recorded above are all **an equipped skill versus an always-on rule in
+`D:\ORT\rules\`**, and Q10 settles every one of them: the rule wins. There is a standing authority,
+so the arbitration is mechanical once the conflict is spotted.
+
+**This one has no adjudicator.** A boilerplate is not a rule, a skill is not a rule, and neither
+`specs/` nor `D:\ORT\rules\` says anything about which component library a frontend uses. Q10 does
+not reach it. That is precisely why it went to the user rather than being decided in a unit — there
+was nothing to appeal to, and the two readings led to materially different work:
+
+| | |
+|---|---|
+| add `@openreachtech/furo-vue` | twenty skills become applicable; the stack gains a dependency the boilerplate did not choose |
+| hand-build the components | the declared stack is untouched; a text field, a password field and a button get reinvented, and every table, select and dialog after them |
+
+**Decided by the user: add it.** The evidence that supported it — three sibling ORT frontends
+already depend on it (`crm-kit-frontend`, `hora-ecosystem`, `hora-kit-homepage`), it is actively
+maintained at 1.3.2, it carries no lifecycle install scripts, and it ships 52 components including
+`FuroEmailField` and `FuroPasswordField`, purpose-built for exactly this screen.
+
+### Where it lands, and why not here
+
+**Upstream, and one of two places.** Either `furo-boilerplate-nuxt` should ship what the skills
+assume, or the skills package should declare the dependency it documents. This project fixed its own
+instance in one commit; **that fix reaches one repository.** The next project created from the same
+boilerplate hits the same wall at its own checkpoint 12 and has to make the same call with the same
+absence of an adjudicator.
+
+**The same shape, independently, in a second place:** one `js-yaml` advisory has now been fixed
+separately in the app repository and the backend row and is still open in the frontend — three
+repositories, one advisory, three fixes, because the fix lives in a lockfile rather than in
+`renchan-boilerplate` and `furo-boilerplate-nuxt`. Different subject, identical propagation. Not
+chased here; noted because two instances make it a pattern rather than an incident.
+
+Adjacent to Q38 and Q39, both also conventions this repository inherited rather than wrote.
+
+
+## Q43. The spec says the access token is held in memory; the boilerplate persists it to `localStorage`
+
+<!-- spec: sign-in -->
+<!-- blocking: yes -->
+<!-- category: contradiction -->
+
+Found at `#sign-in`'s checkpoint 13, reading `app/constants.js` before wiring anything. **Raised
+before any code depends on it, which is the only reason it is cheap to settle.** It decides how
+checkpoint 16 wires the session, and it has a security dimension, so it is marked blocking for 16
+rather than for the feature.
+
+### The contradiction, both sides quoted
+
+§6, Terminology:
+
+> **access token** — the credential the client sends on a request header, and what proves a session
+> for every operation except the three §7 names. Lives fifteen minutes (§9.6). **Held in memory,
+> never in a cookie.**
+
+The boilerplate, at `node_modules/@openreachtech/furo-nuxt/lib/tools/AccessTokenClerk.js`:
+
+```js
+static createStorageClerk () {
+  return StorageClerk.createAsLocal()      // -> window.localStorage
+}
+
+static get STORAGE_KEY () {
+  return 'access_token'
+}
+```
+
+and this project's own `app/constants.js` already carries `STORAGE_KEY.ACCESS_TOKEN: 'access_token'`
+to match.
+
+**`localStorage` is neither memory nor a cookie**, so the clause is not violated on its letter by the
+"never in a cookie" half — and is plainly violated on the "held in memory" half.
+
+### Why it is not a wording quibble
+
+**The two designs differ in what an XSS gets.** The refresh token is an httpOnly cookie precisely so
+that script cannot read it (§9.7). An access token in `localStorage` is readable by any script on the
+origin, so a single XSS yields a working credential for up to fifteen minutes. Held in memory, it
+does not survive to be read by a later injection and is not reachable from another tab.
+
+**They also differ in what a reload does, and §10 has a criterion about exactly that.** "A session
+survives a page reload":
+
+| | How a reload is survived |
+|---|---|
+| `localStorage` (boilerplate) | the token is simply still there — no network call |
+| memory (§6) | the token is gone; the client presents the refresh **cookie** to `renewAccessToken` and gets a fresh one |
+
+**§10.2 describes the second one.** It says `renewAccessToken` "belongs to the GraphQL client layer,
+which calls it when an access token has expired, transparently, on whatever screen happens to be
+open", and that "a client that never renews leaves every session dying after fifteen minutes with
+nothing on screen to explain it." That machinery exists **because** the token is not persisted. If it
+were in `localStorage`, the renew path would be needed only after fifteen minutes rather than after
+every reload.
+
+So §6's "held in memory" is not an offhand phrase — the rest of the feature is shaped around it.
+
+### What it collides with
+
+**`middleware/000.gateway.global.js` already calls `AccessTokenClerk.create().existsToken()`**, which
+reads `localStorage`. Under an in-memory design that call answers `false` on every fresh page load,
+so the gateway would redirect a signed-in member of staff to `/sign-in` after every reload — before
+the client layer has had a chance to renew. **The gateway is boilerplate this feature did not write
+and checkpoint 10 deliberately did not touch**, and it is where the two designs actually meet.
+
+### Why this has an adjudicator, unlike Q42
+
+Q42 had none — no rule reached it. **This one does: the spec is the authority, and it is explicit.**
+So the direction is settled even though the work is not: the access token is held in memory, and the
+reload path goes through `renewAccessToken` against the refresh cookie.
+
+**What is genuinely open is only the mechanism**, and it is checkpoint 16's:
+
+1. hold the token in a module-level store or an app-share singleton, and give the gateway a check
+   that tolerates "no access token yet, but a refresh cookie may exist" — which means the gateway
+   can no longer decide by `existsToken()` alone
+2. keep `AccessTokenClerk` for its interface but substitute an in-memory `StorageClerk`, since
+   `create()` accepts `storage` as an injected parameter and defaults it — the seam is already there
+   (`StorageClerk` also ships a `createAsSession()`, which is **still not memory**)
+
+Option 2 is the smaller change and uses a seam the library deliberately exposes. Neither is decided
+here.
+
+**Not fixed at this checkpoint, deliberately.** Nothing yet stores or reads an access token in this
+application — checkpoint 10 built a route and a title. Recording it before 14 and 16 build on the
+boilerplate's assumption is the whole value; discovering it afterwards would mean unpicking the API
+client and the gateway together.
+
+Adjacent to Q40, which is the other boilerplate behaviour this feature has to decide about at 16.
+
+
+## Q44. No `.vue` file in this repository can be unit-tested
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: undefined-detail -->
+
+Found at `#sign-in`'s checkpoint 15 by the unit building the screen, which wrote a mount test for its
+one new component, hit this, **deleted the test rather than encode the defect**, and reported it.
+Verified independently from the main session before recording.
+
+### What happens
+
+`jest.config.js` transforms `.vue` with `@vue/vue3-jest` (29.2.6), and `.babelrc` compiles the test
+file to CommonJS with `@babel/preset-env`. **vue3-jest's output is not interop-flagged** — it carries
+no `__esModule: true` — so babel's `_interopRequireDefault` wraps the whole module object rather than
+unwrapping it, and a default import yields the namespace instead of the component.
+
+Probed directly, on the real component:
+
+```
+PROBE keys:          [ 'default', 'render' ]
+PROBE has .props:    undefined
+PROBE has .default:  object
+```
+
+So `import AppRefusalMessage from '.../AppRefusalMessage.vue'` gives `{ default, render }`.
+`.props` is undefined, every prop falls through as a plain attribute, and a mount renders nothing
+useful.
+
+### Why it has never been noticed
+
+**No `.vue` file has ever been tested in this repository** — `grep` over `tests/` finds not one import
+of a `.vue`. The boilerplate ships none, and every test so far targets a class. So nothing regressed;
+this is a latent gap that the first component to want a test walked into.
+
+### Why it was not fixed at checkpoint 15
+
+Four reasons, and the last is the one that decides it:
+
+1. The exit condition was met without it.
+2. The one new component, `AppRefusalMessage`, **holds no logic** — no context class, no computation,
+   no decision — so there is no behaviour a test would assert.
+3. `jest.config.js` is a shared file, and changing test infrastructure mid-checkpoint affects every
+   suite in the repository.
+4. **There is nothing to verify a fix against.** A change to the transform with no component whose
+   test currently fails is a change whose correctness cannot be demonstrated — which is exactly the
+   class of "green but meaningless" this feature has spent the day recording.
+
+**Where it lands.** `#expense-entry` adds components that *do* hold behaviour, and its checkpoint 13
+or 15 is the natural place: there will be a real failing test to fix against, which is the condition
+this checkpoint lacked. The workaround to avoid — writing `.default` into test imports — encodes the
+bug into every test file and should not be taken.
+
+Adjacent to Q42: another thing the boilerplate hands every project built from it.
+
+## Q45. furo's controls assume a CSS reset that nothing in the stack ships
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Found at `#sign-in`'s checkpoint 15, and **worked around on one screen rather than fixed**, because
+the fix is project-wide and does not belong to a feature.
+
+`FuroTextField` and its siblings are written for `box-sizing: border-box` — `width: 100%` plus padding
+plus a border. **Nothing supplies it:**
+
+- `@openreachtech/furo-vue` ships no `box-sizing` anywhere in `lib/assets/css/` — grepped, not assumed
+- `@openreachtech/furo-nuxt` 2.x ships **no stylesheet at all** (Q42's neighbour: 1.x shipped
+  `0100.reset.css`, and the sibling `crm-kit-frontend` still loads it — but it is on furo-nuxt 1.x)
+- this application's `assets/css/main.css` is 7 lines of iOS input sizing and declares no reset
+
+**So every furo control overflows its container, at every viewport**, in any project on
+`furo-boilerplate-nuxt 2.1.0` that uses `furo-vue`. Checkpoint 15 worked around it with three local
+`box-sizing: border-box` declarations scoped to the sign-in screen.
+
+**Why it was not fixed centrally here.** A reset in `main.css` changes the box model of every element
+in the application at once. On a repository with one screen that is nearly free, and that is exactly
+why it is tempting — but it is a project-wide structural decision arriving as a side effect of
+building a form, and the same reasoning that kept `@layer` out of checkpoint 15 applies unchanged.
+
+**Where it lands.** Either `main.css` gains a reset — the removal condition for the three local
+declarations, which should be deleted the moment it does — or furo-nuxt 2.x restores the stylesheet
+it used to ship. The second is upstream and is the better fix, since every consumer of `furo-vue`
+has this problem.
+
+Adjacent to Q42 and Q44: three separate things the frontend boilerplate leaves to each project to
+discover independently.
+
+
+## Q46. The frontend boilerplate holds the access token in browser storage, and ships a test that locks it there
+
+<!-- spec: sign-in -->
+<!-- blocking: no -->
+<!-- category: contradiction -->
+
+Found at `#sign-in`'s checkpoint 16 while wiring the screen. **Fixed in this repository; raised
+because both halves came from `furo-boilerplate-nuxt 2.1.0` and every project built from it has
+them.**
+
+### What it was
+
+`app/graphql/client/BaseAppGraphqlPayload.js`:
+
+```js
+static createStorageClerk () {
+  return StorageClerk.createAsLocal()          // -> window.localStorage
+}
+
+static loadAccessToken () {
+  const storageClerk = this.createStorageClerk()
+
+  return storageClerk.get(STORAGE_KEY.ACCESS_TOKEN)
+}
+```
+
+and `collectBasedHeadersOptions()` attaches the result as `x-renchan-access-token`. **So the access
+token was read out of `localStorage` to build the header of every GraphQL request.** The same shape
+is in `BaseAppSubscriptionGraphqlPayload`, and `BaseAppRenchanRestfulApiPayload` inherits a furo base
+that hard-codes `StorageClerk.createAsSession()`.
+
+### Why it is a security finding rather than a style one
+
+§6: the access token is **"Held in memory, never in a cookie."** §7 declares the whole point of the
+two-credential design — a short-lived access token on a header, and a refresh token as an **httpOnly**
+cookie so that script cannot read it.
+
+**An access token in `localStorage` is readable by any script on the origin.** That is precisely the
+exposure the httpOnly cookie exists to prevent, reintroduced on the other credential. The blast
+radius is bounded — fifteen minutes, one member of staff, an internal system — but the bound is the
+token's lifetime, not any control this product has, and §6 excludes it in as many words.
+
+`sessionStorage` in the REST base is the same class of thing: browser storage that outlives a reload
+within a tab.
+
+### Whose code it is
+
+**The boilerplate's, not this project's.** `git log --diff-filter=A` puts the file in
+`beb2fa6 Initial commit from furo-boilerplate-nuxt 2.1.0`. Nothing here generated it.
+
+### Could a test have caught it? No — and worse than that
+
+**A test existed, and it was defending the defect.**
+`tests/__tests__/jsdom/app/graphql/client/BaseAppGraphqlPayload.js` — **also from `beb2fa6`** —
+asserted that `createStorageClerk()` called `StorageClerk.createAsLocal()`, and arranged its other
+readings by writing to `localStorage` directly:
+
+```js
+describe('to call StorageClerk.createAsLocal()', () => {
+  …
+  expect(createAsLocalSpy)
+    .toHaveBeenCalledWith()
+```
+
+So the suite did not merely fail to notice. **It pinned the behaviour §6 forbids, and a correct
+implementation would have failed it.** Every other finding in this feature was invisible to the
+tests; this one was actively held in place by them.
+
+That is a category the found-while-green list did not previously have: not "no test could fail on
+it", but **"a test failed on the fix"**. A green suite is not evidence of correctness — it is
+evidence that the code agrees with the tests, and here they agreed with each other while both
+disagreed with the spec.
+
+### Where it lands
+
+**Upstream, in `furo-boilerplate-nuxt`**, and it is two changes rather than one: the storage seam,
+and the test that would otherwise reject the corrected seam. **Fixing only the first turns every
+consumer's suite red**, which is a good reason it has survived — the obvious fix looks like a
+regression.
+
+This project's own fix is `MemoryStorage` plus `AppAccessTokenClerk`, with the boilerplate test
+rewritten to arrange through the clerk rather than reach past it into a browser API.
+
+Adjacent to Q42, Q44 and Q45 — four separate things `furo-boilerplate-nuxt 2.1.0` hands every project
+built from it. **This is the only one of the four that is a security defect.**
+
+
+## Q47. furo-vue omits one of its own transitive requirements, and `--legacy-peer-deps` turns that into a CI-only build failure
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Found when `#sign-in`'s frontend pull request went red **after** every local check passed. Fixed in
+this repository; raised because the cause is upstream and the mechanism has now appeared in three
+repositories.
+
+### The failure
+
+```
+Rollup failed to resolve import "@tiptap/suggestion"
+  from node_modules/@tiptap/extension-mention/dist/index.js
+```
+
+**The package is present on a developer's disk and absent in CI.** Four facts, each individually
+reasonable:
+
+1. `@openreachtech/furo-vue` depends on `@tiptap/extension-mention`
+2. that package requires `@tiptap/suggestion@3.31.3` as a peer, and it is **not optional** —
+   `peerDependenciesMeta` is absent from its manifest entirely
+3. so the lockfile carries `node_modules/@tiptap/suggestion` with **`"peer": true`** — present, but
+   only as a peer entry
+4. `.github/workflows/test.yml` installs with **`npm ci --legacy-peer-deps`**, which omits
+   peer-marked entries
+
+### The upstream bug is one line, and counting is what made it precise
+
+`extension-mention` requires **three** exact peers — `@tiptap/core`, `@tiptap/pm`,
+`@tiptap/suggestion` — and only the third failed.
+
+**furo-vue declares nine tiptap packages as direct dependencies, including `core` and `pm`, and omits
+the tenth that one of the nine requires.** That is exactly why the first two carry no `peer` flag and
+resolve normally.
+
+So the report upstream is *"furo-vue's dependency list is missing one entry"* rather than *"furo-vue
+has a peer-dependency problem"* — and, usefully, **fixing `suggestion` alone is complete rather than
+partial.** That was checked before applying, because a partial fix that moves a failure rather than
+removing it is a mistake this feature has already made once (Q38).
+
+### Why the fix was the dependency and not the flag
+
+Declaring `@tiptap/suggestion` at `3.31.3` — the exact version `extension-mention` requires and the
+one the lockfile already resolved — makes no version decision and leaves the entry at `peer: null`,
+which is what `--legacy-peer-deps` keys on.
+
+**A plain `npm ci --dry-run` resolves with no `ERESOLVE`, so the flag is not holding a conflict
+together today.** That is evidence for the upstream conversation and was deliberately *not* treated
+as licence to remove a flag this repository inherited from the boilerplate and whose purpose is not
+established here.
+
+The decisive argument is narrower than "the flag change is bigger": **declaring the dependency works
+under either flag setting; removing the flag only works if a reading of npm's behaviour is right.**
+One fix rests on a fact, the other on an inference.
+
+### Three instances, one mechanism
+
+The same shape has now appeared three times across three repositories — `graphql` peer-only in
+`ort-homepage`, the `js-yaml` chain at one remove, and this. **A peer-only lockfile entry plus
+`npm ci --legacy-peer-deps` is a package that exists everywhere except CI.** That makes it a property
+of the boilerplate's workflow rather than of any project.
+
+**Fifth item against `furo-boilerplate-nuxt 2.1.0`**, with Q42, Q44, Q45 and Q46 — and **the only one
+that breaks the build outright**. Q46 remains the only security one.
