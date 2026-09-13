@@ -93,7 +93,7 @@ Note: **a stub is a public endpoint.** The authentication filter is built from t
 - [x] 14. API client  <!-- REACHED IN PART, and recorded as such. skills: hof-graphql; digest: hora-skills-ort-furo 0.1.0, taken at this checkpoint. Four Launcher/Payload/Capsule trios. The "matching the contract exactly" clause is MET -- each document extracted from the file on disk and validated against `.hora/contracts/1.0.0/` with graphql 17.0.2, with a negative control that was itself corrected after tripping on the wrong error. The "works against the stub" clause is NOT met and is unmeetable here: Q24 means no server boots on Windows, so nothing listens. Not faked and no mock server called a stub. `types/graphql-schema.d.ts` created -- a type projection, not a second authority, because nothing can validate against it -->
 - [x] 15. UI  <!-- skills: hof-uiux-forge plus every skill covering this project's CSS conventions -- hof-css, hof-css-props-naming, hof-css-props-prohibits, hof-css-units, hof-css-coding-styles, hof-css-prohibits, hof-css-line-height, hof-css-z-index, hof-selector-props-sort, hof-layout-margin, hof-animation; digests: hora-skills-ort-furo 0.1.0, all twelve taken at this checkpoint. All four states built. NO custom property declared, no @layer, no z-index, no animation CSS -- each decided against for a stated reason. The two accessibility gaps recorded at checkpoint 12 are compensated, and THREE further contrast failures were found by measuring the real token hexes rather than trusting their semantic names. Q44 and Q45 raised: no .vue can be unit-tested here, and furo's controls assume a reset nothing ships -- both worked around with removal conditions rather than silently patched -->
 - [x] 16. Wire the data-fetching logic in  <!-- REACHED IN PART. skills: hof-furo-context-patterns, hof-graphql, hof-nuxt, hof-prohibits, hoc-jest, hof-error-handling; digest hof-furo-context-patterns taken here. Loading and error paths driven by REAL capsules built from real envelopes, and the acceptance-criteria tests pass -- but "shows real data from the actual API" is unmeetable (Q24) and was not faked. Q43 resolved and found worse than recorded: every request header read `localStorage`, not just the gateway. Q40 resolved by NOT needing a shared module -- one consumer, so it lives on the page context with route/router injected from setup. A test that was DEFENDING the defect was rewritten rather than deleted. The gateway still defaults to localStorage and is carried forward to #expense-entry -->
-- [ ] 17. Local test environment
+- [x] 17. Local test environment  <!-- PARTLY PROVEN. Main session, on its own branch `update/e2e-seeded-mariadb-for-sign-in` in the BACKEND repository per commits.md line 53. Applicable rather than n/a: the environment existed, but this feature added seed data and nothing could put it into the container -- `db:refresh` is SQLite-only and tears down with `rm *.sqlite3`. Added `db:teardown:live` / `db:refresh:live` and documented them. Section 10.3's table checked against REAL MariaDB for the first time -- bigint(20), varchar(191), datetime(3), composite (email, attempted_at) index, all as declared. Counting the rows corrected the record's "eleven with a working credential" to TEN. "Runs locally" and "each role can sign in" stay blocked by Q24 -->
 
 ## Acceptance gate
 - [ ] 18. Acceptance (E2E and unit both)
@@ -499,7 +499,7 @@ factor into each digest so no seeder ever needs it — so it sits at the top of 
 
 ### Q22 closed in substance, and the trap it existed to avoid
 
-Thirteen members of staff, eleven with a working credential, **verified against the running
+Thirteen members of staff, **TEN** with a working credential — the figure read *eleven* until checkpoint 17 counted the join against real MariaDB; eleven hold a digest and eleven hold an address, but they are not the same eleven. **The claim below was still true of what it checked** — it verified digests, and signing in needs both halves. **Verified against the running
 database** rather than reported: every address already lower-cased, every digest matching the
 shape the testing rule asserts, `compare` true for all eleven recorded plaintexts and false for a
 near-miss on all eleven, and `down` reverting cleanly.
@@ -514,7 +514,7 @@ on master seeds only, *then* `db:seed:dev` — so no account exists in phase one
 the split §10's "an address with no account" criterion wants (Q29). Under `dev-master/` phase one
 would already hold accounts and the distinction would be gone.
 
-**Two members of staff deliberately hold no complete credential**, and Q22 is why: accounts are
+**Three members of staff deliberately hold no complete credential** — the record said two until checkpoint 17 counted them — and Q22 is why: accounts are
 issued by hand across three tables, so a half-issued one is the most likely way one goes wrong
 here, not a hypothetical — and §10's identical-refusal criterion needs a row to test against.
 
@@ -1337,6 +1337,83 @@ first protected screen `#expense-entry` adds will bounce a freshly signed-in per
 than rediscovered.
 
 **24 suites, 337 tests, lint clean.** Baseline was 22 and 206.
+
+## Checkpoint 17 — the environment, and the first time the real dialect was ever exercised
+
+**Applicable, not skippable.** An environment has existed since `#data-model`, but the not-applicable
+test is "one already exists **and** this feature added no service, no role and no seed data it
+needs". This feature added seed data — three staff-account seeders — and §10.3's table.
+
+**On its own branch**, `update/e2e-seeded-mariadb-for-sign-in` in the **backend** repository, per
+`commits.md` line 53: a local end-to-end environment is shared by every feature, so a change to it is
+planned growth of something common rather than part of one feature's change set.
+
+### The gap: the container had no way to be filled
+
+`db:refresh` is SQLite-only and tears down with `rm sequelize/storage/*.sqlite3`, **which does nothing
+to a database in a container.** No script wired `NODE_ENV=live` to the migrate-and-seed chain, and the
+README did not describe one. So the environment existed and nothing could put this version's schema or
+this feature's accounts into it.
+
+`db:teardown:live` unwinds with `db:migrate:undo:all` rather than `rm`, because MariaDB cannot be torn
+down by deleting a file — and without a teardown the seeders fail on a duplicate primary key, since
+sequelize-cli's seeder storage here is `none` (Q33).
+
+### §10.3 checked against MariaDB, which nothing had ever done
+
+The compose file's own comment is the reason this matters: **a migration can pass every local check
+and still be wrong**, because SQLite reads a `bigint` primary key back as `INTEGER`, every
+`datetime(3)` as a bare `DATETIME`, and is lax about `varchar(191)`. Every gate this feature passed
+ran on SQLite.
+
+```
+id            bigint(20)     NOT NULL   PRIMARY
+email         varchar(191)   NOT NULL
+attempted_at  datetime(3)    NOT NULL
+created_at    datetime(3)    NOT NULL
+updated_at    datetime(3)    NOT NULL
+
+sign_in_attempts_email_aa_index  (email, attempted_at)  NON_UNIQUE
+```
+
+**Every type is what §10.3 declares**, and the composite index is on the pair the section says it
+counts by. This is the one clause of this checkpoint that is not merely built but proven.
+
+### Counting the rows corrected a claim the project had been repeating
+
+**The record said thirteen members of staff, eleven with a working credential. The join says ten.**
+
+Eleven have a digest and eleven have an address — **but they are not the same eleven.** One has an
+address and no digest, one has a digest and no address, and one has neither. Signing in needs both
+halves, so the count that matters is the join rather than either table's row count.
+
+**Checkpoint 5's record claimed that figure "verified against the running database", and it was
+wrong** — which makes it a better example than a plain error: the verification was real, and the
+thing verified was the wrong quantity. Counting digests answers "how many rows exist"; only the join
+answers "how many people can sign in". Corrected in place at checkpoint 5, with what it said kept.
+
+The README had also claimed the seeders produce expenses. They do not — `development/` holds only the
+three staff-account seeders, and `expenses` is empty until `#expense-entry`.
+
+### What is built and unproven, and why
+
+| Clause | Verdict |
+|---|---|
+| there is reviewable data **or a command that produces it** | **met, and proven** against real MariaDB |
+| the application **runs locally** together with every service behind it | **blocked** — Q24, no renchan server starts on Windows |
+| **each role can sign in** | **blocked** by the same root cause; there is no server to sign in to |
+
+**Two honest qualifications on the proven clause**, because a verification that needed help is not
+the same claim as one that did not:
+
+1. **The composed `db:refresh:live` one-liner was not run.** It begins with `export`, which npm runs
+   through `cmd.exe` on Windows where it is not a command — a pre-existing property of `db:refresh`,
+   now documented rather than discovered by the next person. Its **four steps were each run
+   individually** against the container.
+2. **The run used a throwaway port override outside the repository.** `127.0.0.1:3306` is held by
+   `wslrelay.exe` on this machine, so the container was published on 3307 via an override in the
+   scratchpad, with a matching `--config`. **The committed 3306 is correct and stays** — CI publishes
+   it, and the file has to agree with CI rather than with one machine's accidents.
 
 ## Where the decisions live, when control flow does not hold them
 
