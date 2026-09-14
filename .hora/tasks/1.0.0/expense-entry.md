@@ -37,7 +37,7 @@ Note: `spentOn` crosses the contract as an ISO `YYYY-MM-DD` string (Q3), not a d
       the day the money was paid, not the day it was recorded
 
 ## Spec gate
-- [x] 1. Draft or confirm the specification  <!-- interactive, main session; no agent, so no digest. Section 11 read against sections 4, 7, 9.3 and the pinned contract. Two gaps found, each changing behaviour a member of staff can see, both answered by the user: "most recent first" now means `spent_on` (section 9.3's index already pointed there), and a second removal is answered as NOT FOUND, collapsing into the ownership rule section 11 already states. Raised as PR #20 against `specs/` -- a PROPOSAL; the spec on release is unchanged until it merges. A `sort` clause and a same-date tie-break were deliberately NOT proposed -->
+- [x] 1. Draft or confirm the specification  <!-- interactive, main session; no agent, so no digest. Section 11 read against sections 4, 7, 9.3 and the pinned contract. Two gaps found, each changing behaviour a member of staff can see, both answered by the user: "most recent first" now means `spent_on` (section 9.3's index already pointed there), and a second removal is answered as NOT FOUND, collapsing into the ownership rule section 11 already states. Raised as PR #20 against `specs/` and MERGED at a9cb3dc, both hunks verified on the release tip rather than inferred from the merge. The two decisions are this session's user's answers; the merge was approved by the peer session's user, shown both hunks verbatim -- recorded separately because they are not the same person. A `sort` clause and a same-date tie-break were deliberately NOT proposed -->
 - [x] 2. Verify the use cases can be met  <!-- interactive, main session. All three of section 11's use cases walked against the operations section 11.1 declares; all three met, and no operation is missing -- "opens that entry" is served by `expenses`, which already returns the entry's current values, so no read-one operation is needed. Every acceptance criterion is reachable from the declared operations. One trap recorded for checkpoint 6: `correctExpense` is a FULL REPLACE, so a correction that omits the memo clears it -->
 
 
@@ -87,9 +87,21 @@ of two**, and one fewer way for the non-disclosure property to be broken by acci
 ### How this reached `specs/`
 
 **As a proposal, not a write.** The exact words were put in front of the user and then raised as
-**pull request #20** against `release/1.0.0`, touching `specs/1.0.0/spec.md` and nothing else. **The
-spec on release is unchanged until the user merges it.** The decisions themselves are the user's
-answers and are already settled, which is why the feature is not blocked on the paperwork.
+**pull request #20** against `release/1.0.0`, touching `specs/1.0.0/spec.md` and nothing else. The
+decisions themselves are the user's answers and were already settled, which is why the feature was
+never blocked on the paperwork.
+
+**It merged at `a9cb3dc`, and both hunks were then read off the release tip rather than inferred from
+the merge succeeding** — §11.2's ordering sentence and §11's double-removal criterion are present in
+`specs/1.0.0/spec.md` on `release/1.0.0`.
+
+**Who approved which half is worth separating, because they are not the same person.** *What the
+clarifications say* is this session's user's: they answered both questions directly, and those
+answers are what the diff was built from. *The merge itself* was approved by the peer session's user,
+who was shown both hunks verbatim and unabridged and answered against those words. Invariant 1 was
+satisfied in substance on both counts — a human saw the exact text before it landed — but the record
+should not read as though one person did both, and a later reader tracing the ordering decision
+should look to this feature's checkpoint 1, not to the merge.
 
 ## Checkpoint 2 — the use cases can be met, walked against the operations §11.1 declares
 
@@ -117,7 +129,7 @@ gets wrong once and a member of staff discovers by losing a memo.
 
 ## Backend gate
 - [x] 3. DB and API schemas  <!-- skills: hor-graphql-schema, hor-type-interface, hor-database-design, hor-sequelize-model, hor-sequelize-migration, hoc-naming, hoc-jsdoc; digests: hora-skills-ort-renchan 0.1.0 and hora-skills-ort-core 0.2.0 -- ALL REUSED from #sign-in, none taken here, the installed versions being unchanged. NO MIGRATION, deliberately: section 11 operates on section 9.3's `expenses`, which #data-model shipped complete including the status seam and the composite (staff_member_id, spent_on) index. Verified against sections 9.2 and 9.3 rather than rebuilt. The SDL match with the pinned contract was established by AST comparison, not by eye: 11 types and 5 operations, zero DIFF, zero EXTRA. Q48 raised -- the contract exposes createdAt/updatedAt, which hor-graphql-schema forbids by name; the contract wins and the question goes to the user -->
-- [ ] 4. Stub API
+- [x] 4. Stub API  <!-- REACHED IN PART. skills: hor-stub-api; digest reused from #sign-in at hora-skills-ort-renchan 0.1.0, none taken here. Five schema-accurate stubs, same class names and interfaces as the real resolvers will have. "Callable from outside" is evidenced IN PROCESS through the framework's own schema-and-resolver path with contextValue: null, NOT over a socket -- Q24, and the record separates the two claims deliberately. Q28's statement is in all five docblocks and is sharper here than at #sign-in, because every operation this feature adds is SUPPOSED to require a session. Q33 fired a second time via the shared SQLite file, as checkpoint 3 predicted -->
 - [ ] 5. The modules the implementation needs
 - [ ] 6. Actual API
 - [ ] 7. Worker
@@ -187,6 +199,81 @@ be clarified to avoid.
   a second way to trigger it.
 
 **43 suites, 736 tests, lint clean.** Baseline was 720.
+
+
+## Checkpoint 4 — five stubs, and the exit condition's second half again
+
+**Reached in part, and the two halves are different claims worth separating.**
+
+| Clause | Verdict |
+|---|---|
+| a schema-accurate stub exists for every operation this feature adds, returning hardcoded data | **met** — five of five |
+| **callable from outside** | **evidenced in process, not over a socket** |
+
+**That distinction is the record's, not a hedge.** "Verified in-process because the server cannot
+start" and "verified as the exit condition literally asks" are different claims, and only the second
+is what checkpoint 4 requires. Q24 makes the second impossible here — `server/index.js` still dies at
+`ERR_UNSUPPORTED_ESM_URL_SCHEME` — so the express app, the middleware chain, the 16 kB body limit and
+the CORS allow-list are untouched by this evidence and stay so until Q24 closes. That limit is
+written into the test file's own docblock rather than only into this record.
+
+What *was* done: real GraphQL documents executed against the audience's executable schema, built by
+the same `GraphqlSchemaBuilder` the running server uses, resolvers loaded from the same two pools.
+**`contextValue: null` in every case** — not even an object a session could be read off — and all
+five answer anyway, which **demonstrates** the Q28 property instead of asserting it in prose.
+
+### Q28 is sharper here than it was at `#sign-in`
+
+Each of the five docblocks states that while the operation is served from the stub pool it runs with
+**no authentication filter at all**, and names the mechanism: `GraphqlResolversBuilder` builds the
+filter hash from `actualResolverSchemaHash` only, so a stub-only field gets `filter === undefined`.
+The unit verified that against the installed builder rather than taking the digest's word.
+
+**Why it is worse here.** Most of `#sign-in`'s stub-only operations were reachable without a session
+**by design** — `signIn` is how a session begins. **Every operation this feature adds is supposed to
+require one**, by §7's Authentication row and by §11's own criterion that they are "refused without a
+session, before it reads anything". A stub cannot honour that criterion, and the docblocks say so
+rather than leaving a later reader to assume it does. The three single-entry stubs record the same
+about the not-found rule: there is no owner to compare against.
+
+**And the closing move is two things at once**, which is worth knowing before checkpoint 16:
+`schemasToSkipFiltering` lists only the three sign-in operations, correctly — so the moment an
+`actual/` resolver lands for any of these five, that field **acquires a filter and the stub stops
+being reachable**. The swap is a change of endpoint on the frontend *and* the arrival of a session
+requirement on the backend, in the same move.
+
+### The data hangs together by construction rather than by care
+
+- Both query stubs write out the four categories from `sequelize/seeders/master/` — ids
+  `10000001`–`10000004`, `transport` / `meals` / `supplies` / `other` — and the expenses stub
+  references them as **named constants**, so an entry's category cannot drift from the master within
+  the file. Both point at the seeder as the source rather than at each other.
+- **Twelve entries, already in newest-`spentOn`-first order**, because a stub holds literals and the
+  order *is* the data. A screen built against a differently-ordered stub would look right and be
+  wrong.
+- **No two entries share a `spentOn`, deliberately.** A same-date tie-break was not decided at
+  checkpoint 1, and **data that raised the question would be deciding it.**
+- One entry has a null memo, on the first page, so a screen meets §11's "the memo is genuinely
+  optional" without going looking. One has an `updatedAt` later than its `createdAt` — the corrected
+  entry from §11's second use case.
+- `totalRecords` is `STUB_EXPENSES.length`, never a hand-written number.
+
+### Two process notes, one of them my own error
+
+- **My verification command in the assignment was wrong.** I gave
+  `NODE_ENV=development npx jest …`, which fails every suite with "Cannot use import statement outside
+  a module": `tests/setup-after-env.js` is ESM and needs
+  `NODE_OPTIONS="--experimental-vm-modules"`, which `package.json`'s own `test` script exports before
+  calling `test.sh`. The unit found it, corrected it, and reported it rather than working around it
+  silently. Recorded because I had it right in earlier briefs and dropped it here.
+- **Q33 fired again, exactly as checkpoint 3 predicted.** Running `_orders` left category rows behind,
+  which turned `tests/__tests__/sequelize/seeders/master/expense_categories.js` red — a different
+  feature's test, failing because of a shared SQLite file. The unit refreshed and re-ran. **Second
+  independent trigger of the same order-dependence**, and the prediction one checkpoint earlier is
+  what made it diagnosable in seconds rather than investigated.
+
+**49 suites, 776 tests, lint clean.** Baseline was 736. No conflict-proof file needed a change —
+`resolver-id-hash-staff.js` would have been one, and checkpoint 3 already filled it.
 
 ## Frontend gate
 - [ ] 10. Open the frontend
