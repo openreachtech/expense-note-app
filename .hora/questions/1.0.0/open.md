@@ -2282,3 +2282,66 @@ of the boilerplate's workflow rather than of any project.
 
 **Fifth item against `furo-boilerplate-nuxt 2.1.0`**, with Q42, Q44, Q45 and Q46 — and **the only one
 that breaks the build outright**. Q46 remains the only security one.
+
+
+## Q48. The contract exposes `createdAt` / `updatedAt`, which the schema skill forbids by name
+
+<!-- spec: expense-entry -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Raised by the unit writing `#expense-entry`'s SDL at checkpoint 3, which **wrote what the contract
+says and reported the divergence rather than quietly renaming anything**. Nothing is wrong in the
+tree; the question is whether the contract should have said something else, and it gets more
+expensive to answer with time.
+
+`hor-graphql-schema` §5.1 forbids the pair by name:
+
+> Never expose `updatedAt` / `createdAt`. A business time is its own named field: `modifiedAt`,
+> `registeredAt`.
+
+The pinned contract declares both on `Expense`:
+
+```graphql
+type Expense {
+  …
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+```
+
+**The contract wins and that is not in doubt** — `/hora-build`'s checkpoint 14 says it outright, *"the
+contract is authoritative for both sides. Wanting to change it here means raising a question, not
+changing it."* So the SDL declares both, and this is the question.
+
+### Why it is worth asking now rather than later
+
+**`#monthly-summary` reuses this same `Expense` type** — the contract's own comment says so: "One row
+type, reused by `expenses` and `monthlyExpenses`, so that a month's entries and the total taken over
+them can never describe different shapes."
+
+So the cost of renaming rises the moment `#monthly-summary`'s checkpoint 3 lands, and rises again
+when either feature's frontend reads the field. Today it is two lines in one SDL file, one block in
+`types/StaffGraphQL.d.ts`, and the contract.
+
+### What is actually at stake, stated fairly
+
+The skill's reasoning is that a framework timestamp and a business time are different things, and
+that exposing the former invites a consumer to treat "when the row was written" as "when the thing
+happened". **This feature has exactly that hazard in sharp form:** `spentOn` is the day the money was
+paid and `createdAt` is the day the entry was typed, and §11's whole ordering question turned on the
+two being different. A field named `createdAt` on the same type as `spentOn` is an invitation to
+reach for the wrong one.
+
+Against that: nothing in §11 asks for either timestamp, no acceptance criterion mentions them, and
+the screen §11.2 describes does not display them. **They may simply be unnecessary**, which would
+make the cheapest resolution deletion rather than renaming.
+
+### Where it lands
+
+A contract change, so `/hora-spec` and the user — the same route §10.3 and §11's two clarifications
+took. Three options, in rising cost: drop both fields, rename to `recordedAt` / `modifiedAt`, or keep
+them and record that the skill is overruled here on purpose so the next reader does not re-raise it.
+
+Adjacent to Q37, which is the other contract-level question about this type family: `Expense.id` is
+`Int!` over a BIGINT primary key, consistent with every other id in the contract.
