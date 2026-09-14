@@ -2345,3 +2345,63 @@ them and record that the skill is overruled here on purpose so the next reader d
 
 Adjacent to Q37, which is the other contract-level question about this type family: `Expense.id` is
 `Int!` over a BIGINT primary key, consistent with every other id in the contract.
+
+
+## Q49. "Dated after today" never says in which timezone, and the answer changes what is refused
+
+<!-- spec: expense-entry -->
+<!-- blocking: no -->
+<!-- category: spec-gap -->
+
+Found at checkpoint 5 of `#expense-entry`, while establishing what checkpoint 6 has to import. It is
+raised rather than decided because **it changes which expenses a member of staff can record**, which
+is the same test the two §11 gaps at checkpoint 1 were held to.
+
+§11's acceptance criteria say:
+
+> - an expense dated after today is refused
+
+**Nothing in the spec says whose "today".** §6 defines a month as "the calendar month an expense's
+date falls in" and §9.3 stores `spent_on` as a date, but neither names a timezone, and grepping the
+backend for one finds nothing: no `TZ` in `.env.development` or `.env.live`, no timezone in
+`sequelize/config.cjs`, no fixed zone anywhere outside a transitive `moment-timezone` that no code
+of ours imports.
+
+### Why it is observable rather than pedantic
+
+`spentOn` crosses the contract as a `YYYY-MM-DD` string (Q3), and the clock available to a resolver
+is `context.now`, a `Date`. Comparing them requires choosing a zone to read "today" in, and the
+zones disagree for part of every day:
+
+| Real moment | Today in UTC | Today in Asia/Tokyo | An expense dated 2026-09-15 |
+|---|---|---|---|
+| 2026-09-15 08:00 JST | 2026-09-14 | 2026-09-15 | **refused** under UTC, accepted under JST |
+| 2026-09-14 23:00 JST | 2026-09-14 | 2026-09-14 | refused under both |
+
+So under a UTC comparison **a member of staff recording this morning's train fare before 09:00 local
+time is told the date is in the future.** That is the single most ordinary thing this feature exists
+to do, and it would fail for the first nine hours of every working day.
+
+### Why the recommended reading is Asia/Tokyo, and why it is still a question
+
+Everything else in the product points one way: the amount is an integer number of yen with no
+currency handling ever (§4), and §6's month boundary is a calendar month that only means one thing
+once a zone is fixed. **`#monthly-summary` inherits the same choice** — a month's boundary has
+exactly the problem this criterion has, so answering it here answers it there too, and answering it
+differently later would make an expense's month disagree with its own acceptance.
+
+It is still a question rather than an assumption because **a zone fixed in code is a business rule**,
+and the one place it belongs is the spec. Naming it in a resolver means the next reader learns the
+product's timezone from a comparison operator.
+
+### Where it lands
+
+A spec change, so `/hora-spec` and the user — the route §10.3 and §11's two clarifications took. The
+cheapest form is one sentence in §6 or §9.3 fixing the zone all dates in this product are read in,
+rather than a clause on this criterion alone; a per-criterion clause would leave §6's month
+undecided and invite the same question twice.
+
+**Not blocking.** Checkpoint 6 can implement the refusal against a single named constant, so the
+answer changes one value rather than a comparison scattered through a validator. What checkpoint 6
+must not do is compare in whatever zone the host happens to run in — that is how this stops being a
+decision and becomes a deployment accident.
