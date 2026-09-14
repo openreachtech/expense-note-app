@@ -130,7 +130,7 @@ gets wrong once and a member of staff discovers by losing a memo.
 ## Backend gate
 - [x] 3. DB and API schemas  <!-- skills: hor-graphql-schema, hor-type-interface, hor-database-design, hor-sequelize-model, hor-sequelize-migration, hoc-naming, hoc-jsdoc; digests: hora-skills-ort-renchan 0.1.0 and hora-skills-ort-core 0.2.0 -- ALL REUSED from #sign-in, none taken here, the installed versions being unchanged. NO MIGRATION, deliberately: section 11 operates on section 9.3's `expenses`, which #data-model shipped complete including the status seam and the composite (staff_member_id, spent_on) index. Verified against sections 9.2 and 9.3 rather than rebuilt. The SDL match with the pinned contract was established by AST comparison, not by eye: 11 types and 5 operations, zero DIFF, zero EXTRA. Q48 raised -- the contract exposes createdAt/updatedAt, which hor-graphql-schema forbids by name; the contract wins and the question goes to the user -->
 - [x] 4. Stub API  <!-- REACHED IN PART. skills: hor-stub-api; digest reused from #sign-in at hora-skills-ort-renchan 0.1.0, none taken here. Five schema-accurate stubs, same class names and interfaces as the real resolvers will have. "Callable from outside" is evidenced IN PROCESS through the framework's own schema-and-resolver path with contextValue: null, NOT over a socket -- Q24, and the record separates the two claims deliberately. Q28's statement is in all five docblocks and is sharper here than at #sign-in, because every operation this feature adds is SUPPOSED to require a session. Q33 fired a second time via the shared SQLite file, as checkpoint 3 predicted -->
-- [ ] 5. The modules the implementation needs
+- [x] 5. The modules the implementation needs  <!-- catalog check FIRST and once for the whole checkpoint, then three implementer units. 33 tracked packages searched: adopted renchan-sequelize's PaginationMixinModel, mentsu-deep-value-converter and mentsu-value-inspector; DECLINED mentsu-field-path-value-extractor (the only nested read is two deep, which the style rule permits) and jest-deep-containing / jest-expect-each (nothing needs them) -- declines recorded because "not used" and "not considered" look identical later. Modules: the expenses development seeder (14 rows, block 102), CalendarDateInspector behind CALENDAR.TIMEZONE, and PaginationMixinModel on Expense. Every import CONFIRMED TO RESOLVE by the main session rather than taken from the units' reports. MY BRIEF WAS WRONG about Expense.findAllWithPagination -- it is Expense.$.findAllWithPagination, and the unit caught it. Q38 found already broken in expenses by #data-model's own test, amended with the measurement. Q49 behind one constant, labelled recommended-not-decided. I caused Q33's third instance by running three units in parallel on one SQLite file -->
 - [ ] 6. Actual API
 - [ ] 7. Worker
 - [ ] 8. Security audit
@@ -274,6 +274,129 @@ requirement on the backend, in the same move.
 
 **49 suites, 776 tests, lint clean.** Baseline was 736. No conflict-proof file needed a change —
 `resolver-id-hash-staff.js` would have been one, and checkpoint 3 already filled it.
+
+
+## Checkpoint 5 - three modules, and a brief of mine that was wrong
+
+**Exit condition met.** Every module checkpoint 6 imports exists and was confirmed to resolve by the
+main session, not taken from the units' reports - each unit sees its own module and none of its
+siblings'.
+
+| What checkpoint 6 imports | Resolves |
+|---|---|
+| `Expense.$.findAllWithPagination` | `function` |
+| `CalendarDateInspector` - `isWellFormed()`, `isAfterToday()` | `true` / `false` at the boundary instant |
+| `CALENDAR.TIMEZONE` | `Asia/Tokyo` |
+| `RequestPagination#createFindOptions()` | `{"limit":5,"offset":10,"order":[]}` |
+| `IntegerValueInspector` | `0` not positive; `'1200'` integer-like |
+| fourteen seeded `expenses` rows | present after `db:refresh` |
+
+**59 suites, 1087 tests, lint clean**, run by the main session with nothing else running. Baseline
+was 49 and 776.
+
+### The catalog check, which is this checkpoint's mandated first delegate
+
+Run **once for the whole checkpoint** before any module was written, which is the point of the rule
+- left to the units the search runs once per module and can answer differently each time. 33 tracked
+packages. Three adopted, two declined, and the declines are recorded because "not used" and "not
+considered" look identical later:
+
+- **`renchan-sequelize`'s `PaginationMixinModel`** - already a dependency.
+- **`mentsu-deep-value-converter`** - the instant-to-calendar-date conversion in a named zone.
+- **`mentsu-value-inspector`** - the presence, positive and integer-like predicates. **This one
+  aligns the feature with `input-validators.md`, which already prescribes delegating to a value
+  inspector.** This repository had none and `#sign-in` hand-rolled its predicates, so the package is
+  not a second style - it is the rule's style, arriving late.
+- **`mentsu-field-path-value-extractor` - declined.** The only nested read this feature makes is an
+  expense's category name, two levels deep, which `javascript-style.md` permits as direct property
+  access.
+- **`jest-deep-containing` / `jest-expect-each` - declined.** They back matchers the testing rule
+  assumes and neither is installed, but nothing here needs them.
+
+### My brief was wrong, and the unit is what caught it
+
+I briefed `Expense.findAllWithPagination(...)`, **taking the catalog agent's report at its word**.
+It does not exist - the mixin's statics land on a handler, so the call is
+`Expense.$.findAllWithPagination(...)`. The unit probed it rather than following the brief, and
+checkpoint 6 would otherwise have met `undefined is not a function`.
+
+**The same report also said the date converter defaults to UTC when the timezone is not bound. It
+throws.** I measured that one myself before briefing on it, which is the only reason it did not
+propagate. Two claims from one report, one checked and one not, and the unchecked one was wrong -
+that is the lesson rather than anything about the agent.
+
+### Two traps turned into tests instead of notes
+
+- **`findAllWithPagination` is `count()` + a scoped `findAll()`, not `findAndCountAll()`**, and the
+  limit and offset arrive through the scope. **Putting `limit` into `options` silently produces a
+  wrong total** - no error, a plausible number. Pinned by a test across a first page, a last partial
+  page and a second owner's shorter set.
+- **`count(options)` takes the same `include` the `findAll` gets.** Both associations are
+  `belongsTo`, so nothing multiplies rows and the count is exact without `distinct: true` - asserted
+  by a test that runs *with* the include. The comment states the limit of that claim, because the
+  first `hasMany` include added here breaks it quietly, and `#monthly-summary` is the likely place.
+- And the value object's getter is **`totalNumber`** while the contract's field is `totalRecords`.
+  A mismatch that compiles.
+
+### Q38 turned out to be already broken here, by a test older than the question
+
+`expenses` held rows whose minimum id is `10000222` - block `100`, `#data-model`'s - because
+`tests/_orders/Expense/Expense.js` calls `Expense.create({ id, ... })` directly. **So a test already
+writes explicit ids into a product-written table**, which is exactly what Q38 says is unsafe.
+
+Measured rather than reasoned: the real DDL carries the `AUTOINCREMENT` keyword, so SQLite keeps a
+**high-water mark** and an explicit insert *below* it does not move it. Block `100` therefore sits
+permanently beneath the mark this feature's block-`102` seeder sets at every refresh. Three things
+hold that up and **none is written down anywhere** - that prefixes are issued ascending, that the
+seeder runs at all (it did not exist until this checkpoint, and before it the mark was set by
+whichever explicit insert ran first, which *is* the Q38 sequence), and that the dialect keeps a
+high-water mark. The third is SQLite's; **production is MariaDB and it was not measured**, so "an id
+is never reused after a hard delete" is not a claim made here about production. Q38 is amended with
+all of it.
+
+**The seeder's own safety is the stronger claim and is stated as such**: it runs once, in one
+`bulkInsert`, before any product code in that process, so the collision mechanism is *absent* rather
+than unexercised. The prohibition it implies - no test may give an `expenses` row an explicit id -
+is only a rule, and it is written into the seeder's docblock rather than only here, so the person
+about to break it meets it at the moment of breaking it.
+
+### Q49, and what checkpoint 5 could honestly do about it
+
+Section 11 refuses an expense dated after today and **nothing names a timezone** - not the spec, not
+either env file, not `sequelize/config.cjs`. Measured at `2026-09-14T22:00:00.000Z`:
+
+```
+Asia/Tokyo -> today is 2026-09-15    an expense dated 2026-09-15 is accepted
+UTC        -> today is 2026-09-14    the same expense is refused as future-dated
+```
+
+That is 07:00 JST - **the rule inverts for the first nine hours of every working day**, which is what
+makes it a business rule rather than a detail. It is behind one constant set to `Asia/Tokyo` and
+labelled in its own comment as Q49's *recommended reading, not a confirmed decision*.
+
+**One correction to how I framed it when assigning the work:** I said an answer would change one
+line. It changes **two** literals - the constant and the test asserting the default. The unit kept
+the literal in the test deliberately, since a test reading the value under test would assert nothing,
+and reported the discrepancy rather than quietly satisfying my sentence.
+
+### My own process error, and it is the second of its kind
+
+**I ran all three units in parallel in one repository.** They ran `npm test` concurrently against a
+single SQLite file and corrupted each other: one `db:teardown` failed with the file busy, `test.sh`
+swallows that with a skip-on-teardown fallback, the run continued against a database that was never
+rebuilt, and it died several steps later on
+`SQLITE_CONSTRAINT: UNIQUE constraint failed: expense_categories.id` - **surfacing as five unrelated
+`_orders` suites going red.** Both units diagnosed it correctly, neither weakened anything to reach
+green, and the re-runs were clean.
+
+**This is Q33's shared-database order-dependence for a third time, and this time I caused it.** The
+units were independent in the files they touched, which is what I checked; they were not independent
+in the database they tested against, which I did not. The verification above was re-run serially by
+the main session for exactly that reason.
+
+**Also recorded because it cost a unit a confusing failure:** `npm test` and `npm run db:refresh`
+both begin an `export NODE_ENV` line and npm defaults to `cmd.exe` here, which answers that `export`
+is not recognized. `npm_config_script_shell=bash` is needed, and the acceptance gate will need it too.
 
 ## Frontend gate
 - [ ] 10. Open the frontend
