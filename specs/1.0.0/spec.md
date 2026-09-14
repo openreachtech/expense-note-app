@@ -336,7 +336,7 @@ Each mutation returns the identifier of what it wrote and nothing more; the scre
 <!-- id: expense-entry-screen -->
 <!-- target: frontend-staff -->
 
-For: a signed-in member of staff, looking at their own entries, most recent first.
+For: a signed-in member of staff, looking at their own entries, most recent first — ordered by `spent_on`, the day the money was paid, not the day the entry was recorded. §9.3 carries the index that read uses.
 
 | Calls | Kind | When |
 |---|---|---|
@@ -361,7 +361,7 @@ For: a signed-in member of staff, looking at their own entries, most recent firs
 - an expense dated after today is refused
 - the memo is optional: an expense recorded without one is accepted, and reads back with an empty memo rather than failing
 - correcting an entry changes it in place — the number of entries a member of staff has does not change
-- a removed entry is gone from every later read, and removing it a second time changes nothing
+- a removed entry is gone from every later read, and removing it a second time is answered as not found — the same answer somebody else's expense gets, so a removed entry and another member of staff's are indistinguishable
 - reading, correcting or removing an expense belonging to somebody else is answered as not found, and the answer says nothing about whether it exists
 - every operation this feature adds is refused without a session, before it reads anything
 
