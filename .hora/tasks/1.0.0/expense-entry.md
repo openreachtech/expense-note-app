@@ -116,13 +116,77 @@ That is not a spec hole — §11.1 declares exactly that input — but it is the
 gets wrong once and a member of staff discovers by losing a memo.
 
 ## Backend gate
-- [ ] 3. DB and API schemas
+- [x] 3. DB and API schemas  <!-- skills: hor-graphql-schema, hor-type-interface, hor-database-design, hor-sequelize-model, hor-sequelize-migration, hoc-naming, hoc-jsdoc; digests: hora-skills-ort-renchan 0.1.0 and hora-skills-ort-core 0.2.0 -- ALL REUSED from #sign-in, none taken here, the installed versions being unchanged. NO MIGRATION, deliberately: section 11 operates on section 9.3's `expenses`, which #data-model shipped complete including the status seam and the composite (staff_member_id, spent_on) index. Verified against sections 9.2 and 9.3 rather than rebuilt. The SDL match with the pinned contract was established by AST comparison, not by eye: 11 types and 5 operations, zero DIFF, zero EXTRA. Q48 raised -- the contract exposes createdAt/updatedAt, which hor-graphql-schema forbids by name; the contract wins and the question goes to the user -->
 - [ ] 4. Stub API
 - [ ] 5. The modules the implementation needs
 - [ ] 6. Actual API
 - [ ] 7. Worker
 - [ ] 8. Security audit
 - [ ] 9. Verify the use cases again, against the built API
+
+
+## Checkpoint 3 — the API schema, and a DB half that was already built
+
+**The DB half needed nothing, and that is a finding rather than an omission.** §11 operates on §9.3's
+`expenses`, which `#data-model` shipped complete — every column including the `status` approval seam,
+the composite `(staff_member_id, spent_on)` index the ordering decision depends on, both models with
+their associations, a `verifyExpenseCategory` hook on all three write paths, and the four categories
+seeded in `master/` and `dev-master/`. All of it was read against §9.2 and §9.3 and found sufficient.
+
+**Nothing was added because nothing was missing.** Recorded explicitly because **"no migration" and
+"migration forgotten" look identical in a diff**, and this is the first feature where that
+distinction arises. **This is the digest-and-derivation system paying off in the other direction
+too:** no new digest was taken at this checkpoint either — the seven `#sign-in` took are still at the
+installed package versions.
+
+### The contract match was mechanical, not visual
+
+A throwaway script parsed the pinned contract and the concatenation of all three SDL files with
+graphql's own `parse()`, then compared `print()` of each definition's AST node by name — Query and
+Mutation field by field, because those merge across files.
+
+**Eleven types and five operations OK, zero DIFF, zero EXTRA.** The only `MISS` lines were
+`monthlyExpenses` and its two types: `#monthly-summary`'s `004-` file, correctly absent.
+
+The tests assert the **built, merged** schema through the framework's own `GraphqlSchemaBuilder`, not
+the file's text — so a duplicate declaration of `Pagination` or `DateTime` fails them too — and each
+case asserts the canonical `print()` of an AST node, which means **an added field fails as loudly as
+a missing one**. Falsified rather than assumed: changing `memo: String` to `String!` turns exactly 3
+of 16 red, which is §11's "the memo is genuinely optional" criterion.
+
+### A new arbitration shape: skill versus *contract*
+
+Q48 records it. `hor-graphql-schema` §5.1 forbids `createdAt` / `updatedAt` by name; the pinned
+contract declares both on `Expense`. **The unit wrote what the contract says and reported the
+divergence rather than renaming anything**, which is right — checkpoint 14's rule is that the
+contract is authoritative and wanting it changed is a question, not an edit.
+
+**This is a fifth category for the arbitration taxonomy**, and it behaves like the first: there *is*
+a standing authority (the contract), so the resolution is mechanical once noticed, and the entire
+cost is detection. What differs is only which authority decides — Q10's rule for skill-versus-rule,
+the contract for skill-versus-contract.
+
+**It is worth asking now rather than later** because `#monthly-summary` reuses this exact `Expense`
+type, by the contract's own design, so the cost of changing it rises with every checkpoint that
+lands. And the hazard is sharp in this feature specifically: `spentOn` is the day the money was paid
+and `createdAt` the day the entry was typed — §11's whole ordering question turned on those being
+different, and a field named `createdAt` beside `spentOn` invites exactly the confusion §11.2 had to
+be clarified to avoid.
+
+### Two traps handed forward rather than discovered later
+
+- **Checkpoint 6 will need `createdAt` / `updatedAt` off the entity**, and `types/models/Expense.d.ts`
+  deliberately declares neither — they are framework-managed and absent from the model's attributes,
+  by that file's own comment. So the resolver owes either a cast or an addition to a `#data-model`
+  file. Named now so it is not met mid-resolver.
+- **`tests/__tests__/sequelize/seeders/master/expense_categories.js` asserts the *entire*
+  `expense_categories` row set with `toEqual`.** The unit's first full run failed it — not from its
+  own work, but because ~130 rows named `expense category 100003xx` were left in the SQLite file by
+  an earlier `_orders` run. **Any test in checkpoints 5 or 6 that creates a category row and does not
+  delete it turns a different feature's test red.** This is Q33's order-dependence finding, now with
+  a second way to trigger it.
+
+**43 suites, 736 tests, lint clean.** Baseline was 720.
 
 ## Frontend gate
 - [ ] 10. Open the frontend
