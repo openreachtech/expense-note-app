@@ -2375,8 +2375,16 @@ zones disagree for part of every day:
 
 | Real moment | Today in UTC | Today in Asia/Tokyo | An expense dated 2026-09-15 |
 |---|---|---|---|
-| 2026-09-15 08:00 JST | 2026-09-14 | 2026-09-15 | **refused** under UTC, accepted under JST |
+| 2026-09-15 07:00 JST | 2026-09-14 | 2026-09-15 | **refused** under UTC, accepted under JST |
 | 2026-09-14 23:00 JST | 2026-09-14 | 2026-09-14 | refused under both |
+
+**That first row is measured, not argued.** At the instant `2026-09-14T22:00:00.000Z`, which is 07:00
+on the 15th in Tokyo:
+
+```
+Asia/Tokyo  -> 2026-09-15     '2026-09-15' is after today?  false   (accepted)
+UTC         -> 2026-09-14     '2026-09-15' is after today?  true    (refused)
+```
 
 So under a UTC comparison **a member of staff recording this morning's train fare before 09:00 local
 time is told the date is in the future.** That is the single most ordinary thing this feature exists
@@ -2401,7 +2409,23 @@ cheapest form is one sentence in §6 or §9.3 fixing the zone all dates in this 
 rather than a clause on this criterion alone; a per-criterion clause would leave §6's month
 undecided and invite the same question twice.
 
-**Not blocking.** Checkpoint 6 can implement the refusal against a single named constant, so the
-answer changes one value rather than a comparison scattered through a validator. What checkpoint 6
-must not do is compare in whatever zone the host happens to run in — that is how this stops being a
-decision and becomes a deployment accident.
+**Not blocking.** Checkpoint 6 implements the refusal against a single named constant, so the answer
+changes one value rather than a comparison scattered through a validator. What checkpoint 6 must not
+do is compare in whatever zone the host happens to run in — that is how this stops being a decision
+and becomes a deployment accident.
+
+### One piece of good news, measured at checkpoint 5
+
+The conversion is done by `DateToDateonlyValueConverter` from `@openreachtech/mentsu-deep-value-converter`,
+which the catalog check found and which checkpoint 5 installed. **It cannot silently pick a zone**:
+called without `.by({ timezone })` it throws
+
+```
+DateToDateonlyValueConverter.get:boundArgument must be inherited
+```
+
+rather than defaulting to UTC. So the failure mode this question was raised against — a zone nobody
+chose, quietly in force — is not reachable through this path. **The zone still has to be chosen; it
+just cannot be chosen by accident.** Checkpoint 5 sets the constant to `Asia/Tokyo` as this
+question's recommended reading, and labels it in the constant's own comment as recommended rather
+than decided.
