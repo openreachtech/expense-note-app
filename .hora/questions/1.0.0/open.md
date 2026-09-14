@@ -1750,6 +1750,51 @@ the sentence saying which tables it can protect. Same for `migrations-and-seeder
 rule. Neither is this repository's file. Adjacent to Q33, which recorded two other ways this
 shared-database test tree depends on order.
 
+### Amended at `#expense-entry`'s checkpoint 5 — the invariant is already broken here, and the reason it does not bite is not one anybody chose
+
+Looking for somewhere to put this feature's seeder, the `expenses` table turned out to hold 28 rows
+whose **minimum id is `10000222`** — block `100`, which is `#data-model`'s. The source is
+`tests/_orders/Expense/Expense.js`, which calls `Expense.create({ id: params.expenseId, … })`
+directly. **So a test already writes explicit ids into a product-written table**, and it was written
+before this question existed.
+
+**It is harmless today, and the reason is exact rather than reassuring.** Measured, not argued:
+
+```
+CREATE TABLE t (id INTEGER PRIMARY KEY AUTOINCREMENT, …)   -- the real DDL for `expenses`
+
+insert explicit 10200014  (the block-102 seeder's top)  -> sqlite_sequence = 10200014
+insert explicit 10000222  (the block-100 test row)      -> sqlite_sequence = 10200014   unchanged
+product write                                           -> assigned 10200015
+delete the top row, then write again                    -> assigned 10200016   never reused
+```
+
+With the `AUTOINCREMENT` keyword SQLite keeps a **high-water mark** rather than recomputing
+`max(id) + 1`, and **an explicit insert below the mark does not move it**. Block `100` ids therefore
+sit permanently beneath the mark that `#expense-entry`'s block-`102` seeder sets on every refresh,
+and can never be handed out by auto-increment.
+
+**Three things hold that up, and not one of them is written down anywhere:**
+
+1. **That prefixes are issued in ascending order**, so a later feature's block is always above an
+   earlier one's. True of `hor-bank-id` today; nothing says it is a guarantee rather than an
+   implementation detail.
+2. **That the block-`102` seeder runs at all.** It did not exist until this checkpoint. Before it,
+   `expenses` was empty after a refresh and the mark was set by whichever explicit insert ran first
+   — which is precisely the Q38 sequence. The protection arrived by accident, as a side effect of a
+   different feature needing fixtures.
+3. **That the dialect keeps a high-water mark.** This is SQLite's behaviour and tests only ever run
+   on SQLite, so Q38's collision is fully answered by it. **It is not measured for MariaDB**, which
+   is what production runs, and it should not be assumed to transfer — `removeExpense` hard-deletes
+   (there is no `deleted_at` on this model), so "an id is never reused" is a claim about production
+   that nothing here has established.
+
+**What this changes about the question.** Q38 asked for one sentence saying which tables the id-block
+convention can protect. This says the sentence is needed more than it looked: the convention is
+already being used on a table it cannot protect, by a test nobody thought was doing anything unusual,
+and the thing standing between that and an intermittent failure is the insert order of two unrelated
+features' fixtures.
+
 ## Q39. Both backend CI workflows passed their test flags to npm instead of to the test script
 
 <!-- spec: none -->
