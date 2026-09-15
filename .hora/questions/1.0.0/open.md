@@ -2489,3 +2489,47 @@ chose, quietly in force — is not reachable through this path. **The zone still
 just cannot be chosen by accident.** Checkpoint 5 sets the constant to `Asia/Tokyo` as this
 question's recommended reading, and labels it in the constant's own comment as recommended rather
 than decided.
+
+## Q50. No maximum page size is decided anywhere, so a caller may ask for every row at once
+
+<!-- spec: expense-entry -->
+<!-- blocking: no -->
+<!-- category: spec-gap -->
+
+Found at `#expense-entry`'s checkpoint 6, implementing the `expenses` query. **The unit validated
+that the limit is a positive whole number and stopped there, writing the gap into the validator's
+docblock rather than inventing a ceiling** — which is right, because a maximum page size is a
+product decision with a performance consequence, not an implementation detail.
+
+`PaginationInput.limit` is `Int!`. §11 fixes no maximum, the pinned contract declares none, and
+nothing in §7's non-functional requirements names one. So `expenses(input: { pagination: { limit:
+100000 } })` is a legal request and is served.
+
+### Why it is worth a decision rather than a shrug
+
+Today the answer is small — a member of staff has at most a few hundred expenses, and §11 scopes
+every read to the caller's own. So this is not a live defect and is not blocking.
+
+What makes it worth deciding is that **the shape is permanent and the data is not.** A member of
+staff who has used the product for three years, or an operator who later gets a screen spanning
+several people, turns one request into a whole-table read with every category joined. And
+`#monthly-summary` reuses this exact pagination shape, so whatever is decided here is inherited
+there — the same way Q49's timezone was.
+
+**It is also the cheapest possible fix at this moment**: one more entry in
+`generateValidationEntries()` and one more `203.Q002.*` code, in a file that was written this
+checkpoint. After the frontend is built against an unbounded limit, a ceiling becomes a change that
+can break a screen.
+
+### What a decision would need to say
+
+Only two things: the maximum, and what happens when a caller exceeds it — refused as invalid input,
+or silently clamped. **Refusing is the better default and the harder one to get wrong**: clamping
+means a caller asks for 500, receives 100, and is given a `pagination` block that says so only if
+they read it, which is how a screen ends up showing a partial list it believes is complete.
+
+### Where it lands
+
+A spec change — §7's non-functional requirements is the natural home, since it is a limit rather
+than a behaviour of this feature alone. Adjacent to Q49 in shape: a rule that lives in a backend
+constant today and in no document.
