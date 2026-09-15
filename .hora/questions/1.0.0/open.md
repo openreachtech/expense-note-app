@@ -2397,6 +2397,21 @@ Adjacent to Q37, which is the other contract-level question about this type fami
 <!-- spec: expense-entry -->
 <!-- blocking: no -->
 <!-- category: spec-gap -->
+<!-- answered: Asia/Tokyo -->
+
+> **ANSWERED — `Asia/Tokyo`.** Put as its own question and answered as itself rather than waved
+> through on a standing approval, which is what this question asked for.
+>
+> **By the peer session's user, not by this session's.** The same distinction recorded for the
+> `specs/` merge at `a9cb3dc`: a reader tracing this decision should look there, and should not
+> assume the two are one person. The value was already `Asia/Tokyo` as the recommended reading, so
+> **nothing observable changed when the answer arrived — only its standing.**
+>
+> Applied at `1849f7d`, which relabels the constant and records who decided it.
+> **The spec still does not name a zone**, so the sentence is proposed as **pull request #22**
+> against `release/1.0.0`, touching §6 and nothing else. Until that merges, a backend constant is
+> the only place the product's timezone is written down — which is the condition this question was
+> raised about, not a resolution of it.
 
 Found at checkpoint 5 of `#expense-entry`, while establishing what checkpoint 6 has to import. It is
 raised rather than decided because **it changes which expenses a member of staff can record**, which
