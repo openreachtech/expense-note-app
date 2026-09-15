@@ -371,8 +371,17 @@ UTC        -> today is 2026-09-14    the same expense is refused as future-dated
 ```
 
 That is 07:00 JST - **the rule inverts for the first nine hours of every working day**, which is what
-makes it a business rule rather than a detail. It is behind one constant set to `Asia/Tokyo` and
+makes it a business rule rather than a detail. It went behind one constant set to `Asia/Tokyo` and
 labelled in its own comment as Q49's *recommended reading, not a confirmed decision*.
+
+**Answered after this checkpoint closed: `Asia/Tokyo`, and the constant now says so** (`1849f7d`).
+It was put as its own question and answered as itself rather than waved through on a standing
+approval. **The answer came from the peer session's user, not from this session's**, and both the
+constant and Q49 say so rather than flattening it to "the user decided" - the same distinction
+recorded for the `specs/` merge at `a9cb3dc`. Nothing observable changed, because the value was
+already what the recommendation said; only its standing did. **The spec still names no zone**, so
+that sentence is pull request #22 and a backend constant remains the only written record until it
+merges.
 
 **One correction to how I framed it when assigning the work:** I said an answer would change one
 line. It changes **two** literals - the constant and the test asserting the default. The unit kept
