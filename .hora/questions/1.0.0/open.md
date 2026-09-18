@@ -2261,6 +2261,47 @@ Adjacent to Q42, Q44 and Q45 — four separate things `furo-boilerplate-nuxt 2.1
 built from it. **This is the only one of the four that is a security defect.**
 
 
+### Amended at `#expense-entry`'s checkpoint 6 — the same mechanism ran backwards, three times, and it was predicted
+
+Q46's mechanism is the fifth entry in this project's "no test could catch it" list: **the check met
+the failure and took its side.** A test asserted `createStorageClerk()` called
+`StorageClerk.createAsLocal()`, so the suite defended the defect and every run was green.
+
+Checkpoint 6 produced **the mirror image of that, on purpose, three times in one checkpoint.** Each
+time an `actual/` resolver landed, a passing assertion in
+`tests/__tests__/server/graphql/resolvers/staff/stub/execute-expense-stub-operations.js` went red:
+
+| Operation | What the suite had asserted | What landing the resolver made true |
+|---|---|---|
+| `expenses` | twelve stub entries answered to a caller with no context at all | refused, `102.X000.001` |
+| `expenseCategories` | the category list answered to anybody | refused, `102.X000.001` |
+| `recordExpense` | `expenseId: 9113` answered to anybody | refused, `102.X000.001` |
+
+**So a check met correctness and called it failure.** The red was not a regression; it was §11's own
+criterion — "every operation this feature adds is refused without a session, before it reads
+anything" — becoming true, and the test that had encoded the earlier, weaker world reporting the
+change as a fault.
+
+**Both directions are one fact: a suite measures agreement between code and tests, and agreement is
+not correctness.** What differs is only which way the disagreement points, and that difference
+decides whether anybody looks:
+
+- **Q46's direction is the dangerous one.** Code and test agree on something wrong, the suite is
+  green, and nothing ever asks. It survived from the boilerplate into this repository and was found
+  by reading the spec against the code, not by running anything.
+- **This direction is the recoverable one.** Code and test disagree, the suite is red, and red gets
+  looked at. The cost is a rewrite of the assertion; the failure mode is only that somebody
+  "fixes" the red by deleting the test instead of strengthening it — which is why each of the three
+  was rewritten into the stronger claim rather than removed, and why the checkpoint records say so.
+
+**The third thing worth recording is that this was predicted.** Checkpoint 4's record, written
+before any `actual/` resolver existed, said: *"the moment an `actual/` resolver lands for any of
+these five, that field acquires a filter and the stub stops being reachable."* It has now happened
+three times, on schedule, and each time the prediction is what made the red diagnosable in seconds
+rather than investigated. **A prediction that fires three times is doing work rather than decorating
+the file** — which is the argument for writing the consequence down at the checkpoint that creates
+it, not at the one that suffers it.
+
 ## Q47. furo-vue omits one of its own transitive requirements, and `--legacy-peer-deps` turns that into a CI-only build failure
 
 <!-- spec: none -->
