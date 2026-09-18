@@ -2593,3 +2593,64 @@ they read it, which is how a screen ends up showing a partial list it believes i
 A spec change — §7's non-functional requirements is the natural home, since it is a limit rather
 than a behaviour of this feature alone. Adjacent to Q49 in shape: a rule that lives in a backend
 constant today and in no document.
+
+## Q51. No `_orders` suite in this repository is re-runnable, and the new ones are no better
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Found at `#expense-entry`'s checkpoint 6. **Measured rather than reported**: a unit claimed the
+pre-existing `tests/_orders/Expense/Expense.js` was not re-runnable while its own new file was, and
+**that second half is false.** Running the folder twice with no refresh between:
+
+```
+run 1                    Test Suites: 1 passed    Tests: 59 passed
+run 2, no refresh        Test Suites: 1 failed    Tests: 23 failed, 36 passed
+```
+
+and the failures come from **both** files, not one:
+
+- `Expense.js` (`#data-model`'s) fails on unique-constraint violations — it creates
+  `expense_categories` and `staff_members` rows with explicit ids, which are already there the
+  second time.
+- `RecordExpenseMutationResolver.js` (written this checkpoint) fails on its read-backs — it asserts
+  a member of staff's page holds exactly the one row the case recorded, and on a second run it
+  holds two. `- Expected - 1 / + Received + 57`.
+
+### Why this is a convention gap and not a defect in either file
+
+**`test.sh` tears the database down, sets it up and seeds it on every run**, in that order, before
+either phase. So under `npm test` — the only way anybody is asked to run the suite — the database is
+always fresh and neither failure is reachable. Both files are correct against the contract they were
+written to.
+
+What is missing is **the contract being written down.** Nothing in the repository says "an `_orders`
+test may assume a freshly seeded database", so:
+
+- a developer who runs `npx jest tests/_orders/...` directly to iterate on one file gets failures
+  that look like defects in the code under test,
+- and the second run's failures name unique constraints and row counts rather than saying "you
+  needed a refresh", which is exactly the signature that cost this project a round of diagnosis at
+  Q38.
+
+### What it interacts with
+
+This is the fourth manifestation of the same shared-database coupling. **Q33** recorded the
+order-dependence between phases; **Q38** recorded explicit ids colliding with auto-increment in a
+product-written table, and its amendment recorded that `#data-model`'s test is already doing what
+Q38 forbids; **the checkpoint 5 record** has a parallel-execution instance I caused myself. All four
+are the same root: one SQLite file, many writers, and no statement of who may assume what about its
+state.
+
+### Where it lands
+
+Not a spec matter. Either a sentence in the repository's own test documentation, or — better,
+because it is mechanical — a guard that makes the assumption explicit rather than remembered. The
+cheapest honest version is a line in `tests/_orders/`'s own barrel or README saying the phase
+assumes a freshly seeded database and naming `npm test` as the only supported entry point.
+
+**Deliberately not fixed here.** Making these suites re-runnable means either per-test cleanup or
+relative assertions, and relative assertions are strictly worse — a test asserting "one more row
+than before" passes when the operation writes the wrong row. The fresh-database assumption is the
+right one; it just needs saying.
