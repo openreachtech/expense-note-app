@@ -75,7 +75,8 @@ Baseline: not applicable — nothing is inherited
 |---|---|
 | expense | one payment a member of staff made and records: the date it was paid, the amount, a category and an optional memo |
 | category | the fixed set an expense is filed under — transport, meals, supplies, other |
-| month | the calendar month an expense's date falls in. The unit a list and a total are taken over |
+| month | the calendar month an expense's date falls in, read in `Asia/Tokyo`. The unit a list and a total are taken over |
+| today | the current calendar date in `Asia/Tokyo` — the timezone every date in this product is read in. An expense dated after it is refused (§11) |
 | own entry | an expense recorded by the member of staff who is signed in. Nobody sees anybody else's |
 | session | a member of staff's signed-in state, held by two tokens rather than one — a short-lived access token the client sends, and a refresh token the browser keeps as a cookie. Signing out ends it |
 | access token | the credential the client sends on a request header, and what proves a session for every operation except the three §7 names — `signIn`, `signOut` and `renewAccessToken`. Lives fifteen minutes (§9.6). Held in memory, never in a cookie |
