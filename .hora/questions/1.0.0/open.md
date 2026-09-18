@@ -2440,19 +2440,38 @@ Adjacent to Q37, which is the other contract-level question about this type fami
 <!-- category: spec-gap -->
 <!-- answered: Asia/Tokyo -->
 
-> **ANSWERED — `Asia/Tokyo`.** Put as its own question and answered as itself rather than waved
-> through on a standing approval, which is what this question asked for.
+> **CLOSED — `Asia/Tokyo`, and it is in the specification rather than in a constant.**
 >
-> **By the peer session's user, not by this session's.** The same distinction recorded for the
-> `specs/` merge at `a9cb3dc`: a reader tracing this decision should look there, and should not
-> assume the two are one person. The value was already `Asia/Tokyo` as the recommended reading, so
-> **nothing observable changed when the answer arrived — only its standing.**
+> **§6 is now the authority.** Pull request #22 merged at `6266dba`, and both rows were read off
+> the release tip rather than inferred from the merge: §6 line 78 gives `month` "read in
+> `Asia/Tokyo`", line 79 adds a `today` row. So the rule this question was raised about is written
+> where a business rule belongs, and the backend constant cites the spec instead of standing in for
+> it.
 >
-> Applied at `1849f7d`, which relabels the constant and records who decided it.
-> **The spec still does not name a zone**, so the sentence is proposed as **pull request #22**
-> against `release/1.0.0`, touching §6 and nothing else. Until that merges, a backend constant is
-> the only place the product's timezone is written down — which is the condition this question was
-> raised about, not a resolution of it.
+> **Who merged it, measured from the API rather than relayed:** `state=closed merged=true
+> merged_by=hieuguyen-ort merge_commit=6266dba`. **`hieuguyen-ort` is the account this session
+> itself commits as** — so the spec change was performed by the user, in the repository, under
+> their own identity, after being shown both hunks verbatim. That is a stronger act than an answer
+> relayed through a session, and it is the strongest form available here.
+>
+> **What it does and does not settle about the earlier worry.** This question and the `specs/` merge
+> at `a9cb3dc` were both recorded as answered by *the peer session's user*, deliberately, because
+> this session had never put either to its own user and the two should not be written as one person
+> without evidence. `merged_by` is now that evidence for #22 specifically. It makes one person the
+> most likely reading throughout — but it establishes which **account** acted, and two sessions can
+> be configured with one account, so the earlier entries are left as written rather than
+> retroactively re-attributed. **A record that says "at least as strong as this" is honest; one that
+> quietly upgrades the past is not.**
+>
+> **The provenance inversion is resolved, which was the point of asking.** The specification now
+> carries authority at least as strong as the code it authorises. Before #22 the constant had been
+> answered to a specific question while the spec said nothing — so the artifact meant to govern the
+> rule was weaker than the artifact obeying it.
+>
+> Applied to the code at `1849f7d`. `#monthly-summary` now inherits the zone by **reading §6**
+> rather than by inheriting a decision, and the reason `month` and `today` had to share it — or an
+> expense's month could disagree with its own acceptance — is a property of the spec rather than of
+> one session's reasoning about it.
 
 Found at checkpoint 5 of `#expense-entry`, while establishing what checkpoint 6 has to import. It is
 raised rather than decided because **it changes which expenses a member of staff can record**, which
