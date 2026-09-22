@@ -173,6 +173,54 @@ deployed side, where a seeder has no business carrying a real password.
 state all seven need. Re-walking them here would check the same thing against a spec that has
 not changed for them.
 
+
+## Correction, made at `#expense-entry`'s backend gate: every backend `_orders` figure above was SERIAL
+
+**This feature is closed and its records are otherwise unamended. This one sentence is owed
+throughout, so it is stated once here rather than edited into thirty places.**
+
+Every backend suite figure in this file — `720 + 195`, `876`, `915`, and the per-checkpoint counts —
+was produced by plain `npm test`. **`test.sh`'s default path runs `tests/_orders/` as
+`jest --detectOpenHandles`, with no `maxWorkers` flag, and `--detectOpenHandles` implies
+`--runInBand`.** So the `_orders` half of every one of those numbers was measured **serially**.
+
+**CI has never run it that way.** `.github/workflows/test-with-sqlite.yml` runs
+`npm test -- --seeded --maxWorkers=3 tests/_orders/` — three workers against one SQLite file — and
+`test-with-mariadb.yml` does the same for the live suites.
+
+### What that does and does not mean for this feature
+
+**It does not mean these numbers were wrong.** The tests they count did pass, and they pass today.
+`#sign-in`'s CI was green at the time, so the concurrency it was actually subjected to held.
+
+**It means they were incomplete, and the sentence naming the command was missing.** A suite figure
+without its invocation is not a claim anybody can check, and this file made that claim eighteen
+times.
+
+**And the exposure was already live here, silently.** The two mechanisms found at `#expense-entry`'s
+gate — `SQLITE_BUSY` from `SignIn` holding SQLite's single writer lock through bcrypt, and one
+worker's assertion reading another worker's rows — are **properties of this feature's own suites**
+meeting a shared database. `#expense-entry` did not introduce them; it added about ninety
+write-heavy `_orders` tests, which widened the window until CI started losing. **The pairwise bisect
+that isolated it names `SignIn` as one of the two colliding barrels.**
+
+So the honest reading is: `#sign-in` shipped a latent concurrency defect in its test suite, its own
+gate could not have seen it because the gate's command was serial, and it took a later feature's
+volume plus an external runner to surface it. Fixed at `#expense-entry`'s gate by isolating the
+database per jest worker.
+
+### The frontend figures are unaffected
+
+`337 frontend tests` and the other `expense-note-frontend-staff` counts come from a different
+repository with a different runner and no shared database. Nothing above applies to them.
+
+### Where this is recorded properly
+
+**Q51**, amended at the same time to separate the two defects it had conflated — re-runnability and
+write concurrency share the shared-database coupling but have different triggers, symptoms and
+fixes. The standing practice that follows: **when reporting a suite as green, name the command; and
+if it is not the command CI runs, say so in the same sentence.**
+
 ## Row-id prefix — `101`, and a correction
 
 **`101` is this feature's row-id prefix**, allocated through the equipped allocator skill with
