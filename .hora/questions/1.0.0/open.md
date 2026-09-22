@@ -1098,6 +1098,79 @@ verified by running the framework's own `SchemaFilesLoader` over the real direct
 `makeExecutableSchema` over the result — the same code path minus the socket. What could not be
 exercised is `listen(4900)` and an HTTP probe of the endpoint.
 
+### Amended at `#expense-entry`'s checkpoint 6 — the supported platform is WSL, and the defect does not reproduce there
+
+Raised upstream, and the maintainers' answer was that Hora Kit is required to run on WSL. **Measured
+on both platforms from this machine, importing a real file of this repository two ways:**
+
+```
+platform      : win32
+absolute path : D:\ORT\...\sequelize\models\Expense.js
+raw absolute path        -> FAILED ERR_UNSUPPORTED_ESM_URL_SCHEME
+pathToFileURL(...).href  -> IMPORTED
+
+platform      : linux                (WSL2, Ubuntu, Node v22.22.3)
+absolute path : /mnt/d/ORT/.../sequelize/models/Expense.js
+raw absolute path        -> IMPORTED
+pathToFileURL(...).href  -> IMPORTED
+```
+
+A POSIX absolute path begins `/`, which Node's ESM loader accepts; a Windows one begins `D:\`, and
+Node reads `d:` as a URL scheme. **So the defect is real and the diagnosis stands, but its scope is
+native Windows only** — not "no renchan application starts", but "no renchan application starts on
+native Windows, which is not where this is meant to run".
+
+**This is the second correction to this entry in the same direction**, after the first narrowed it
+from "on this machine" to a defect in the package. Both narrowed. That is worth noticing about the
+entry rather than only about the defect.
+
+### The server still does not start on WSL, and the reason is now a different one
+
+**It gets past the loader.** Running `server/index.js` under WSL from this same tree fails at:
+
+```
+Error: .../node_modules/sqlite3/build/Release/node_sqlite3.node: invalid ELF header
+  code: 'ERR_DLOPEN_FAILED'
+```
+
+`node_modules` was installed by native Windows, so its compiled native bindings are Windows
+binaries. **That is a consequence of sharing one tree across two platforms, not a defect in
+anything** — and it is cleared by installing inside WSL, into a tree of its own so the Windows-side
+suite is not disturbed.
+
+**So the wall this project has been recording is two walls, and only the first was Q24.** Naming
+them separately matters because they have different fixes and different owners: the loader is
+upstream's and is now filed; the native modules are this project's environment setup, and belong to
+checkpoint 17.
+
+### What this does and does not do to the "reached in part" entries
+
+`#sign-in`'s checkpoints 14, 16 and 17, and `#expense-entry`'s checkpoint 4, all record evidence
+gathered **in process** rather than over a socket, with Q24 named as the reason.
+
+- **What stays true:** every one of those entries is accurate about *what was verified*. The
+  evidence was in-process; the express app, the middleware chain, the body limit and the CORS
+  allow-list were not exercised. That claim was measured and does not change.
+- **What must be narrowed:** the *reason* given. "The server cannot start" is true of native
+  Windows and false of the supported platform. Those entries should say **"was not started here"**,
+  and name both walls rather than only Q24.
+- **What is now possible and was not recorded as possible:** the socket is reachable on WSL once
+  the native modules are built there. **So these were not unreachable conditions — they were
+  unreached ones**, and the distinction is exactly the one this project keeps drawing between "no
+  collision occurred" and "no collision is possible".
+
+**WSL was available on this machine the entire time** — `wsl.exe --list` shows five distributions
+and an nvm carrying Node 20, 22 and 24. Nothing checked, and nothing in the records asked. That is
+the finding, and it is about the process rather than about the tooling.
+
+### The requirement is documented nowhere, which is its own finding
+
+`grep -rli wsl` over `@openreachtech/hora` and the boilerplate returns nothing: not the README, not
+`docs/`, not the spec, not the tree docs. What the boilerplate README does carry is a *Note for
+Windows* about `db:refresh` and `cmd.exe` — **an accommodation for Windows, which reads as support
+for it rather than a prohibition.** So a platform requirement that invalidates two findings and
+reclassifies four checkpoint records exists only in a Slack reply. Recorded as Q52.
+
 ## Q25. This repository's README is the boilerplate's, inherited verbatim
 
 <!-- spec: none -->
@@ -1750,6 +1823,51 @@ the sentence saying which tables it can protect. Same for `migrations-and-seeder
 rule. Neither is this repository's file. Adjacent to Q33, which recorded two other ways this
 shared-database test tree depends on order.
 
+### Amended at `#expense-entry`'s checkpoint 5 — the invariant is already broken here, and the reason it does not bite is not one anybody chose
+
+Looking for somewhere to put this feature's seeder, the `expenses` table turned out to hold 28 rows
+whose **minimum id is `10000222`** — block `100`, which is `#data-model`'s. The source is
+`tests/_orders/Expense/Expense.js`, which calls `Expense.create({ id: params.expenseId, … })`
+directly. **So a test already writes explicit ids into a product-written table**, and it was written
+before this question existed.
+
+**It is harmless today, and the reason is exact rather than reassuring.** Measured, not argued:
+
+```
+CREATE TABLE t (id INTEGER PRIMARY KEY AUTOINCREMENT, …)   -- the real DDL for `expenses`
+
+insert explicit 10200014  (the block-102 seeder's top)  -> sqlite_sequence = 10200014
+insert explicit 10000222  (the block-100 test row)      -> sqlite_sequence = 10200014   unchanged
+product write                                           -> assigned 10200015
+delete the top row, then write again                    -> assigned 10200016   never reused
+```
+
+With the `AUTOINCREMENT` keyword SQLite keeps a **high-water mark** rather than recomputing
+`max(id) + 1`, and **an explicit insert below the mark does not move it**. Block `100` ids therefore
+sit permanently beneath the mark that `#expense-entry`'s block-`102` seeder sets on every refresh,
+and can never be handed out by auto-increment.
+
+**Three things hold that up, and not one of them is written down anywhere:**
+
+1. **That prefixes are issued in ascending order**, so a later feature's block is always above an
+   earlier one's. True of `hor-bank-id` today; nothing says it is a guarantee rather than an
+   implementation detail.
+2. **That the block-`102` seeder runs at all.** It did not exist until this checkpoint. Before it,
+   `expenses` was empty after a refresh and the mark was set by whichever explicit insert ran first
+   — which is precisely the Q38 sequence. The protection arrived by accident, as a side effect of a
+   different feature needing fixtures.
+3. **That the dialect keeps a high-water mark.** This is SQLite's behaviour and tests only ever run
+   on SQLite, so Q38's collision is fully answered by it. **It is not measured for MariaDB**, which
+   is what production runs, and it should not be assumed to transfer — `removeExpense` hard-deletes
+   (there is no `deleted_at` on this model), so "an id is never reused" is a claim about production
+   that nothing here has established.
+
+**What this changes about the question.** Q38 asked for one sentence saying which tables the id-block
+convention can protect. This says the sentence is needed more than it looked: the convention is
+already being used on a table it cannot protect, by a test nobody thought was doing anything unusual,
+and the thing standing between that and an intermittent failure is the insert order of two unrelated
+features' fixtures.
+
 ## Q39. Both backend CI workflows passed their test flags to npm instead of to the test script
 
 <!-- spec: none -->
@@ -2216,6 +2334,47 @@ Adjacent to Q42, Q44 and Q45 — four separate things `furo-boilerplate-nuxt 2.1
 built from it. **This is the only one of the four that is a security defect.**
 
 
+### Amended at `#expense-entry`'s checkpoint 6 — the same mechanism ran backwards, three times, and it was predicted
+
+Q46's mechanism is the fifth entry in this project's "no test could catch it" list: **the check met
+the failure and took its side.** A test asserted `createStorageClerk()` called
+`StorageClerk.createAsLocal()`, so the suite defended the defect and every run was green.
+
+Checkpoint 6 produced **the mirror image of that, on purpose, three times in one checkpoint.** Each
+time an `actual/` resolver landed, a passing assertion in
+`tests/__tests__/server/graphql/resolvers/staff/stub/execute-expense-stub-operations.js` went red:
+
+| Operation | What the suite had asserted | What landing the resolver made true |
+|---|---|---|
+| `expenses` | twelve stub entries answered to a caller with no context at all | refused, `102.X000.001` |
+| `expenseCategories` | the category list answered to anybody | refused, `102.X000.001` |
+| `recordExpense` | `expenseId: 9113` answered to anybody | refused, `102.X000.001` |
+
+**So a check met correctness and called it failure.** The red was not a regression; it was §11's own
+criterion — "every operation this feature adds is refused without a session, before it reads
+anything" — becoming true, and the test that had encoded the earlier, weaker world reporting the
+change as a fault.
+
+**Both directions are one fact: a suite measures agreement between code and tests, and agreement is
+not correctness.** What differs is only which way the disagreement points, and that difference
+decides whether anybody looks:
+
+- **Q46's direction is the dangerous one.** Code and test agree on something wrong, the suite is
+  green, and nothing ever asks. It survived from the boilerplate into this repository and was found
+  by reading the spec against the code, not by running anything.
+- **This direction is the recoverable one.** Code and test disagree, the suite is red, and red gets
+  looked at. The cost is a rewrite of the assertion; the failure mode is only that somebody
+  "fixes" the red by deleting the test instead of strengthening it — which is why each of the three
+  was rewritten into the stronger claim rather than removed, and why the checkpoint records say so.
+
+**The third thing worth recording is that this was predicted.** Checkpoint 4's record, written
+before any `actual/` resolver existed, said: *"the moment an `actual/` resolver lands for any of
+these five, that field acquires a filter and the stub stops being reachable."* It has now happened
+three times, on schedule, and each time the prediction is what made the red diagnosable in seconds
+rather than investigated. **A prediction that fires three times is doing work rather than decorating
+the file** — which is the argument for writing the consequence down at the checkpoint that creates
+it, not at the one that suffers it.
+
 ## Q47. furo-vue omits one of its own transitive requirements, and `--legacy-peer-deps` turns that into a CI-only build failure
 
 <!-- spec: none -->
@@ -2282,3 +2441,475 @@ of the boilerplate's workflow rather than of any project.
 
 **Fifth item against `furo-boilerplate-nuxt 2.1.0`**, with Q42, Q44, Q45 and Q46 — and **the only one
 that breaks the build outright**. Q46 remains the only security one.
+
+
+## Q48. The contract exposes `createdAt` / `updatedAt`, which the schema skill forbids by name
+
+<!-- spec: expense-entry -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Raised by the unit writing `#expense-entry`'s SDL at checkpoint 3, which **wrote what the contract
+says and reported the divergence rather than quietly renaming anything**. Nothing is wrong in the
+tree; the question is whether the contract should have said something else, and it gets more
+expensive to answer with time.
+
+`hor-graphql-schema` §5.1 forbids the pair by name:
+
+> Never expose `updatedAt` / `createdAt`. A business time is its own named field: `modifiedAt`,
+> `registeredAt`.
+
+The pinned contract declares both on `Expense`:
+
+```graphql
+type Expense {
+  …
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+```
+
+**The contract wins and that is not in doubt** — `/hora-build`'s checkpoint 14 says it outright, *"the
+contract is authoritative for both sides. Wanting to change it here means raising a question, not
+changing it."* So the SDL declares both, and this is the question.
+
+### Why it is worth asking now rather than later
+
+**`#monthly-summary` reuses this same `Expense` type** — the contract's own comment says so: "One row
+type, reused by `expenses` and `monthlyExpenses`, so that a month's entries and the total taken over
+them can never describe different shapes."
+
+So the cost of renaming rises the moment `#monthly-summary`'s checkpoint 3 lands, and rises again
+when either feature's frontend reads the field. Today it is two lines in one SDL file, one block in
+`types/StaffGraphQL.d.ts`, and the contract.
+
+### What is actually at stake, stated fairly
+
+The skill's reasoning is that a framework timestamp and a business time are different things, and
+that exposing the former invites a consumer to treat "when the row was written" as "when the thing
+happened". **This feature has exactly that hazard in sharp form:** `spentOn` is the day the money was
+paid and `createdAt` is the day the entry was typed, and §11's whole ordering question turned on the
+two being different. A field named `createdAt` on the same type as `spentOn` is an invitation to
+reach for the wrong one.
+
+Against that: nothing in §11 asks for either timestamp, no acceptance criterion mentions them, and
+the screen §11.2 describes does not display them. **They may simply be unnecessary**, which would
+make the cheapest resolution deletion rather than renaming.
+
+### Where it lands
+
+A contract change, so `/hora-spec` and the user — the same route §10.3 and §11's two clarifications
+took. Three options, in rising cost: drop both fields, rename to `recordedAt` / `modifiedAt`, or keep
+them and record that the skill is overruled here on purpose so the next reader does not re-raise it.
+
+Adjacent to Q37, which is the other contract-level question about this type family: `Expense.id` is
+`Int!` over a BIGINT primary key, consistent with every other id in the contract.
+
+
+## Q49. "Dated after today" never says in which timezone, and the answer changes what is refused
+
+<!-- spec: expense-entry -->
+<!-- blocking: no -->
+<!-- category: spec-gap -->
+<!-- answered: Asia/Tokyo -->
+
+> **CLOSED — `Asia/Tokyo`, and it is in the specification rather than in a constant.**
+>
+> **§6 is now the authority.** Pull request #22 merged at `6266dba`, and both rows were read off
+> the release tip rather than inferred from the merge: §6 line 78 gives `month` "read in
+> `Asia/Tokyo`", line 79 adds a `today` row. So the rule this question was raised about is written
+> where a business rule belongs, and the backend constant cites the spec instead of standing in for
+> it.
+>
+> **Who merged it, measured from the API rather than relayed:** `state=closed merged=true
+> merged_by=hieuguyen-ort merge_commit=6266dba`. **`hieuguyen-ort` is the account this session
+> itself commits as** — so the spec change was performed by the user, in the repository, under
+> their own identity, after being shown both hunks verbatim. That is a stronger act than an answer
+> relayed through a session, and it is the strongest form available here.
+>
+> **What it does and does not settle about the earlier worry.** This question and the `specs/` merge
+> at `a9cb3dc` were both recorded as answered by *the peer session's user*, deliberately, because
+> this session had never put either to its own user and the two should not be written as one person
+> without evidence. `merged_by` is now that evidence for #22 specifically. It makes one person the
+> most likely reading throughout — but it establishes which **account** acted, and two sessions can
+> be configured with one account, so the earlier entries are left as written rather than
+> retroactively re-attributed. **A record that says "at least as strong as this" is honest; one that
+> quietly upgrades the past is not.**
+>
+> **The provenance inversion is resolved, which was the point of asking.** The specification now
+> carries authority at least as strong as the code it authorises. Before #22 the constant had been
+> answered to a specific question while the spec said nothing — so the artifact meant to govern the
+> rule was weaker than the artifact obeying it.
+>
+> Applied to the code at `1849f7d`. `#monthly-summary` now inherits the zone by **reading §6**
+> rather than by inheriting a decision, and the reason `month` and `today` had to share it — or an
+> expense's month could disagree with its own acceptance — is a property of the spec rather than of
+> one session's reasoning about it.
+
+Found at checkpoint 5 of `#expense-entry`, while establishing what checkpoint 6 has to import. It is
+raised rather than decided because **it changes which expenses a member of staff can record**, which
+is the same test the two §11 gaps at checkpoint 1 were held to.
+
+§11's acceptance criteria say:
+
+> - an expense dated after today is refused
+
+**Nothing in the spec says whose "today".** §6 defines a month as "the calendar month an expense's
+date falls in" and §9.3 stores `spent_on` as a date, but neither names a timezone, and grepping the
+backend for one finds nothing: no `TZ` in `.env.development` or `.env.live`, no timezone in
+`sequelize/config.cjs`, no fixed zone anywhere outside a transitive `moment-timezone` that no code
+of ours imports.
+
+### Why it is observable rather than pedantic
+
+`spentOn` crosses the contract as a `YYYY-MM-DD` string (Q3), and the clock available to a resolver
+is `context.now`, a `Date`. Comparing them requires choosing a zone to read "today" in, and the
+zones disagree for part of every day:
+
+| Real moment | Today in UTC | Today in Asia/Tokyo | An expense dated 2026-09-15 |
+|---|---|---|---|
+| 2026-09-15 07:00 JST | 2026-09-14 | 2026-09-15 | **refused** under UTC, accepted under JST |
+| 2026-09-14 23:00 JST | 2026-09-14 | 2026-09-14 | refused under both |
+
+**That first row is measured, not argued.** At the instant `2026-09-14T22:00:00.000Z`, which is 07:00
+on the 15th in Tokyo:
+
+```
+Asia/Tokyo  -> 2026-09-15     '2026-09-15' is after today?  false   (accepted)
+UTC         -> 2026-09-14     '2026-09-15' is after today?  true    (refused)
+```
+
+So under a UTC comparison **a member of staff recording this morning's train fare before 09:00 local
+time is told the date is in the future.** That is the single most ordinary thing this feature exists
+to do, and it would fail for the first nine hours of every working day.
+
+### Why the recommended reading is Asia/Tokyo, and why it is still a question
+
+Everything else in the product points one way: the amount is an integer number of yen with no
+currency handling ever (§4), and §6's month boundary is a calendar month that only means one thing
+once a zone is fixed. **`#monthly-summary` inherits the same choice** — a month's boundary has
+exactly the problem this criterion has, so answering it here answers it there too, and answering it
+differently later would make an expense's month disagree with its own acceptance.
+
+It is still a question rather than an assumption because **a zone fixed in code is a business rule**,
+and the one place it belongs is the spec. Naming it in a resolver means the next reader learns the
+product's timezone from a comparison operator.
+
+### Where it lands
+
+A spec change, so `/hora-spec` and the user — the route §10.3 and §11's two clarifications took. The
+cheapest form is one sentence in §6 or §9.3 fixing the zone all dates in this product are read in,
+rather than a clause on this criterion alone; a per-criterion clause would leave §6's month
+undecided and invite the same question twice.
+
+**Not blocking.** Checkpoint 6 implements the refusal against a single named constant, so the answer
+changes one value rather than a comparison scattered through a validator. What checkpoint 6 must not
+do is compare in whatever zone the host happens to run in — that is how this stops being a decision
+and becomes a deployment accident.
+
+### One piece of good news, measured at checkpoint 5
+
+The conversion is done by `DateToDateonlyValueConverter` from `@openreachtech/mentsu-deep-value-converter`,
+which the catalog check found and which checkpoint 5 installed. **It cannot silently pick a zone**:
+called without `.by({ timezone })` it throws
+
+```
+DateToDateonlyValueConverter.get:boundArgument must be inherited
+```
+
+rather than defaulting to UTC. So the failure mode this question was raised against — a zone nobody
+chose, quietly in force — is not reachable through this path. **The zone still has to be chosen; it
+just cannot be chosen by accident.** Checkpoint 5 sets the constant to `Asia/Tokyo` as this
+question's recommended reading, and labels it in the constant's own comment as recommended rather
+than decided.
+
+## Q50. No maximum page size is decided anywhere, so a caller may ask for every row at once
+
+<!-- spec: expense-entry -->
+<!-- blocking: no -->
+<!-- category: spec-gap -->
+
+Found at `#expense-entry`'s checkpoint 6, implementing the `expenses` query. **The unit validated
+that the limit is a positive whole number and stopped there, writing the gap into the validator's
+docblock rather than inventing a ceiling** — which is right, because a maximum page size is a
+product decision with a performance consequence, not an implementation detail.
+
+`PaginationInput.limit` is `Int!`. §11 fixes no maximum, the pinned contract declares none, and
+nothing in §7's non-functional requirements names one. So `expenses(input: { pagination: { limit:
+100000 } })` is a legal request and is served.
+
+### Why it is worth a decision rather than a shrug
+
+Today the answer is small — a member of staff has at most a few hundred expenses, and §11 scopes
+every read to the caller's own. So this is not a live defect and is not blocking.
+
+What makes it worth deciding is that **the shape is permanent and the data is not.** A member of
+staff who has used the product for three years, or an operator who later gets a screen spanning
+several people, turns one request into a whole-table read with every category joined. And
+`#monthly-summary` reuses this exact pagination shape, so whatever is decided here is inherited
+there — the same way Q49's timezone was.
+
+**It is also the cheapest possible fix at this moment**: one more entry in
+`generateValidationEntries()` and one more `203.Q002.*` code, in a file that was written this
+checkpoint. After the frontend is built against an unbounded limit, a ceiling becomes a change that
+can break a screen.
+
+### What a decision would need to say
+
+Only two things: the maximum, and what happens when a caller exceeds it — refused as invalid input,
+or silently clamped. **Refusing is the better default and the harder one to get wrong**: clamping
+means a caller asks for 500, receives 100, and is given a `pagination` block that says so only if
+they read it, which is how a screen ends up showing a partial list it believes is complete.
+
+### Where it lands
+
+A spec change — §7's non-functional requirements is the natural home, since it is a limit rather
+than a behaviour of this feature alone. Adjacent to Q49 in shape: a rule that lives in a backend
+constant today and in no document.
+
+## Q51. No `_orders` suite in this repository is re-runnable, and the new ones are no better
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Found at `#expense-entry`'s checkpoint 6. **Measured rather than reported**: a unit claimed the
+pre-existing `tests/_orders/Expense/Expense.js` was not re-runnable while its own new file was, and
+**that second half is false.** Running the folder twice with no refresh between:
+
+```
+run 1                    Test Suites: 1 passed    Tests: 59 passed
+run 2, no refresh        Test Suites: 1 failed    Tests: 23 failed, 36 passed
+```
+
+and the failures come from **both** files, not one:
+
+- `Expense.js` (`#data-model`'s) fails on unique-constraint violations — it creates
+  `expense_categories` and `staff_members` rows with explicit ids, which are already there the
+  second time.
+- `RecordExpenseMutationResolver.js` (written this checkpoint) fails on its read-backs — it asserts
+  a member of staff's page holds exactly the one row the case recorded, and on a second run it
+  holds two. `- Expected - 1 / + Received + 57`.
+
+### Why this is a convention gap and not a defect in either file
+
+**`test.sh` tears the database down, sets it up and seeds it on every run**, in that order, before
+either phase. So under `npm test` — the only way anybody is asked to run the suite — the database is
+always fresh and neither failure is reachable. Both files are correct against the contract they were
+written to.
+
+What is missing is **the contract being written down.** Nothing in the repository says "an `_orders`
+test may assume a freshly seeded database", so:
+
+- a developer who runs `npx jest tests/_orders/...` directly to iterate on one file gets failures
+  that look like defects in the code under test,
+- and the second run's failures name unique constraints and row counts rather than saying "you
+  needed a refresh", which is exactly the signature that cost this project a round of diagnosis at
+  Q38.
+
+### What it interacts with
+
+This is the fourth manifestation of the same shared-database coupling. **Q33** recorded the
+order-dependence between phases; **Q38** recorded explicit ids colliding with auto-increment in a
+product-written table, and its amendment recorded that `#data-model`'s test is already doing what
+Q38 forbids; **the checkpoint 5 record** has a parallel-execution instance I caused myself. All four
+are the same root: one SQLite file, many writers, and no statement of who may assume what about its
+state.
+
+### Where it lands
+
+Not a spec matter. Either a sentence in the repository's own test documentation, or — better,
+because it is mechanical — a guard that makes the assumption explicit rather than remembered. The
+cheapest honest version is a line in `tests/_orders/`'s own barrel or README saying the phase
+assumes a freshly seeded database and naming `npm test` as the only supported entry point.
+
+**Deliberately not fixed here.** Making these suites re-runnable means either per-test cleanup or
+relative assertions, and relative assertions are strictly worse — a test asserting "one more row
+than before" passes when the operation writes the wrong row. The fresh-database assumption is the
+right one; it just needs saying.
+
+
+### Amended at the backend gate - the mechanism is concurrency, not re-runnability, and they are different defects
+
+**Q51 conflated two things and the CI failure separated them.** Both are the shared-database
+coupling; they have different mechanisms and different fixes, and filing them as one is why the
+second went unnoticed until CI failed.
+
+| | re-runnability | **write concurrency** |
+|---|---|---|
+| trigger | running a suite twice with no refresh between | running suites **at once** against one file |
+| what fails | absolute assertions meeting rows a previous run left | `SQLITE_BUSY`, and **one worker reading another's rows** |
+| reachable under `npm test` | no - `test.sh` refreshes first | **no - and that is the problem** |
+| reachable in CI | no | **yes, on every run** |
+
+**The second one was live and invisible.** CI runs `npm test -- --seeded --maxWorkers=3
+tests/_orders/`; `test.sh`'s default path runs the same suites through `jest --detectOpenHandles`,
+which **implies `--runInBand`.** So every local verification this project has ever reported ran
+`_orders` **serially**, while CI has always run it with three workers. `--maxWorkers=1` passes all
+314; `--maxWorkers=3` failed 12, then 1, then 16, then 20, then 23 - a moving failure on unchanged
+code.
+
+**Two mechanisms, and the diagnosis that named only one would have produced the wrong fix.**
+`SQLITE_BUSY: database is locked`, measured by instrumenting a resolver and reverting it, since jest
+prints `error.message` and the text is in `error.original.message` - Q38's swallowing on a second
+error class. A pairwise bisect found exactly one failing pair, `Expense` with `SignIn`, because
+SignIn holds SQLite's single writer lock through bcrypt. **But the other symptom was a listing
+assertion receiving another worker's rows**, which is not a lock at all - a longer `busy_timeout` or
+a retry would not have touched it.
+
+**Fixed by isolation**: each jest worker copies the already-seeded canonical file, `globalSetup`
+allocating and `globalTeardown` removing. Not a retry, not a timeout, not `--runInBand` in CI - each
+of those makes the symptom rarer or invisible while leaving the suite green only under a command
+chosen to avoid it.
+
+**The finding worth keeping is not the race.** It is that **the gate's green had been measured
+against a command nobody else runs, for this project's whole life** - and that no amount of care
+inside the suite would have shown it, because the suite passed. It took an external runner, invoking
+it differently, to say so.
+
+## Q52. The platform requirement that reclassifies several findings is written down nowhere
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Found at `#expense-entry`'s checkpoint 6, after Q24 was raised upstream and answered with "Hora Kit
+requires to work on WSL".
+
+**That requirement appears in no file.** `grep -rli wsl` over `@openreachtech/hora` and the
+frontend/backend boilerplates returns nothing — not a README, not `docs/`, not the spec, not the
+tree documents this project generated. The only statement of it is a Slack reply.
+
+**And the documentation that does exist points the other way.** The boilerplate README carries a
+*Note for Windows* explaining how to run `db:refresh` when `cmd.exe` cannot handle the script's
+`export`. An accommodation for a platform reads as support for that platform. A reader following
+the documentation has no way to arrive at "this must be run under WSL".
+
+### What it cost here, concretely
+
+Two findings in this project's own list exist **only** because the work was done on native Windows:
+
+- **Q24** — the `DeepBulkClassLoader` import failure. Measured: does not reproduce on WSL.
+- **Q13** — the lost executable bit on the shell scripts. That was `core.fileMode=false`, git's
+  default on Windows; under WSL the bit would have been recorded and the scripts would never have
+  arrived unrunnable.
+
+And four checkpoint records across two features say "reached in part" with Q24 as the stated reason.
+Those records are accurate about what was verified but name a cause that does not exist on the
+supported platform.
+
+**The cost is not the hours. It is that a benchmark of this process now carries findings that are
+artefacts of an unsupported environment**, and separating them is work that would not have been
+needed had one line existed in a README.
+
+### Where it lands
+
+Upstream, in the same place Q24 went — a sentence in `@openreachtech/hora`'s README naming the
+supported platform, and ideally a check that says so loudly rather than failing at
+`ERR_UNSUPPORTED_ESM_URL_SCHEME` twenty frames deep. **Not this project's file to change.**
+
+If the answer is instead that native Windows *should* work, then Q24 is not out of scope after all
+and the upstream issues stand as filed. Those are the only two consistent positions; what cannot
+hold is the current one, where the requirement is real but unwritten and the documentation offers
+Windows help.
+
+
+## Q53. Two checkpoint 8 findings accepted rather than fixed, and why each is safe to accept
+
+<!-- spec: expense-entry -->
+<!-- blocking: no -->
+<!-- category: accepted-finding -->
+
+Checkpoint 8's exit condition allows a finding to be **fixed or explicitly accepted and recorded** —
+and says an accepted finding is recorded as a question, never left as a silent pass. These are the
+two. Both are INFO in the audit skill's own vocabulary. Neither is a vulnerability; each is recorded
+so a later reader does not have to re-derive that it was looked at.
+
+### A caller's `sort` clause is echoed back into the response unvalidated
+
+`ExpensesQueryResolver` reads `input.pagination.sort` and puts it in the response, and
+`ExpensesInputValidator` declares no rule for it.
+
+**The injection path is closed by construction, and that was verified rather than assumed.**
+`createRequestPagination()` passes only `limit` and `offset`, so the clause reaches no `order`, no
+`where` and no SQL. The contract also states in writing that no operation in 1.0.0 lets a caller
+choose a sort, which is why no rule exists — there is nothing for a rule to be about.
+
+**What remains is an arbitrary caller-controlled string reflected to that same caller.** Accepted on
+the server. **It is a live instruction for the frontend**: the screen must not render
+`pagination.sort` as markup. Recorded here rather than only in a code comment, because the frontend
+checkpoints are a different feature's work and a comment in a resolver is not where that reader
+looks.
+
+### The model's hook messages carry row ids and are unmasked outside production
+
+`Expense.verifyStaffMember()` and `verifyExpenseCategory()` throw messages naming the id they
+failed on. renchan masks any unrecognised error to `100.X000.001` — **except** that
+`passesThoughError()` returns `this.env.isPreProduction()`, so the raw error passes through
+untouched in every non-production environment.
+
+**Accepted for three reasons, and the first two are structural.** The owner id comes from the
+session rather than from input, so `verifyStaffMember` cannot fire on a caller-supplied value. All
+three mutations verify the category inside the same transaction before the hook runs, so
+`verifyExpenseCategory` is unreachable from a resolver path. And the values are row ids, not
+personal data — §7's list is passwords, hashes, tokens, digests, `sessionKey` and email addresses.
+
+**Recorded so the hook is not later relied on as a caller-facing refusal.** If a future path lets one
+fire, the message reaches a caller unmasked outside production, and the fix at that point is an
+error code rather than a sentence.
+
+## Q54. The two boilerplate audiences still allow any origin and a 10mb body
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: security -->
+
+Found at `#expense-entry`'s checkpoint 8, while scoping the shape limit to the staff audience.
+**Out of this feature's change set** — inherited boilerplate, not a regression — so it is recorded
+rather than fixed here.
+
+`AdminGraphqlServerEngine` and `CustomerGraphqlServerEngine` carry `origin: '*'`, a `10mb` JSON body
+limit, and the upload middleware. `StaffGraphqlServerEngine` carries none of those: an env-driven
+explicit allow-list, a 16 kB cap, and no upload path — every one of those a decision `#sign-in`
+made and wrote down.
+
+**Harmless today and precisely conditional.** Each of the two serves a single `healthCheck` that
+reads no row, so there is nothing to expose and nothing to amplify. **The exposure arrives the
+moment either audience is given a real operation** — and it arrives silently, because nothing about
+adding an operation prompts anybody to look at the engine's CORS line.
+
+Both files also sit in `eslint.config.js`'s "never add other files to this list" exception block,
+which means the usual mechanical pressure does not reach them either.
+
+**Where it lands.** Either the two engines adopt the staff engine's settings now, while the change
+is free and nothing depends on the old ones, or a note goes beside each stating the settings are
+boilerplate defaults that must be reviewed before the audience gets an operation. The first is
+cheaper. The second is what this question is, until somebody decides.
+
+## Q55. Nothing rate-limits the read path, and the shape limit does not change that
+
+<!-- spec: expense-entry -->
+<!-- blocking: no -->
+<!-- category: security -->
+
+Raised as the honest limit of checkpoint 8's MEDIUM fix rather than as a new discovery.
+
+`GraphqlOperationShapeInspector` caps **one document's fan-out** — at most 10 root selections and 6
+levels of depth, so a single request can no longer stand in for 250. **It does not cap requests per
+second.** A caller holding a valid session may send the bounded document as often as they like.
+
+`express-rate-limit` is a dependency and is wired, but only into `SignInFailureRateLimit` and
+`AccessTokenRenewalRateLimit` — §7 asks for a limit on `signIn` and `renewAccessToken`, and those
+are exactly the two that have one. **§7 asks for nothing on a read path**, so this is a gap in the
+specification's coverage rather than a failure to implement it.
+
+**Why it is not urgent.** Every one of these operations requires a session, the audience is the
+twenty-to-fifty members of staff §3 describes, and each page is capped at
+`PAGINATION.MAXIMUM_LIMIT` rows. The realistic actor is a signed-in employee, not the internet.
+
+**Why it is worth a decision anyway.** The reasoning that made the shape limit worth adding applies
+one level up: the audience will grow, `#monthly-summary` adds a second read that sums rows rather
+than listing them, and a limiter is far cheaper to add before a frontend polls an endpoint than
+after. If the answer is that an authenticated internal system does not need one, **that is a
+legitimate answer and this question is where it should be written down** — so the next audit finds a
+decision rather than an omission.
