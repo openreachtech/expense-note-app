@@ -3006,3 +3006,55 @@ find (Q51's amendment), and as the test that defended the defect it was written 
 The `@openreachtech/hora-skills-ort-furo` package, which is not this repository's. **Not fixable
 here, and not this feature's to fix.** Adjacent to Q45 and Q44, the other two findings about this
 frontend stack that belong upstream.
+
+## Q57. The frontend's contract copy has no guard, because its CI cannot see the authority
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Found at `#expense-entry`'s checkpoint 14, by the unit building the API clients — **proactively, not
+after a failure.**
+
+Checkpoint 14's exit condition is that every client matches `.hora/contracts/<version>/` **exactly**.
+The only way to prove that without transcribing anything is to make the contract file itself the
+oracle: `validate(buildSchema(contract), parse(document))`, plus a coverage walk for the fields
+`validate()` deliberately allows a document to omit.
+
+**But the contract is not in the frontend repository, and the frontend's CI checks out the frontend
+repository alone** (`.github/workflows/test.yml` → one `actions/checkout`, no second repo).
+`expense-note-frontend-staff` is its own git repository; the outer tree tracks only `.hora/`.
+
+**So a test reading `../.hora/contracts/1.0.0/staff-graphql.graphql` passes locally and fails in
+CI** — the exact class of gap that cost the backend gate two days, caught this time before it was
+committed rather than after.
+
+### What was done, and the hole it leaves
+
+The contract is vendored to `tests/contract/staff-graphql.graphql`, byte-identical below a header
+naming `.hora/contracts/1.0.0/staff-graphql.graphql` as the authority and saying a disagreement is a
+defect in the copy. **Identity verified by the main session**, not asserted.
+
+**Nothing keeps it in step.** If the contract changes and the copy does not, every client test still
+passes — against a contract nobody agreed to any more. **An oracle that has silently drifted is worse
+than no oracle**, because it reports success with more authority than a missing check would.
+
+That is the same family this project keeps finding — an instrument reporting success over a failure
+(Q46, Q51's amendment, Q56) — except this one is **installed knowingly**, which is the only reason it
+is bearable. It is recorded here so the next person meets it as a known limit rather than as a
+mystery.
+
+### Where it lands
+
+Not a spec matter, and not fixable inside the frontend repository.
+
+**The cheapest sound fix is a step in the orchestrator**: whenever a contract changes, refresh every
+vendored copy of it. `/hora-build`'s checkpoint 14 is the natural home, since that is the checkpoint
+that creates the dependency.
+
+Two alternatives, both worse. Checking the parent out in frontend CI couples a repository to its
+container for a test fixture. Publishing the contract as a package adds a release cycle to a file
+that changes by pull request.
+
+**Removal condition:** if the contract ever ships inside the frontend repository, or its CI gains
+sight of the authority, delete the copy and read the authority directly.
