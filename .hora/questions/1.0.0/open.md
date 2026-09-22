@@ -2984,6 +2984,23 @@ and the two features share one of them exactly.
 **All of it is recorded in the five digests**, so this project's own implementers meet the library's
 real behaviour rather than the skill's account of it. That protects this repository and nothing else.
 
+### The finding above the finding
+
+**One occurrence is a defect. Two occurrences across two features, with the first one recorded and
+nothing changed upstream, is a process fact.** `#sign-in` met the `parcel.error` divergence at its
+own checkpoint 12 and wrote it down. `#expense-entry` met the identical one, in the identical
+component, in the same library version, and had to re-derive it from source — because a finding
+recorded in a project's own `.hora/` reaches nobody outside that project.
+
+**So the digests are a workaround for a missing feedback path, not a fix.** Every project on this
+kit pays the same discovery cost, once per feature, forever, until somebody re-reads the skills
+against the library they document.
+
+**And these belong to the family this project keeps finding**: an instrument reporting success over
+a failure. A skill example wrong about a prop name compiles, lints, passes the suite, and silently
+does not work — the same shape as `--detectOpenHandles` never reporting the handles it existed to
+find (Q51's amendment), and as the test that defended the defect it was written against (Q46).
+
 ### Where it lands
 
 The `@openreachtech/hora-skills-ort-furo` package, which is not this repository's. **Not fixable
