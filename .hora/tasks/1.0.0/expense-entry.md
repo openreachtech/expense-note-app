@@ -134,7 +134,7 @@ gets wrong once and a member of staff discovers by losing a memo.
 - [x] 6. Actual API  <!-- five implementer units, ONE AT A TIME rather than in parallel, because five units on one SQLite file is how I caused Q33's third instance at checkpoint 5. All five operations served from the actual/ pool; the five stubs stay for the frontend until checkpoint 16. 68 suites, 1654 tests, lint clean, every figure re-run serially by the main session. The not-found rule is the ABSENCE of a second code, so errorCodeHash is pinned whole; mutation-tested by dropping StaffMemberId from the where clause. "Nothing is recorded" proved through the product's own read path and mutation-checked. A declared-but-unexercised session guard found in all three mutations by noticing the query resolver covered its equivalent -- 16 cases added, and the exercise DISPROVED a docblock about what the guard prevents. Q46's mechanism ran backwards five times exactly as checkpoint 4 predicted. Q50 capped at 100 (chosen, not confirmed), Q51 written into tests/_orders/README.md and all eight barrels. Two of my briefs were wrong and units caught both -->
 - [x] 7. Worker  <!-- NOT APPLICABLE, established with hor-execution-placement-pattern per operation rather than by eye, which is what this checkpoint's own clause demands. All five operations short-circuit at the flow's read-only or light-write step; the trigger question is never reached. Spec section 8's footnote says it outright -- Redis is not declared because this version runs no background job -- and section 7's retention line forecloses the one candidate a hard delete would suggest. Nothing written, and nothing invented to make the checkpoint non-empty. Two findings anyway: the skill had NO DIGEST and my brief did not ask for one (taken afterwards, pinned to hora-skills-ort-renchan 0.1.0 -- my process gap), and ioredis is a declared dependency with zero importers, so package.json alone would suggest a job facility that does not exist -->
 - [x] 8. Security audit  <!-- hor-security-audit, read-only, over this feature's change set read from the WORKING TREE (a commit range would be empty before the gate) plus the five declared operations. 0 HIGH, 1 MEDIUM, 1 LOW, 4 INFO; all fixed or accepted-and-recorded, none left silent. The non-disclosure property holds by the SHAPE of the contract -- no read narrows by id alone and no input type declares an owner field -- and the timing channel is closed because the validators do zero DB access. MEDIUM: this feature opened an alias-amplification surface (~250 aliased expenses calls in one 16kb body, ~500 DB round trips); limits measured from all 24 real documents, introspection exempted at depth 15, fragments expanded and cycles guarded. MY BRIEF WAS WRONG a third time -- an engine cannot reach validationRules at all. LOW: a stub-only operation would get NO auth filter; guard derived from the real loader for all three audiences. Q53, Q54, Q55 raised for what was accepted -->
-- [ ] 9. Verify the use cases again, against the built API
+- [x] 9. Verify the use cases again, against the built API  <!-- main session, in conversation. All three of section 11's use cases walked as REAL CALLS against the built schema with a real access token on a real header, shapes printed at every step; nothing fell short, nothing sent back to checkpoint 3, no field added on the way past. Driven through jest because server/index.js still cannot be imported here (Q24) -- the socket is unreached rather than unreachable, per Q24's WSL amendment. The three not-found situations answered IDENTICALLY as a caller experiences them. My own first walkthrough had a gap: I read page one for the optional memo and the row was oldest, so I had shown the write succeeded rather than that the memo reads back empty -- a second call at offset 2 returned memo: null. Walkthrough deleted; tree clean -->
 
 
 ## Checkpoint 3 — the API schema, and a DB half that was already built
@@ -709,6 +709,101 @@ MEDIUM.**
   was this feature's, and it is not. Already recorded at checkpoint 7.
 
 **70 suites, 1767 tests, lint clean**, re-run by the main session.
+
+
+## Checkpoint 9 - the use cases walked as real calls, not read as code
+
+**All three of §11's use cases complete against the API as built.** Checkpoint 2 verified them
+against the *spec*; this verified them against **the thing that got built** - by signing in as a
+seeded member of staff and issuing real GraphQL documents through the built schema, in order, with
+the real shapes printed at every step.
+
+**Nothing fell short, so nothing was sent back to checkpoint 3.** No field was added on the way past.
+
+### How it was driven, and the one obstacle worth recording
+
+`server/index.js` still cannot be imported on this machine, so a plain `node` script died at
+`ERR_UNSUPPORTED_ESM_URL_SCHEME` (Q24, and its WSL amendment). **The walkthrough therefore ran
+through jest**, which supplies its own module registry and resolves the specifier Node's loader
+refuses - the same reason the whole suite runs here at all. Same schema, same resolver pools, same
+engine, same context class, **real access token on a real header**. What it still does not evidence
+is the socket: express, the middleware chain, the body cap and the CORS allow-list. Q24's amendment
+now records that the socket is **unreached rather than unreachable**.
+
+The walkthrough was a throwaway - written, run, read, and deleted. The tree is clean.
+
+### Use case 1 - records a fare that evening and sees it in their entries
+
+```
+expenseCategories -> transport 10000001, meals, supplies, other       (fills the category field)
+recordExpense     -> { expenseId: 10200015 }                          (the identifier, and nothing else)
+expenses          -> id 10200015, 2026-09-20, 1200, 'Taxi back...', recorded, transport
+                     pagination { limit 5, offset 0, totalRecords 1 }
+```
+
+### Use case 2 - typed 12,000 instead of 1,200, opens that entry, corrects it
+
+```
+recordExpense  -> { expenseId: 10200016 }  amount 12000
+expenses       -> 10200016 comes back with its CURRENT values, so "opens that entry" needs no
+                  read-one operation. This is checkpoint 2's finding, now observed rather than argued
+correctExpense -> { expenseId: 10200016 }
+expenses       -> id 10200016 STILL, amount now 1200, totalRecords still 2
+```
+
+**Corrected in place, and both halves are visible in one answer:** the same id, and a count that did
+not move. A delete-and-reinsert would have shown a new id above the block.
+
+### Use case 3 - recorded the same lunch twice, removes the duplicate
+
+```
+recordExpense -> { expenseId: 10200017 }
+removeExpense -> { expenseId: 10200017 }
+expenses      -> 10200017 absent, totalRecords back to 2
+```
+
+### The non-disclosure rule, as a caller actually experiences it
+
+| what was asked | answer |
+|---|---|
+| remove an entry already removed | `204.M006.002` |
+| remove an id no row has ever held | `204.M006.002` |
+| correct an entry belonging to `10110002` | `204.M005.002` |
+
+**Identical within each operation, and carrying nothing else** - no message, no row, no count. A
+caller cannot tell a removed entry from one that never existed from one that is somebody else's.
+Observed end to end rather than inferred from the error hash.
+
+### The refusals §11 names, and the optional memo
+
+```
+amount of zero        -> 203.M004.005
+dated after today     -> 203.M004.007
+no memo presented     -> { expenseId: 10200018 }   accepted
+no session presented  -> 102.X000.001              the engine, before anything is read
+```
+
+**And a gap in my own first walkthrough, worth recording because it is the shape of a bad
+verification.** I asserted the optional memo by recording one without a memo and then reading page
+one - where it did not appear, because ordering is `spentOn` descending and that row was the oldest.
+**I had shown that the write succeeded, not that the memo reads back empty**, which is what §11
+actually asks. A second call at `offset: 2` returned it:
+
+```
+{ id: 10200018, spentOn: '2026-09-19', amount: 800, memo: null, status: 'recorded',
+  expenseCategory: { id: 10000003, name: 'supplies' } }
+```
+
+`memo: null` crosses as a JSON null rather than a failure. The near-miss is the point: **a
+verification that stops at the first plausible-looking answer proves the thing next to the claim.**
+
+### One more property confirmed in passing
+
+`limit: 2, offset: 2` answered `totalRecords: 3` - **the total is the whole set, not the page.** That
+is the `totalNumber` to `totalRecords` mapping and the "limit never reaches `options`" rule from
+checkpoint 5, observed through the API rather than through a unit test.
+
+**70 suites, 1767 tests, lint clean**, re-run after the walkthrough was deleted.
 
 ## Frontend gate
 - [ ] 10. Open the frontend
