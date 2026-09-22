@@ -131,8 +131,8 @@ gets wrong once and a member of staff discovers by losing a memo.
 - [x] 3. DB and API schemas  <!-- skills: hor-graphql-schema, hor-type-interface, hor-database-design, hor-sequelize-model, hor-sequelize-migration, hoc-naming, hoc-jsdoc; digests: hora-skills-ort-renchan 0.1.0 and hora-skills-ort-core 0.2.0 -- ALL REUSED from #sign-in, none taken here, the installed versions being unchanged. NO MIGRATION, deliberately: section 11 operates on section 9.3's `expenses`, which #data-model shipped complete including the status seam and the composite (staff_member_id, spent_on) index. Verified against sections 9.2 and 9.3 rather than rebuilt. The SDL match with the pinned contract was established by AST comparison, not by eye: 11 types and 5 operations, zero DIFF, zero EXTRA. Q48 raised -- the contract exposes createdAt/updatedAt, which hor-graphql-schema forbids by name; the contract wins and the question goes to the user -->
 - [x] 4. Stub API  <!-- REACHED IN PART. skills: hor-stub-api; digest reused from #sign-in at hora-skills-ort-renchan 0.1.0, none taken here. Five schema-accurate stubs, same class names and interfaces as the real resolvers will have. "Callable from outside" is evidenced IN PROCESS through the framework's own schema-and-resolver path with contextValue: null, NOT over a socket -- Q24, and the record separates the two claims deliberately. Q28's statement is in all five docblocks and is sharper here than at #sign-in, because every operation this feature adds is SUPPOSED to require a session. Q33 fired a second time via the shared SQLite file, as checkpoint 3 predicted -->
 - [x] 5. The modules the implementation needs  <!-- catalog check FIRST and once for the whole checkpoint, then three implementer units. 33 tracked packages searched: adopted renchan-sequelize's PaginationMixinModel, mentsu-deep-value-converter and mentsu-value-inspector; DECLINED mentsu-field-path-value-extractor (the only nested read is two deep, which the style rule permits) and jest-deep-containing / jest-expect-each (nothing needs them) -- declines recorded because "not used" and "not considered" look identical later. Modules: the expenses development seeder (14 rows, block 102), CalendarDateInspector behind CALENDAR.TIMEZONE, and PaginationMixinModel on Expense. Every import CONFIRMED TO RESOLVE by the main session rather than taken from the units' reports. MY BRIEF WAS WRONG about Expense.findAllWithPagination -- it is Expense.$.findAllWithPagination, and the unit caught it. Q38 found already broken in expenses by #data-model's own test, amended with the measurement. Q49 behind one constant, labelled recommended-not-decided. I caused Q33's third instance by running three units in parallel on one SQLite file -->
-- [ ] 6. Actual API
-- [ ] 7. Worker
+- [x] 6. Actual API  <!-- five implementer units, ONE AT A TIME rather than in parallel, because five units on one SQLite file is how I caused Q33's third instance at checkpoint 5. All five operations served from the actual/ pool; the five stubs stay for the frontend until checkpoint 16. 68 suites, 1654 tests, lint clean, every figure re-run serially by the main session. The not-found rule is the ABSENCE of a second code, so errorCodeHash is pinned whole; mutation-tested by dropping StaffMemberId from the where clause. "Nothing is recorded" proved through the product's own read path and mutation-checked. A declared-but-unexercised session guard found in all three mutations by noticing the query resolver covered its equivalent -- 16 cases added, and the exercise DISPROVED a docblock about what the guard prevents. Q46's mechanism ran backwards five times exactly as checkpoint 4 predicted. Q50 capped at 100 (chosen, not confirmed), Q51 written into tests/_orders/README.md and all eight barrels. Two of my briefs were wrong and units caught both -->
+- [x] 7. Worker  <!-- NOT APPLICABLE, established with hor-execution-placement-pattern per operation rather than by eye, which is what this checkpoint's own clause demands. All five operations short-circuit at the flow's read-only or light-write step; the trigger question is never reached. Spec section 8's footnote says it outright -- Redis is not declared because this version runs no background job -- and section 7's retention line forecloses the one candidate a hard delete would suggest. Nothing written, and nothing invented to make the checkpoint non-empty. Two findings anyway: the skill had NO DIGEST and my brief did not ask for one (taken afterwards, pinned to hora-skills-ort-renchan 0.1.0 -- my process gap), and ioredis is a declared dependency with zero importers, so package.json alone would suggest a job facility that does not exist -->
 - [ ] 8. Security audit
 - [ ] 9. Verify the use cases again, against the built API
 
@@ -406,6 +406,215 @@ the main session for exactly that reason.
 **Also recorded because it cost a unit a confusing failure:** `npm test` and `npm run db:refresh`
 both begin an `export NODE_ENV` line and npm defaults to `cmd.exe` here, which answers that `export`
 is not recognized. `npm_config_script_shell=bash` is needed, and the acceptance gate will need it too.
+
+
+## Checkpoint 6 - five real operations, and the security property that is an absence
+
+**68 suites, 1654 tests, lint clean.** Baseline entering the checkpoint was 49 suites / 776 tests.
+Every figure re-run by the main session serially, never accepted from a unit's report.
+
+All five operations are served from the `actual/` pool. The five stubs stay where they are - the
+frontend builds against them until checkpoint 16.
+
+### The not-found rule is the absence of a code, so the absence is what is pinned
+
+Section 7 and section 11 both say another member of staff's expense is answered as **not found,
+never as forbidden**, and that the answer says nothing about whether it exists. At `removeExpense`
+that collapses three situations into one, because section 7 deletes outright rather than archiving:
+
+| situation | answer |
+|---|---|
+| this caller removed it a moment ago | `204.M006.002` |
+| it exists and belongs to somebody else | `204.M006.002` |
+| no row has ever held that id | `204.M006.002` |
+
+**Proved across all three at once rather than pairwise** - two describes, six cases each, every case
+carrying the same expected literal, and the already-removed ids are rows the describes above
+genuinely deleted rather than simulated.
+
+**The mechanism is one `where` and one missing code.** `findExpense()` narrows by `id` *and*
+`StaffMemberId` in a single read, so another owner's row is never selected and the resolver has
+nothing to tell the cases apart with. There is no second not-found code for a later reader to reach
+for, and `errorCodeHash` is asserted **whole** with one `toEqual` - so an `ExpenseNotOwned` or
+`ExpenseAlreadyRemoved` added later turns that test red instead of quietly leaking existence.
+
+**Mutation-tested, not asserted and hoped:** dropping `StaffMemberId` from `correctExpense`'s
+`where` produces six failures, including both identical-code describes and the untouched-page one.
+
+### "Nothing is recorded" and "changes it in place" are each proved as both halves
+
+Section 11's refusal criteria say *"and nothing is recorded"*. **The throw is not the proof.** The
+refused call is the Arrange; the Act is a read of that member of staff's own page through the
+product's own `ExpensesQueryResolver`, asserted whole including `totalRecords: 0`. No
+`Model.findAll` or `count` appears in any of these files. **Mutation-checked** - flipping one case's
+`0` to `1` fails, so the read is live rather than vacuously true.
+
+**"Correcting changes it in place" needs the pair.** The read-back asserts `totalRecords` is the
+owner's seeded 10 **and** that the corrected row comes back **under the id it already had**. A
+delete-and-reinsert answers ten as well, and fails the first half. Either assertion alone would pass
+a resolver that met the criterion's words and not its meaning.
+
+### The timezone rule is load-bearing in a test rather than merely implemented
+
+Every date case states its own `context.now`. The one that matters is `2026-09-15T15:30:00.000Z` -
+00:30 on the 16th in Tokyo while UTC is still the 15th - where an entry dated `2026-09-16` is
+**accepted** as today. **Under UTC that same case would be refused**, so its passing is the evidence
+that `CALENDAR.TIMEZONE` is read, rather than that the arithmetic happens to be right. That is the
+rule section 6 now carries, pinned by a case that fails if anybody reaches for the host's zone.
+
+### Q46's mechanism ran backwards, five times, exactly as checkpoint 4 predicted
+
+Each time an `actual/` resolver landed, a **passing** assertion in the stub-execution suite went
+red: the operation stopped being reachable from the stub pool and started being refused without a
+session. **A check met correctness and called it failure** - the mirror of Q46, where a check met a
+defect and took its side. Both are one fact: a suite measures agreement between code and tests, and
+agreement is not correctness.
+
+Checkpoint 4's record predicted this before any `actual/` resolver existed. **Five for five**, and
+each time the prediction made the red diagnosable in seconds rather than investigated. Every block
+was rewritten into the stronger claim; none was deleted. The full amendment is in Q46.
+
+The file's own header now answers the question its last rewrite raised - *what is this file for when
+nothing in it is reached from a stub?* It is for what no unit test can ask: whether each operation
+is reachable at all, and what a caller with no session gets back. Both are properties of the wiring
+rather than of any resolver.
+
+### A declared-but-unexercised branch, found by noticing an inconsistency
+
+All three mutation resolvers declared `StaffMemberNotFound`, pinned it in a whole-hash `toEqual`,
+and **nothing exercised the branch that raises it.** The query resolver had covered its equivalent
+three ways since the checkpoint's first operation - **the inconsistency is what made it visible**,
+not a coverage tool.
+
+That is this project's "legal but empty" mechanism sitting in the code that enforces a session
+requirement. Sixteen cases now cover it, each carrying a request that is *also* wrong in a way that
+would answer a different code if the guard moved - so the **order** is pinned, which is what section
+11's "before it reads anything" actually asks. Mutation-checked one guard at a time, the other two
+files staying green each time, which is the attribution.
+
+**And the exercise disproved a docblock.** It claimed that unguarded, a misconfiguration would write
+a row owned by nobody. It would not: the insert fails at the column. **`Expense.verifyStaffMember()`
+is not what stops it** - that hook returns early on a null owner and is a no-op for this exact case.
+What a caller gets without the guard is `notNull Violation: Expense.StaffMemberId cannot be null`,
+or where the key is absent, `WHERE parameter "staff_member_id" has invalid "undefined" value`. **The
+guard closes a raw-driver-message leak, not an unowned row.** Corrected to what was measured - the
+same shape as the CORS docblock corrected at `#sign-in`, a plausible sentence nobody had run.
+
+### Two questions closed, neither by inventing an answer
+
+- **Q50** - nothing fixed a maximum page size, so a caller could ask for a hundred thousand rows.
+  `PAGINATION.MAXIMUM_LIMIT` is 100, behind its own constant, **chosen and not yet confirmed**, with
+  the chooser named. Asked *after* `InvalidLimit` so `-3` is called invalid rather than excessive,
+  and that order is asserted. The boundary tests write `100` and `101` as literals rather than
+  reading the constant, because a test that read the value under test would assert nothing -
+  mutation-checked by moving the maximum to 1000, which fails exactly the two over-maximum
+  describes.
+- **Q51** - the `_orders` suites assume a freshly seeded database and are not re-runnable alone.
+  Correct, and held only by everyone happening to know it. `tests/_orders/README.md` now carries the
+  reasoning and the failure signatures, and **each of the eight barrels carries a pointer, because
+  the barrel is the file you must edit to add a suite.** A rule nobody meets at the moment of
+  breaking it is not a control.
+
+### Two of my briefs were wrong, and units caught both
+
+- I briefed `Expense.findAllWithPagination(...)`, **taking a catalog report at its word.** It does
+  not exist; the mixin's statics land on a handler. Checkpoint 6 would have met
+  `undefined is not a function`.
+- I briefed that an arg-less member is a plain `test()`. The rule's exception is **only** an arg-less
+  static method and a static getter; an arg-less *instance* method still uses `test.each`.
+
+Both were caught by units that checked rather than complied. **The pattern in both is the same one
+that produced my two stalls**: a description standing in for the thing - announcing an action
+without taking it, and relaying a claim without running it.
+
+### Two stalls, seven days, and only one of them was a mechanism
+
+- **A unit died on `ENOTFOUND` mid-run**, emitting no completion, so nothing woke this session. Its
+  four files turned out to be sound - lint clean, its own suites passing - and the two failing tests
+  were correct behaviour arriving. A continuation unit finished the two missing pieces rather than
+  redoing good work. **Cost: three days.**
+- **I ended a turn with "Dispatching `correctExpense` next" and did not call the tool.** Then did the
+  same again with Q50 and Q51. **Cost: four days, then nine minutes** - the difference being a
+  watchdog the peer session proposed and I accepted, which wakes this session after about a day of a
+  clean tree with no movement.
+
+**The two are indistinguishable from outside and have different fixes**, which is the argument for
+the watchdog catching both and for not filing the second as the first.
+
+
+## Checkpoint 7 - not applicable, established rather than assumed
+
+**Nothing was written, and that is the finding.** The checkpoint's own clause says to decide this
+**with the placement skill, not by eye**, so the decision was made by matching
+`hor-execution-placement-pattern` and walking **all five operations through its flow individually**.
+A checkpoint marked not-applicable with no stated reason is indistinguishable from one that was
+skipped.
+
+| Operation | Beyond answering the caller | Placement |
+|---|---|---|
+| `expenses` | nothing - no read receipt, no last-viewed stamp, no access log row | request path |
+| `expenseCategories` | nothing - `context` is never even read | request path |
+| `recordExpense` | nothing - one existence read and one insert, in one transaction | request path |
+| `correctExpense` | nothing - and **no history row**: §9.3 declares no history table, and the only `_bk` tables in the spec belong to `#sign-in`'s secrets and digests | request path |
+| `removeExpense` | nothing - and the spec **forecloses** the one candidate | request path |
+
+Every row short-circuits at the flow's first or second step. **The trigger question - enqueue,
+post-worker, or schedule - is never reached**, because nothing gets past "light work goes in the
+API".
+
+### The spec says it outright, which is better than the walk concluding it
+
+§8's middleware footnote:
+
+> **Redis is not declared, because this version runs no background job.** Every write finishes
+> inside its own request, and nothing here leaves the process.
+
+And §7's retention line kills the only candidate a hard delete would suggest - *"An entry its owner
+removes is deleted outright rather than archived - what is retained is what remains."* So there is
+no archive write, no tombstone, no cleanup sweep to schedule.
+
+### The `#sign-in` precedent points the same way, for a reason worth keeping
+
+`SignInMutationResolver` does two things that *look* like post-response candidates and runs both
+synchronously. The interesting one is `recordSignInFailure()`: the attempt row is written **before**
+the `InvalidCredentials` throw, not after the response. **It has to be** - §7's limit counts rows
+that must already exist when the *next* request reads them, so deferring the write would let a burst
+slip the limit. That is a write which is part of the main processing rather than a side effect.
+
+**So the precedent is that this project puts everything in the request path deliberately**, and this
+feature has strictly less to place than `#sign-in` did.
+
+### §4's out-of-scope items would each need a placement, and none of it is this checkpoint's to invent
+
+Approval by a manager (1.1.0) would put the decision in the request path and the **notification** in
+a post-worker; the month export (1.2.0) is file generation, which is named on the skill's heavy side,
+so a request-based Worker. **All of them would need Redis declared, which §8 deliberately does
+not.** Adding a post-worker for a notification nobody has asked for would be code with no
+requirement behind it, maintained and tested forever.
+
+### Two findings from a checkpoint that changed no code
+
+- **The skill had no digest, and my brief did not ask for one.** `.hora/digests/` held 40 files and
+  `hor-execution-placement-pattern` was not among them, so the unit read all 216 lines of the skill
+  instead. `/hora-build` takes a digest when a matched skill has none at the installed version; I
+  omitted that step. Taken afterwards and pinned to `hora-skills-ort-renchan 0.1.0`, which is what
+  `#monthly-summary` will read when it reaches the same checkpoint. **A process gap of mine, not the
+  unit's.**
+- **`ioredis` is a declared dependency with no importer.** Verified directly: `ioredis@^5.8.0` in
+  `package.json`, a `redis:7.4` service in `docker-compose.development.yml` behind
+  `profiles: [redis]`, and **zero imports** anywhere in `app/`, `server/`, `sequelize/` or `tests/` -
+  only three identical commented-out `NOTE: Uncomment the following line to enable Redis PubSub`
+  lines in the engines. `@openreachtech/renchan-job-bullmq` is absent, `app/jobs/` does not exist,
+  `server/graphql/post-workers/` does not exist, and all three engines carry `postWorkersPath: null`.
+
+  So §8's "Redis is not declared" is true of the **design** while the tree carries boilerplate
+  residue. **Somebody reading `package.json` alone could conclude a job facility already exists**,
+  which is exactly the wrong conclusion to reach at the moment a later version needs one. Recorded
+  in the digest rather than fixed here: `package.json` is conflict-proof, and this is residue of the
+  boilerplate rather than of this feature.
+
+**68 suites, 1654 tests, lint clean - unchanged, and run anyway**, because "I changed nothing" and
+"I broke nothing" are different claims.
 
 ## Frontend gate
 - [ ] 10. Open the frontend
