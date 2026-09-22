@@ -2814,6 +2814,58 @@ hold is the current one, where the requirement is real but unwritten and the doc
 Windows help.
 
 
+### The separation, done at `#expense-entry`'s checkpoint 16 — which findings are the product's and which are this machine's
+
+Owed since the backend gate. **Two populations, and conflating them would let a benchmark of this
+process carry defects that only exist because the work was done on an unsupported platform.**
+
+#### Artefacts of native Windows — not product findings
+
+| | what it is | evidence it is environmental |
+|---|---|---|
+| **Q24** | `DeepBulkClassLoader` passes a raw absolute path to `import()` | **Measured on both platforms.** `D:\…` fails `ERR_UNSUPPORTED_ESM_URL_SCHEME`; the same file imports fine under WSL2 because a POSIX path begins `/`. Real, filed upstream in four repositories, and **out of the supported environment** |
+| **Q13** | the executable bit lost on every shell script | `core.fileMode=false`, git's **default on Windows**. Under WSL the bit would have been recorded and the scripts would never have arrived unrunnable |
+| **the `export` failure** | `npm test` and `db:refresh` die at `'export' is not recognized` | npm on Windows runs scripts through `cmd.exe`. The scripts are correct; `sh` runs them. Needs `npm_config_script_shell=bash` here and nothing at all in CI |
+
+**None of these is a defect in what was built.** All three would have been invisible on the platform
+the kit requires — which is Q52, and is why that question matters more than it first looked.
+
+#### Product findings — real regardless of platform
+
+Everything else. Named because a reader should not have to infer the complement: Q33's shared-database
+order dependence, Q38's explicit ids against auto-increment, Q43's access token in browser storage,
+Q46's test defending its own defect, Q47's missing transitive dependency, Q48's `createdAt` on the
+contract, Q50's unbounded page size, Q51's serial-versus-parallel gap, Q53–Q55's audit findings,
+Q56's skill-versus-library divergences, Q57's contract copy, Q58's instrument verdicts. **Every one
+reproduces on Linux.**
+
+#### The "reached in part" records, which are the mixed case and the reason this was worth doing
+
+Four records across two features — `#sign-in`'s checkpoints 14, 16 and 17, and `#expense-entry`'s
+checkpoint 4 — say evidence was gathered **in process** rather than over a socket, naming Q24.
+
+**Their content stands and their stated cause does not.** What was verified is exactly what they
+say: the schema, the resolver pools, the field wiring and the type coercion are real; express, the
+middleware chain, the body limit and the CORS allow-list were never exercised. That was measured and
+does not change.
+
+**But "the server cannot start" is a claim about this machine, not about the product.** Q24's
+amendment established the socket is **unreached rather than unreachable** — and, importantly, that
+there is a **second wall** on the supported platform: `node_modules` here holds Windows binaries, so
+under WSL the server gets past the loader and dies at
+`sqlite3 … invalid ELF header`. **That second wall is environmental too, and it is this project's
+setup rather than upstream's.**
+
+So the accurate form of all four records is: **"not started here, for two reasons — one upstream and
+filed, one this tree's own installation."** Neither is evidence about whether the product works.
+
+#### What this changes about `#expense-entry`'s checkpoint 16
+
+Its exit condition says the screen shows real data from the **actual** API. **Not met, and recorded
+in those words** — nothing was served over a socket. `#sign-in`'s checkpoint 16 recorded the same
+shortfall, and **the pair is the evidence Q52 rests on**: two features, two gates, the same clause
+unmet for the same environmental reason, in a project whose platform requirement is written nowhere.
+
 ## Q53. Two checkpoint 8 findings accepted rather than fixed, and why each is safe to accept
 
 <!-- spec: expense-entry -->

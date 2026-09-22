@@ -839,7 +839,7 @@ difference from 70/1767 being exactly the two test files the fix added.
 - [x] 13. The frontend modules the implementation needs  <!-- skills: hof-error-handling, hof-modules, both digests present. ERROR_CODE_HASH 13 -> 45: 31 codes read out of the five resolvers' own getters, plus 102.X000.001. expenseCategories contributes none and that is written in as CHECKED. The identical-refusal requirement is ENFORCED rather than remembered -- 204.M005.002 and 204.M006.002 carry the same sentence byte for byte and a test asserts they are equal, so editing one alone fails. 102.X000.001 is mapped because the gateway asks only existsToken() -- whether a token is HELD, never whether it is good -- and runs on navigation, not on an in-flight call. Shared-logic clause NOT APPLICABLE, stated rather than assumed. The future-date authority is settled in the file that will hold the check: both sides refuse, that is not duplication, and THE BACKEND IS AUTHORITATIVE where the browser's timezone and Asia/Tokyo disagree -->
 - [x] 14. API client  <!-- skill: hof-graphql, digest present. Five Payload/Launcher/Capsule trios; signOut already existed and was not touched; documents generated from the contract by the skill's own generator rather than transcribed. MY BRIEF PROPOSED THE WRONG CHECK and the unit refused it: an AST diff needs a document in the contract to diff against and there is none, so it would have meant hand-writing the expected document -- the transcription step the check exists to remove. Replaced by validate(buildSchema(contract), parse(document)) PLUS a coverage inspector, because validate() accepts partial selection BY DESIGN and so catches an added field and not a missing one. The contract file is the oracle, so nothing is transcribed. Mutation-checked BOTH directions by the main session. The literal exit condition -- works against the stub -- is unreachable: checkpoint 6's actual pool shadows the stub pool and the backend does not start here. Q57 raised for the vendored copy's drift risk -->
 - [x] 15. UI  <!-- one screen, four states, one unit -- filled, loading, empty, error, each reachable from the context and each with a test behind the parcel that selects it. THE DATE RULE: the screen refuses AND the backend refuses; the check is isSpentOnLaterThanToday() called from onSubmitForm(), which returns before the request, and generateTodayDate() reads the browser's calendar fields rather than toISOString(), which would call a Tokyo evening tomorrow. Two tests prove the send is DECLINED, not just messaged. SCOPE STATED: link 3 of the typed-segment chain (onChangeSpentOn) is untested and that is an omission, not the forced Q44 gap -- closed at 16. A loading button's missing accessible name was REMOVED rather than compensated, by closing the dialog before sending. --color-ring turns out FIXED and six digests still say otherwise, which checkpoint 18 audits against -->
-- [ ] 16. Wire the data-fetching logic in
+- [x] 16. Wire the data-fetching logic in  <!-- five seams filled, no markup moved. Pending state is raised in beforeRequest and lowered in afterRequest rather than set by hand, so an answer, a refusal and a network failure all arrive at the same place. Every message goes through extractResolvedErrorMessage(), the single resolution point -- swapping it for the inherited getErrorMessage(), which returns the CODE, fails 13 tests. onChangeSpentOn's test closes link 3 and the file states what it does NOT cover. A DEFECT CARRIED FORWARD FROM #sign-in IS FIXED: the gateway created furo's AccessTokenClerk against localStorage while Q43 put the token in MemoryStorage, which made /expenses unreachable in a redirect loop -- found where the carry-forward note predicted. Seven mutations run, each failing 6-14 tests. The exit condition's literal words are NOT met: nothing was served over a socket (Q24), the same shortfall #sign-in's 16 recorded, and the pair is what Q52 rests on. Stub CHECKED, not asserted: 10 suites, 70 tests -->
 - [ ] 17. Local test environment
 
 
@@ -1110,6 +1110,74 @@ correct - which is Q58's mechanism pointed at this project's own records.
   one existing context suite, none weakened or removed.
 - `node .claude/skills/hof-uiux-forge/scripts/validate-tokens.cjs` - clean, exit 0. The forge's own
   mechanical gate.
+
+**The concurrency caveat does not apply in this repository** - own runner, no database, the same
+worker count locally and in CI.
+
+
+## Checkpoint 16 - wired, and the guard on its own screen unbroken
+
+**Five seams filled**, no markup moved, the state machine not restructured.
+
+**Pending state is never set by hand around a call.** Each flag is raised in the request's own
+`beforeRequest` and lowered in `afterRequest`, so the screen is pending for exactly as long as
+something is in flight - an answer, a refusal and a network failure all arrive at the same place.
+
+**Every message goes through `extractResolvedErrorMessage()`, the single resolution point.** No
+context maps a code: swapping it for the inherited `getErrorMessage()`, which returns the *code*,
+fails 13 tests.
+
+### The omission checkpoint 15 recorded is closed, and its boundary stated
+
+`onChangeSpentOn` now has a test, closing **link 3** of the typed-segment chain - that what the
+picker emits reaches `formValueHashReactive.spentOn`. The test file says plainly what it does **not**
+cover: the template binding in `index.vue`, which Q44 makes genuinely unreachable. **The forced half
+and the omission stay apart rather than letting "no `.vue` file can be tested" absorb both.**
+
+### A defect carried forward from `#sign-in`, found where it was predicted
+
+`middleware/000.gateway.global.js` still created furo's `AccessTokenClerk`, which reads
+`window.localStorage`, while Q43 had put the token in `MemoryStorage` behind `AppAccessTokenClerk`.
+
+**It is not a style mismatch - it makes `/expenses` unreachable in a loop.** The gate answers "no
+session" on every navigation, redirects to sign-in, sign-in finds the session already in memory and
+navigates back, and the gate runs again.
+
+`#sign-in`'s checkpoint 16 recorded it as carried forward **to this feature**, and it is the guard on
+the screen this checkpoint wires. **A carry-forward note doing the job carry-forward notes almost
+never do.**
+
+### The suite was shown to have teeth rather than assumed to
+
+**Seven mutations against the finished code**, each failing 6-14 tests: a broken `onChangeSpentOn`,
+code-instead-of-message, memo as `''` rather than `null`, the re-read deleted, hooks not passed, the
+token kept on sign-out, rows wiped on a refused read.
+
+That is the inverse of Q46's question. Instead of asking whether the tests pass, it asks **what has
+to break for them to fail** - and gets an answer.
+
+### The exit condition's literal words are NOT met, in the words used to the peer
+
+**"The screen shows real data from the actual API" is not met: nothing was served over a socket.**
+Q24 stops the backend booting here. `#sign-in`'s checkpoint 16 recorded the identical shortfall, and
+**the pair of them is the evidence Q52 rests on** - two features, two gates, the same clause unmet
+for the same environmental reason, in a project whose platform requirement is written nowhere.
+
+**The stub was checked rather than asserted:** clean tree, nine resolvers present under
+`stub/`, last touched by checkpoint 4's commit, **10 suites and 70 tests passing.**
+
+**And there was no endpoint to change**, which contradicts the checkpoint's own framing.
+`GraphqlResolversBuilder` already resolves `actual ?? stub`, so the stub was shadowed at checkpoint 6
+and the frontend has no stub layer of its own. "This is where the stub is left behind" does not
+describe this stack.
+
+### Commands, with the figures beside them
+
+- `npm run lint` - clean. **Exactly what CI runs.**
+- `npm run build` - succeeded. **Exactly what CI runs.**
+- `npm test --script-shell=bash` - **43 suites, 682 tests.** Baseline 598; +84, all in the one
+  context suite, none weakened or removed.
+- the stub check, in the backend: **10 suites, 70 tests.**
 
 **The concurrency caveat does not apply in this repository** - own runner, no database, the same
 worker count locally and in CI.
