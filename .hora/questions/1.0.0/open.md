@@ -1098,6 +1098,79 @@ verified by running the framework's own `SchemaFilesLoader` over the real direct
 `makeExecutableSchema` over the result — the same code path minus the socket. What could not be
 exercised is `listen(4900)` and an HTTP probe of the endpoint.
 
+### Amended at `#expense-entry`'s checkpoint 6 — the supported platform is WSL, and the defect does not reproduce there
+
+Raised upstream, and the maintainers' answer was that Hora Kit is required to run on WSL. **Measured
+on both platforms from this machine, importing a real file of this repository two ways:**
+
+```
+platform      : win32
+absolute path : D:\ORT\...\sequelize\models\Expense.js
+raw absolute path        -> FAILED ERR_UNSUPPORTED_ESM_URL_SCHEME
+pathToFileURL(...).href  -> IMPORTED
+
+platform      : linux                (WSL2, Ubuntu, Node v22.22.3)
+absolute path : /mnt/d/ORT/.../sequelize/models/Expense.js
+raw absolute path        -> IMPORTED
+pathToFileURL(...).href  -> IMPORTED
+```
+
+A POSIX absolute path begins `/`, which Node's ESM loader accepts; a Windows one begins `D:\`, and
+Node reads `d:` as a URL scheme. **So the defect is real and the diagnosis stands, but its scope is
+native Windows only** — not "no renchan application starts", but "no renchan application starts on
+native Windows, which is not where this is meant to run".
+
+**This is the second correction to this entry in the same direction**, after the first narrowed it
+from "on this machine" to a defect in the package. Both narrowed. That is worth noticing about the
+entry rather than only about the defect.
+
+### The server still does not start on WSL, and the reason is now a different one
+
+**It gets past the loader.** Running `server/index.js` under WSL from this same tree fails at:
+
+```
+Error: .../node_modules/sqlite3/build/Release/node_sqlite3.node: invalid ELF header
+  code: 'ERR_DLOPEN_FAILED'
+```
+
+`node_modules` was installed by native Windows, so its compiled native bindings are Windows
+binaries. **That is a consequence of sharing one tree across two platforms, not a defect in
+anything** — and it is cleared by installing inside WSL, into a tree of its own so the Windows-side
+suite is not disturbed.
+
+**So the wall this project has been recording is two walls, and only the first was Q24.** Naming
+them separately matters because they have different fixes and different owners: the loader is
+upstream's and is now filed; the native modules are this project's environment setup, and belong to
+checkpoint 17.
+
+### What this does and does not do to the "reached in part" entries
+
+`#sign-in`'s checkpoints 14, 16 and 17, and `#expense-entry`'s checkpoint 4, all record evidence
+gathered **in process** rather than over a socket, with Q24 named as the reason.
+
+- **What stays true:** every one of those entries is accurate about *what was verified*. The
+  evidence was in-process; the express app, the middleware chain, the body limit and the CORS
+  allow-list were not exercised. That claim was measured and does not change.
+- **What must be narrowed:** the *reason* given. "The server cannot start" is true of native
+  Windows and false of the supported platform. Those entries should say **"was not started here"**,
+  and name both walls rather than only Q24.
+- **What is now possible and was not recorded as possible:** the socket is reachable on WSL once
+  the native modules are built there. **So these were not unreachable conditions — they were
+  unreached ones**, and the distinction is exactly the one this project keeps drawing between "no
+  collision occurred" and "no collision is possible".
+
+**WSL was available on this machine the entire time** — `wsl.exe --list` shows five distributions
+and an nvm carrying Node 20, 22 and 24. Nothing checked, and nothing in the records asked. That is
+the finding, and it is about the process rather than about the tooling.
+
+### The requirement is documented nowhere, which is its own finding
+
+`grep -rli wsl` over `@openreachtech/hora` and the boilerplate returns nothing: not the README, not
+`docs/`, not the spec, not the tree docs. What the boilerplate README does carry is a *Note for
+Windows* about `db:refresh` and `cmd.exe` — **an accommodation for Windows, which reads as support
+for it rather than a prohibition.** So a platform requirement that invalidates two findings and
+reclassifies four checkpoint records exists only in a Slack reply. Recorded as Q52.
+
 ## Q25. This repository's README is the boilerplate's, inherited verbatim
 
 <!-- spec: none -->
@@ -2654,3 +2727,50 @@ assumes a freshly seeded database and naming `npm test` as the only supported en
 relative assertions, and relative assertions are strictly worse — a test asserting "one more row
 than before" passes when the operation writes the wrong row. The fresh-database assumption is the
 right one; it just needs saying.
+
+
+## Q52. The platform requirement that reclassifies several findings is written down nowhere
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Found at `#expense-entry`'s checkpoint 6, after Q24 was raised upstream and answered with "Hora Kit
+requires to work on WSL".
+
+**That requirement appears in no file.** `grep -rli wsl` over `@openreachtech/hora` and the
+frontend/backend boilerplates returns nothing — not a README, not `docs/`, not the spec, not the
+tree documents this project generated. The only statement of it is a Slack reply.
+
+**And the documentation that does exist points the other way.** The boilerplate README carries a
+*Note for Windows* explaining how to run `db:refresh` when `cmd.exe` cannot handle the script's
+`export`. An accommodation for a platform reads as support for that platform. A reader following
+the documentation has no way to arrive at "this must be run under WSL".
+
+### What it cost here, concretely
+
+Two findings in this project's own list exist **only** because the work was done on native Windows:
+
+- **Q24** — the `DeepBulkClassLoader` import failure. Measured: does not reproduce on WSL.
+- **Q13** — the lost executable bit on the shell scripts. That was `core.fileMode=false`, git's
+  default on Windows; under WSL the bit would have been recorded and the scripts would never have
+  arrived unrunnable.
+
+And four checkpoint records across two features say "reached in part" with Q24 as the stated reason.
+Those records are accurate about what was verified but name a cause that does not exist on the
+supported platform.
+
+**The cost is not the hours. It is that a benchmark of this process now carries findings that are
+artefacts of an unsupported environment**, and separating them is work that would not have been
+needed had one line existed in a README.
+
+### Where it lands
+
+Upstream, in the same place Q24 went — a sentence in `@openreachtech/hora`'s README naming the
+supported platform, and ideally a check that says so loudly rather than failing at
+`ERR_UNSUPPORTED_ESM_URL_SCHEME` twenty frames deep. **Not this project's file to change.**
+
+If the answer is instead that native Windows *should* work, then Q24 is not out of scope after all
+and the upstream issues stand as filed. Those are the only two consistent positions; what cannot
+hold is the current one, where the requirement is real but unwritten and the documentation offers
+Windows help.
