@@ -2729,6 +2729,44 @@ than before" passes when the operation writes the wrong row. The fresh-database 
 right one; it just needs saying.
 
 
+### Amended at the backend gate - the mechanism is concurrency, not re-runnability, and they are different defects
+
+**Q51 conflated two things and the CI failure separated them.** Both are the shared-database
+coupling; they have different mechanisms and different fixes, and filing them as one is why the
+second went unnoticed until CI failed.
+
+| | re-runnability | **write concurrency** |
+|---|---|---|
+| trigger | running a suite twice with no refresh between | running suites **at once** against one file |
+| what fails | absolute assertions meeting rows a previous run left | `SQLITE_BUSY`, and **one worker reading another's rows** |
+| reachable under `npm test` | no - `test.sh` refreshes first | **no - and that is the problem** |
+| reachable in CI | no | **yes, on every run** |
+
+**The second one was live and invisible.** CI runs `npm test -- --seeded --maxWorkers=3
+tests/_orders/`; `test.sh`'s default path runs the same suites through `jest --detectOpenHandles`,
+which **implies `--runInBand`.** So every local verification this project has ever reported ran
+`_orders` **serially**, while CI has always run it with three workers. `--maxWorkers=1` passes all
+314; `--maxWorkers=3` failed 12, then 1, then 16, then 20, then 23 - a moving failure on unchanged
+code.
+
+**Two mechanisms, and the diagnosis that named only one would have produced the wrong fix.**
+`SQLITE_BUSY: database is locked`, measured by instrumenting a resolver and reverting it, since jest
+prints `error.message` and the text is in `error.original.message` - Q38's swallowing on a second
+error class. A pairwise bisect found exactly one failing pair, `Expense` with `SignIn`, because
+SignIn holds SQLite's single writer lock through bcrypt. **But the other symptom was a listing
+assertion receiving another worker's rows**, which is not a lock at all - a longer `busy_timeout` or
+a retry would not have touched it.
+
+**Fixed by isolation**: each jest worker copies the already-seeded canonical file, `globalSetup`
+allocating and `globalTeardown` removing. Not a retry, not a timeout, not `--runInBand` in CI - each
+of those makes the symptom rarer or invisible while leaving the suite green only under a command
+chosen to avoid it.
+
+**The finding worth keeping is not the race.** It is that **the gate's green had been measured
+against a command nobody else runs, for this project's whole life** - and that no amount of care
+inside the suite would have shown it, because the suite passed. It took an external runner, invoking
+it differently, to say so.
+
 ## Q52. The platform requirement that reclassifies several findings is written down nowhere
 
 <!-- spec: none -->

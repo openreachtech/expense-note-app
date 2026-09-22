@@ -805,6 +805,24 @@ checkpoint 5, observed through the API rather than through a unit test.
 
 **70 suites, 1767 tests, lint clean**, re-run after the walkthrough was deleted.
 
+### Correction, made at the gate: those figures were SERIAL, and CI is not
+
+**The number above, and every suite figure this project has reported, came from a serial run of
+`tests/_orders/`.** `test.sh`'s default path runs those suites through `jest --detectOpenHandles`,
+which **implies `--runInBand`**. CI runs `npm test -- --seeded --maxWorkers=3 tests/_orders/`, with
+three workers against one SQLite file, and **it failed** - variably, which is what identified it as a
+race rather than a wrong assertion.
+
+**So the gate's green was measured against a command nobody else runs.** That is the finding, not the
+race: no amount of care inside the suite would have surfaced it, because the suite passed. It took an
+external runner invoking it differently to say so. Recorded against Q51, which had conflated
+re-runnability with write concurrency - two mechanisms, two fixes.
+
+Fixed by isolating the database per jest worker. **Re-verified with CI's own invocation**, three
+consecutive runs of `npm test -- --seeded --maxWorkers=3 tests/_orders/`: **314 of 314 each time**,
+storage directory clean after each. Full default run **72 suites, 1824 tests, lint clean** - the
+difference from 70/1767 being exactly the two test files the fix added.
+
 ## Frontend gate
 - [ ] 10. Open the frontend
 - [ ] 11. Reconfirm UI/UX and the use cases
