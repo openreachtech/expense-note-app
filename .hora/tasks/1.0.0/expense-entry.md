@@ -794,8 +794,17 @@ actually asks. A second call at `offset: 2` returned it:
   expenseCategory: { id: 10000003, name: 'supplies' } }
 ```
 
-`memo: null` crosses as a JSON null rather than a failure. The near-miss is the point: **a
-verification that stops at the first plausible-looking answer proves the thing next to the claim.**
+`memo: null` crosses as a JSON null rather than a failure.
+
+**The part that makes this worth recording is that the first answer looked correct.** The mutation
+returned an `expenseId`, the page came back well-formed, and nothing anywhere was red — the criterion
+appeared met. There was no signal to investigate. **The wrong answer was plausible, not obviously
+wrong**, which is exactly what makes asking for `offset: 2` a discipline rather than a lucky
+afterthought: it was asked because the claim had not actually been shown, not because anything
+suggested it was false.
+
+**A verification that stops at the first plausible-looking answer proves the thing next to the
+claim.**
 
 ### One more property confirmed in passing
 
@@ -824,14 +833,121 @@ storage directory clean after each. Full default run **72 suites, 1824 tests, li
 difference from 70/1767 being exactly the two test files the fix added.
 
 ## Frontend gate
-- [ ] 10. Open the frontend
-- [ ] 11. Reconfirm UI/UX and the use cases
+- [x] 10. Open the frontend  <!-- skills: hof-nuxt, hof-furo-env, both digests present at hora-skills-ort-furo 0.1.0 and reused. ONE route, /expenses aliased to / -- the deciding fact is that section 11's correction use case is served by data `expenses` already returns, established at checkpoint 2 and observed at 9, so no /expenses/[id] is needed. pages/index.vue DELETED: the boilerplate stub rendering nothing (Q41), which would otherwise have made two route records claim /. Env files needed NOTHING -- #sign-in's address checked against the backend's port and endpoint rather than trusted. Session requirement is the existing global gateway; skipFilter defaults false, so the page is guarded by existing. Reachability READ OFF THE BUILD (route record, alias, meta, middleware), not asserted; that it paints in a browser was NOT established and is said so -->
+- [x] 11. Reconfirm UI/UX and the use cases  <!-- main session, in conversation. The shared UI/UX context is the real output -- the UI generator (12, 15) and the auditor (18) both read it. Section 3 carried a sentence that went stale the moment checkpoint 10 landed ("a screen belonging to a later feature does not exist yet"); it is now a table of which routes exist. Eight rules added, each a criterion or a recorded trap: a correction sends EVERY field because correctExpense is a full replace, and a not-found must look identical in all three cases -- with the rule saying explicitly not to add "this entry was already deleted" as a kindness, since that sentence is the disclosure the rule prevents. All three use cases have a path through the interface; nothing went back to checkpoint 2 -->
 - [ ] 12. Component design
 - [ ] 13. The frontend modules the implementation needs
 - [ ] 14. API client
 - [ ] 15. UI
 - [ ] 16. Wire the data-fetching logic in
 - [ ] 17. Local test environment
+
+
+## Checkpoint 10 - one route, and a stub that had to go
+
+**`/expenses`, aliased to `/`.** Section 11.2 describes one screen, and the three things done on it
+are not three screens.
+
+**The deciding fact came from two checkpoints back.** Section 11's second use case - *"opens that
+entry, corrects the amount"* - is served by data `expenses` **has already returned**. Checkpoint 2
+established it from the spec, checkpoint 9 observed it against the built API. So opening an entry
+for correction needs no further read, which means no `/expenses/[id]` route to carry an identifier
+and no param to fetch by. **Splitting it would have added routes the spec does not describe and put
+a page load between a member of staff and a correction already on screen.**
+
+`/expenses` rather than a page at the root, because the house pattern is a feature-named directory
+holding `index.vue`, never a bare leaf file. **`#sign-in` had already imagined this exact path** -
+its own tests use `redirect: '/expenses'` as a fixture in sixteen places.
+
+**The alias is required rather than decorative.** `SignInPageContext`'s `DEFAULT_DESTINATION_PATH`
+is `/`, so a sign-in with no `?redirect=` lands there; without the alias that is a route with
+nothing on it. Aliasing answers it and leaves another feature's constant and its tests untouched,
+which editing them would not have.
+
+**`pages/index.vue` was deleted**, and it is recorded here because it is the removal of an existing
+file. It was the boilerplate stub whose entire template is `<!-- TODO: fulfill here -->` - it
+renders nothing, and Q41 had already flagged it. With it in place **two route records would claim
+`/` and vue-router would resolve one arbitrarily.**
+
+**Nothing was needed in the environment files, and that is the result rather than an omission.**
+`#sign-in` wired `ENDPOINT_URL` and `WEBSOCKET_URL` in all three, and they were checked against the
+backend rather than trusted: it listens on `4900` and declares `graphqlEndpoint: '/graphql-staff'`.
+All six of section 11.2's operations are on that same audience at that same address, so this feature
+introduces no new address, key or origin.
+
+**The session requirement uses the existing mechanism and adds no second one.**
+`middleware/000.gateway.global.js` is global and `FuroMeta.skipFilter` defaults to `false`, so a
+page is guarded **by existing**. This page sets no `skipFilter`.
+
+### Reachability was read off the build, and the limit is stated
+
+`npm run build` succeeded and the compiled client bundle carries the route record verbatim -
+`path:"/expenses"`, `alias:["/"]`, the `pageTitle` meta, and the gateway middleware compiled around
+it. **That is the route table vue-router itself receives**, so it is evidence rather than inference.
+Confirmed independently by the main session: exactly two page records, and the `path:"/"` also
+present in the bundle is vue-router's own internal blank-route object (`matched:[]`), not a third
+page - checked rather than assumed.
+
+**What was not established: that it paints in a browser.** With `ssr: false` the nitro server
+answers every path with the same SPA shell, so an HTTP 200 on `/expenses` would have proved only
+that a static server is running. The built route record is the stronger evidence and a weaker one
+was not manufactured to fill the gap.
+
+## Checkpoint 11 - the third pass, and the file both generators read
+
+**This asks whether a person can do the use cases on a screen.** Checkpoint 2 asked whether the spec
+supported them; checkpoint 9 asked whether the API did. **The context file is the real output** -
+the UI generator at 12 and 15 and the UI auditor at 18 both read it, so a feature missing from it is
+generated and audited with no project context.
+
+### A sentence that had gone stale in the file, found before the unit landed
+
+Section 3 said *"a screen belonging to a later feature does not exist yet and must not be linked to
+or stubbed."* True while `#sign-in` was the only screen; **false the moment checkpoint 10 landed
+`/expenses`.** A stale prohibition there would either suppress a link that should exist or make the
+audit flag one that should. It is now a table of which routes exist, because that changes as
+features land, and `#monthly-summary`'s screen is still correctly named as absent.
+
+### Eight rules, each an acceptance criterion or an already-recorded trap
+
+The two that carry the most:
+
+- **A correction sends every field, always.** `correctExpense` is a **full replace** - so a
+  correction that omits the memo clears it. Flagged at checkpoint 2 as the thing a screen gets wrong
+  once and a member of staff discovers by losing a memo.
+- **A not-found must look identical in all three cases** - somebody else's entry, one already
+  removed, and an id that never existed. The backend answers one code for all three, and the rule
+  says plainly **not** to add *"this entry was already deleted"* as a kindness: **that sentence is
+  the disclosure the rule exists to prevent.** A screen can undo a backend's non-disclosure property
+  with one helpful message.
+
+The rest: pre-fill from the list rather than a second request, since no read-one operation exists; a
+removal is confirmed, because section 11.2's call table specifies it and the delete is permanent;
+entries read newest `spentOn` first, **with the consequence stated rather than hidden** - an expense
+paid last week and recorded today appears below this week's, which is the cost accepted knowingly at
+checkpoint 1; the memo renders empty rather than as the text "null"; `pagination.sort` is untrusted
+text echoed back unvalidated (Q53); and no page asks for more than 100 rows (Q50).
+
+**All three use cases have a path through the interface**, so nothing went back to checkpoint 2.
+
+### Commands, and a caveat that is absent because it does not apply
+
+- `npm run lint` - clean. **Exactly what CI runs.**
+- `npm run build` - succeeded. **Exactly what CI runs.**
+- `npm test --script-shell=bash` - **25 suites, 348 tests passed.** Baseline was 337; the 11 new
+  ones are checkpoint 10's and account for the whole delta.
+
+**That last is not bare `npm test`, and the difference is this machine rather than the repository.**
+`npm test` dies here with `'export' is not recognized` before a single test runs: the script body
+begins `export NODE_OPTIONS=...` and npm on Windows uses `cmd.exe`. CI runs it on Linux, where `sh`
+handles it, so `--script-shell=bash` runs the identical script string under the shell CI's own
+`sh` provides.
+
+**The concurrency caveat that applies to the backend does not apply here, and that is stated rather
+than left to be inferred from its absence.** This repository has its own runner, no database of any
+kind, and `jest --maxWorkers=5` in the script itself - the same worker count locally and in CI.
+There is no serial-versus-parallel gap on this side. **A caveat missing because it does not apply
+should look different from one missing because nobody thought of it.**
 
 ## Acceptance gate
 - [ ] 18. Acceptance (E2E and unit both)
