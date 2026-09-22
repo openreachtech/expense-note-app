@@ -3061,11 +3061,44 @@ report against a file that is correct.
 **The asymmetry worth naming:** a green result invites the question and rarely gets it; a red result
 feels like it has already done the work. Both need it equally.
 
+### The recurring failure mode has a name: the check assumed a FORMAT, not a content
+
+**Five wrong verdicts now, and every one of them was built around an assumption about layout rather
+than about meaning.**
+
+| wrong check | the assumption that broke it |
+|---|---|
+| cut at a line number from a `####` pattern | that `####` appears only in the header, not as a banner inside the body |
+| cut at the first non-`####` line | that the header is followed immediately by content, not by a blank line |
+| strip every `#` line from both sides | that `#` marks only the header, not the contract's own GraphQL comments |
+| strip every `####` line | that the body contains no `####` banners |
+| grep a sentence on one line | **that a sentence occupies one line** — it was wrapped across two |
+
+**So the defence has a concrete form, not just a posture.** *What would have to be true for this
+verdict to be wrong?* has an answer that keeps recurring here: **that the thing I searched for is
+laid out the way I assumed.** A looser search, or a search for a distinctive fragment rather than a
+whole sentence, would have caught all five.
+
+### The same family covers announcing work and reporting it done
+
+Three times in this feature the main session wrote that an action had been taken — dispatching a
+unit, landing two questions, ticking a checkpoint — when it had not. **The count is a tally and not
+the finding.** The mechanism is:
+
+> **Announcing an action and reporting it as taken are the same sentence.** So the only defence is
+> to read the artefact before writing the claim.
+
+**Which is this entry's own subject.** An announcement is an instrument reporting on work; reading
+one's own last message to find out what happened is trusting the instrument instead of the subject.
+The habit that finally caught it was checking the file before writing, and it took three instances
+to install because nobody had written the mechanism down.
+
 ### Where it lands
 
 Nowhere outside this project — it is a practice, not a defect. Recorded because the benchmark this
 work feeds is about what a process catches, and **this is a case where the process caught its own
-instruments four times in a row.** Adjacent to Q46, Q51, Q56 and Q57, which are its instances.
+instruments five times, across two sessions, in one evening.** Adjacent to Q46, Q51, Q56 and Q57,
+which are its instances.
 
 ## Q57. The frontend's contract copy has no guard, because its CI cannot see the authority
 
