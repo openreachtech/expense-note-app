@@ -2913,3 +2913,79 @@ than listing them, and a limiter is far cheaper to add before a frontend polls a
 after. If the answer is that an authenticated internal system does not need one, **that is a
 legitimate answer and this question is where it should be written down** — so the next audit finds a
 decision rather than an omission.
+
+
+## Q56. The component skills disagree with the library they document, in ways that compile
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: upstream-defect -->
+
+Found at `#expense-entry`'s checkpoint 12 and confirmed while digesting five component skills. **This
+is the second feature to find it** — `#sign-in`'s checkpoint 12 recorded the same manifest-versus-source
+disagreement, and it is still present in `@openreachtech/furo-vue 1.3.2`.
+
+**Every item below was read from `node_modules/`, and every one would have compiled.** That is what
+makes them worth a question rather than a note: a skill's example that is wrong about a prop name
+produces a screen that renders, passes lint, passes the suite, and silently does not do the thing.
+
+### The one with a specification consequence
+
+**`hof-cp-date-time` says an out-of-range date is "non-interactive". It is marked, not blocked.**
+
+`reka-ui/dist/DateField/DateFieldRoot.js:146` computes `isInvalid` from `minValue`/`maxValue`, and its
+only consumers are line 247 (`data-invalid`) and line 254 (a slot prop). **`modelValue` is never
+touched**, and `FuroDatePickerContext.js:773` emits `change-value` / `update:value` / `commit-value`
+with the out-of-range date.
+
+The skill is right about the **calendar grid** — `Calendar/useCalendar.js:112` really does disable
+those cells — and wrong about the **typed segments**. So a member of staff can type tomorrow's date
+and the form holds it.
+
+**§11 requires an expense dated after today to be refused**, so this is not cosmetic. The criterion
+is the backend's to hold and it does; the screen must check before sending rather than trusting
+`maxValue` to have stopped it. Verified independently by the main session.
+
+### The ones that make a correct-looking example wrong
+
+- **`FuroTable` has a `row-actions` slot no skill lists**, and providing it makes the table render
+  its own trailing column **with `@click.stop` already applied** (`FuroTableContext.js:380`). The
+  skill's own example instead hand-rolls an `actions` column through the `cell` slot. **Following
+  the example produces a worse version of something the library already does.** `sort-icon` and
+  `footer` are also undocumented — and `sort-icon` is missing from the component's own
+  `FuroTableSlots` typedef, so the component under-documents itself too.
+- **`hof-cp-date-time`'s control-block example passes `parcel.error`.** The field is
+  `errorMessages: Array<string>`. An `error` key is silently ignored and **no message renders** — on
+  a control whose whole purpose is showing one.
+- **An `id` on `<FuroSelect>` reaches no DOM element**, falling through `SelectRoot` → `PopperRoot`,
+  which renders only its slot. So a `FuroControlBlock`'s `controlId` cannot label it, and the label
+  association silently does not exist. The working seam is `:trigger-parcel="{ id: … }"`. An `id` on
+  `<FuroDatePicker>` *does* land. **Two sibling components, opposite behaviour, neither documented.**
+- **`FuroAlertDialog`'s `busy` set inside the `confirm` handler comes too late** — `onConfirm()`
+  emits and then calls `closeInternal()` synchronously, reading `parcel.busy` before the prop has
+  updated, so the dialog closes anyway. A removal confirmation that is supposed to stay open while
+  the request is in flight will not.
+- **`FuroPagination` throws when `page` and `offset` disagree**; the skill says it prefers `page`.
+- **`FuroSelect`'s `update:value` in multiple mode** returns the whole array, not the first value.
+  The skill also lists 4 of its 12 slots, and `portalParcel` is a declared prop the template never
+  uses.
+- **Every component skill's example writes `:parcel="{ … }"` inline**, several with method calls in
+  property values — which this project's UI/UX context §8 rule 12 and `javascript-style.md` both
+  forbid. `hof-uiux-forge` says the project context wins, so the examples cannot be copied as
+  written.
+
+### Why this is one question rather than eight
+
+They share a cause: **the skills were written against a version of the library and have not been
+re-read against it since.** Fixing them one at a time as each is met means every project on this kit
+re-finds them, which is what happened here — `#sign-in` found two, `#expense-entry` found seven more,
+and the two features share one of them exactly.
+
+**All of it is recorded in the five digests**, so this project's own implementers meet the library's
+real behaviour rather than the skill's account of it. That protects this repository and nothing else.
+
+### Where it lands
+
+The `@openreachtech/hora-skills-ort-furo` package, which is not this repository's. **Not fixable
+here, and not this feature's to fix.** Adjacent to Q45 and Q44, the other two findings about this
+frontend stack that belong upstream.

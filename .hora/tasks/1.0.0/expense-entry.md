@@ -835,7 +835,7 @@ difference from 70/1767 being exactly the two test files the fix added.
 ## Frontend gate
 - [x] 10. Open the frontend  <!-- skills: hof-nuxt, hof-furo-env, both digests present at hora-skills-ort-furo 0.1.0 and reused. ONE route, /expenses aliased to / -- the deciding fact is that section 11's correction use case is served by data `expenses` already returns, established at checkpoint 2 and observed at 9, so no /expenses/[id] is needed. pages/index.vue DELETED: the boilerplate stub rendering nothing (Q41), which would otherwise have made two route records claim /. Env files needed NOTHING -- #sign-in's address checked against the backend's port and endpoint rather than trusted. Session requirement is the existing global gateway; skipFilter defaults false, so the page is guarded by existing. Reachability READ OFF THE BUILD (route record, alias, meta, middleware), not asserted; that it paints in a browser was NOT established and is said so -->
 - [x] 11. Reconfirm UI/UX and the use cases  <!-- main session, in conversation. The shared UI/UX context is the real output -- the UI generator (12, 15) and the auditor (18) both read it. Section 3 carried a sentence that went stale the moment checkpoint 10 landed ("a screen belonging to a later feature does not exist yet"); it is now a table of which routes exist. Eight rules added, each a criterion or a recorded trap: a correction sends EVERY field because correctExpense is a full replace, and a not-found must look identical in all three cases -- with the rule saying explicitly not to add "this entry was already deleted" as a kindness, since that sentence is the disclosure the rule prevents. All three use cases have a path through the interface; nothing went back to checkpoint 2 -->
-- [ ] 12. Component design
+- [x] 12. Component design  <!-- NOTHING NEW. Eight furo-vue components plus AppRefusalMessage serve the whole screen, so no new-component justification is owed. All twenty component skills matched, not just the ones used -- twelve reasoned noes are as much the output as eight yeses. The refusal that matters: FuroEditableField commits ONE value while correctExpense is a full replace, so inline edit would clear the memo -- checkpoint 2's trap met as a component choice, and the design makes it structural (one form, two modes, no code path that can send a partial correction). Design at ai/contexts/uiux-context-expense-entry.md, which the forge and the auditor BOTH load by filename convention -- verified at both skill sources. Q56 raised: seven skill-versus-library divergences, each of which would have compiled; second feature to find the class. Five digests taken rather than skipped, as checkpoint 7 taught -->
 - [ ] 13. The frontend modules the implementation needs
 - [ ] 14. API client
 - [ ] 15. UI
@@ -948,6 +948,78 @@ than left to be inferred from its absence.** This repository has its own runner,
 kind, and `jest --maxWorkers=5` in the script itself - the same worker count locally and in CI.
 There is no serial-versus-parallel gap on this side. **A caveat missing because it does not apply
 should look different from one missing because nobody thought of it.**
+
+
+## Checkpoint 12 - nothing new, and the most useful output is twelve refusals
+
+**Every component this screen needs already exists.** Eight furo-vue components plus
+`AppRefusalMessage`, this app's only own component. Nothing was built, so no new-component
+justification is owed - which is the exit condition met rather than dodged.
+
+**All twenty component skills were matched, not just the ones used.** The checkpoint says to check
+the existing skills "exhaustively" before designing anything, and the way to fail it is to build
+something the library already ships. **Twelve reasoned noes are as much the output as eight yeses.**
+
+### The refusal that matters, and it is the checkpoint 2 trap again
+
+**`FuroEditableField` - inline click-to-edit - is the obvious fit for *"corrects the amount"* and is
+wrong.** It commits **one value**, and `correctExpense` is a **full replace**, so an amount-only
+commit would **clear the memo**.
+
+That is the trap checkpoint 2 recorded from the SDL, now met at the level of a component choice.
+**And the design makes it structural rather than remembered**: one form in two modes, keyed on a
+context property, so there is no code path that *can* send a partial correction. A rule nobody can
+break is better than a rule everybody remembers.
+
+Also refused with reasons: a kebab menu for two row actions; tabs, which would hide the list behind
+the form - the same split checkpoint 10 already refused at route level; and a toast, because the
+screen re-reads after every write, so **the changed list is the confirmation** and it persists where
+a toast times out - and a refusal message must stay readable rather than expire.
+
+### Where the design lives, and why that is a mechanism rather than filing
+
+`ai/contexts/uiux-context-expense-entry.md`. **Verified at both skill sources by the main session:**
+`hof-uiux-forge` and `hof-uiux-audit` each resolve project context as `uiux-context.md` **plus any
+`uiux-context-<word>.md`**, read together. So checkpoint 15's generator and checkpoint 18's auditor
+**load it without anybody remembering to.** A `docs/` page or a block comment would have depended on
+memory.
+
+It is a **sibling** rather than an edit, because checkpoint 11 owns the other file - the same reason
+§8 rule 15 gives for extending a component rather than modifying it.
+
+### Seven library facts that contradict the skills, each of which would have compiled
+
+Recorded as **Q56**, and this is the **second feature to find the class** - `#sign-in`'s checkpoint
+12 found the same manifest-versus-source disagreement, still present in furo-vue 1.3.2.
+
+**The one with a specification consequence, verified independently by the main session:**
+`FuroDatePicker`'s `maxValue` **marks** an out-of-range date and does not **block** one. `reka-ui`'s
+`isInvalid` only feeds a `data-invalid` attribute; `modelValue` still updates and the change events
+still fire. The skill is right about the calendar grid and wrong about the typed segments, **so a
+member of staff can type tomorrow.** §11's future-date criterion stays the backend's to hold, and
+the screen must check before sending rather than trust the component.
+
+The rest are in Q56. The sharpest of them: `FuroTable` has a `row-actions` slot no skill lists, which
+applies `@click.stop` itself - **while the skill's own example hand-rolls a worse version of it.**
+
+### Five digests taken, because checkpoint 7 taught me not to skip that
+
+`hof-cp-table`, `-date-time`, `-select`, `-dialog`, `-empty-state` - all used at this checkpoint with
+no digest, all now written and pinned to `hora-skills-ort-furo 0.1.0`. At checkpoint 7 I let a
+matched skill be used with no digest and had to go back for it; this time the list was asked for in
+the brief. **The digester was told to verify the divergences rather than copy them**, and all four it
+was handed held, plus several it found.
+
+### Commands, with the figures beside them
+
+- `npm run lint` - clean. **Exactly what CI runs.**
+- `npm run build` - succeeded. **Exactly what CI runs.**
+- `npm test --script-shell=bash` - **25 suites, 348 tests.** Unchanged, because nothing was built.
+  Not bare `npm test`, which dies on Windows before any test runs; the script string is identical.
+
+**The concurrency caveat does not apply in this repository** - its own runner, no database, and
+`--maxWorkers=5` written into the script itself, the same locally and in CI. Stated because an absent
+caveat should look different from a forgotten one.
 
 ## Acceptance gate
 - [ ] 18. Acceptance (E2E and unit both)
