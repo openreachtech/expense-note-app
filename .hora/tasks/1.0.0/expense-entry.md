@@ -838,7 +838,7 @@ difference from 70/1767 being exactly the two test files the fix added.
 - [x] 12. Component design  <!-- NOTHING NEW. Eight furo-vue components plus AppRefusalMessage serve the whole screen, so no new-component justification is owed. All twenty component skills matched, not just the ones used -- twelve reasoned noes are as much the output as eight yeses. The refusal that matters: FuroEditableField commits ONE value while correctExpense is a full replace, so inline edit would clear the memo -- checkpoint 2's trap met as a component choice, and the design makes it structural (one form, two modes, no code path that can send a partial correction). Design at ai/contexts/uiux-context-expense-entry.md, which the forge and the auditor BOTH load by filename convention -- verified at both skill sources. Q56 raised: seven skill-versus-library divergences, each of which would have compiled; second feature to find the class. Five digests taken rather than skipped, as checkpoint 7 taught -->
 - [x] 13. The frontend modules the implementation needs  <!-- skills: hof-error-handling, hof-modules, both digests present. ERROR_CODE_HASH 13 -> 45: 31 codes read out of the five resolvers' own getters, plus 102.X000.001. expenseCategories contributes none and that is written in as CHECKED. The identical-refusal requirement is ENFORCED rather than remembered -- 204.M005.002 and 204.M006.002 carry the same sentence byte for byte and a test asserts they are equal, so editing one alone fails. 102.X000.001 is mapped because the gateway asks only existsToken() -- whether a token is HELD, never whether it is good -- and runs on navigation, not on an in-flight call. Shared-logic clause NOT APPLICABLE, stated rather than assumed. The future-date authority is settled in the file that will hold the check: both sides refuse, that is not duplication, and THE BACKEND IS AUTHORITATIVE where the browser's timezone and Asia/Tokyo disagree -->
 - [x] 14. API client  <!-- skill: hof-graphql, digest present. Five Payload/Launcher/Capsule trios; signOut already existed and was not touched; documents generated from the contract by the skill's own generator rather than transcribed. MY BRIEF PROPOSED THE WRONG CHECK and the unit refused it: an AST diff needs a document in the contract to diff against and there is none, so it would have meant hand-writing the expected document -- the transcription step the check exists to remove. Replaced by validate(buildSchema(contract), parse(document)) PLUS a coverage inspector, because validate() accepts partial selection BY DESIGN and so catches an added field and not a missing one. The contract file is the oracle, so nothing is transcribed. Mutation-checked BOTH directions by the main session. The literal exit condition -- works against the stub -- is unreachable: checkpoint 6's actual pool shadows the stub pool and the backend does not start here. Q57 raised for the vendored copy's drift risk -->
-- [ ] 15. UI
+- [x] 15. UI  <!-- one screen, four states, one unit -- filled, loading, empty, error, each reachable from the context and each with a test behind the parcel that selects it. THE DATE RULE: the screen refuses AND the backend refuses; the check is isSpentOnLaterThanToday() called from onSubmitForm(), which returns before the request, and generateTodayDate() reads the browser's calendar fields rather than toISOString(), which would call a Tokyo evening tomorrow. Two tests prove the send is DECLINED, not just messaged. SCOPE STATED: link 3 of the typed-segment chain (onChangeSpentOn) is untested and that is an omission, not the forced Q44 gap -- closed at 16. A loading button's missing accessible name was REMOVED rather than compensated, by closing the dialog before sending. --color-ring turns out FIXED and six digests still say otherwise, which checkpoint 18 audits against -->
 - [ ] 16. Wire the data-fetching logic in
 - [ ] 17. Local test environment
 
@@ -1020,6 +1020,99 @@ was handed held, plus several it found.
 **The concurrency caveat does not apply in this repository** - its own runner, no database, and
 `--maxWorkers=5` written into the script itself, the same locally and in CI. Stated because an absent
 caveat should look different from a forgotten one.
+
+
+## Checkpoint 15 - four states, and a claim decomposed rather than defended
+
+**One screen, four states, one unit** - filled, loading, empty and error. The three non-filled ones
+are what acceptance fails on, so each is reachable from the context and each has a test behind the
+parcel that selects it.
+
+### The date rule, and the honest scope of "the screen refuses"
+
+**The screen refuses a future date, and the backend refuses it too.** The check is
+`ExpensesPageContext#isSpentOnLaterThanToday()`, called from `#onSubmitForm()`, which returns before
+the request. Two ISO strings compared lexically - no date arithmetic, no library.
+
+**`generateTodayDate()` reads the browser's own calendar fields rather than `toISOString()`**, which
+answers the UTC date and would call a Tokyo evening "tomorrow" - a refusal a member of staff could
+not possibly understand. It is `static` so a test can substitute it, which four describes do.
+
+The refusal sentence is **read out of the shared error hash** rather than written a second time, so
+**a member of staff cannot tell which of the two sides noticed.** And the backend stays
+authoritative, exactly as checkpoint 13 settled it: the screen never suppresses a response and never
+decides a date is acceptable; it declines to send one it can already see is late.
+
+**Two tests prove the send is declined rather than merely accompanied by a message** - the refusal
+text is asserted **and** `expect(submitExpenseFormSpy).not.toHaveBeenCalled()`.
+
+#### What that claim does not cover, stated because nobody had stated its scope
+
+A peer asked at four consecutive checkpoints what happens when a member of staff **types** tomorrow
+into the segments rather than picking it from the grid. The answer is neither "it refuses" nor "it
+does not", and decomposing it is what made it checkable:
+
+| link | evidence |
+|---|---|
+| 1. somebody types tomorrow into the segments | — |
+| 2. `FuroDatePicker` emits `change-value` with the out-of-range date | **established** — Q56, read from `reka-ui`'s source: `modelValue` updates and all three emits fire |
+| 3. `onChangeSpentOn` writes it into `formValueHashReactive.spentOn` | **not tested** |
+| 4. `onSubmitForm` refuses and does not send | **established** — the test above |
+
+**So: the screen refuses a future date that has reached its state, and nothing proves a typed segment
+puts it there.**
+
+**The gap is part forced and part omission, and collapsing the two would have been the weaker
+answer.** Q44 makes the template binding at `index.vue:194` genuinely unreachable - no `.vue` file
+here can be unit-tested. But `onChangeSpentOn` is a plain method with no test of its own, and "no
+`.vue` file can be tested" would have absorbed both while sounding just as reasonable. **Closed at
+checkpoint 16.**
+
+**A record saying "the screen refuses" without this would have been Q56's own shape, written by the
+session that raised Q56** - a claim true of the half that was exercised, standing in silently for the
+half that was not.
+
+### An accessibility gap removed rather than compensated for
+
+`#sign-in` found that a loading `FuroButton` has no accessible name - its label is
+`visibility: hidden`, its spinner `aria-hidden`. Every button here that can load carries an
+`aria-label`, **except the removal dialog's confirm button, which has no attribute seam short of
+replacing the library's whole footer.**
+
+**So the state was removed instead: the confirmation closes before the removal is sent**, and that
+button therefore never loads while on screen. A documented departure from checkpoint 12's design
+rather than an oversight - and it is why the gap does not exist here at all rather than being
+papered over.
+
+`aria-describedby` is wired from the refusal region to all four controls, two of them through
+`triggerParcel` and `inputParcel` **because a plain `id` reaches no DOM element** on `FuroSelect`
+(its root renders a fragment) or `FuroNumberField` (the parcel lands on the wrapper, not the input).
+Each was read from the installed package.
+
+### A recorded finding that turned out to be fixed
+
+**`--color-ring` is no longer undefined.** `#sign-in` found it missing and a focus ring invisible.
+`nuxt.config.js` now loads `furo.css` first - with a comment naming that variable as the reason - and
+`0030.variables-semantic-color.css:31` declares `--color-ring: var(--palette-blue-500)` = `#3b82f6`,
+**3.68:1** against the card. **Verified by the main session**, both the load order and the
+declaration.
+
+**Six component digests still carry the old claim** that this project imports no furo stylesheet, and
+derive from it that every `--color-*` resolves to nothing. **Checkpoint 18's audit reads those
+digests.** A stale claim there would produce confident false findings against a screen that is
+correct - which is Q58's mechanism pointed at this project's own records.
+
+### Commands, with the figures beside them
+
+- `npm run lint` - clean. **Exactly what CI runs.**
+- `npm run build` - succeeded. **Exactly what CI runs.**
+- `npm test --script-shell=bash` - **43 suites, 598 tests.** Baseline 523; +75, all additions to the
+  one existing context suite, none weakened or removed.
+- `node .claude/skills/hof-uiux-forge/scripts/validate-tokens.cjs` - clean, exit 0. The forge's own
+  mechanical gate.
+
+**The concurrency caveat does not apply in this repository** - own runner, no database, the same
+worker count locally and in CI.
 
 ## Acceptance gate
 - [ ] 18. Acceptance (E2E and unit both)
