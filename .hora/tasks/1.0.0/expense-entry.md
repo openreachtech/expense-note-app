@@ -133,7 +133,7 @@ gets wrong once and a member of staff discovers by losing a memo.
 - [x] 5. The modules the implementation needs  <!-- catalog check FIRST and once for the whole checkpoint, then three implementer units. 33 tracked packages searched: adopted renchan-sequelize's PaginationMixinModel, mentsu-deep-value-converter and mentsu-value-inspector; DECLINED mentsu-field-path-value-extractor (the only nested read is two deep, which the style rule permits) and jest-deep-containing / jest-expect-each (nothing needs them) -- declines recorded because "not used" and "not considered" look identical later. Modules: the expenses development seeder (14 rows, block 102), CalendarDateInspector behind CALENDAR.TIMEZONE, and PaginationMixinModel on Expense. Every import CONFIRMED TO RESOLVE by the main session rather than taken from the units' reports. MY BRIEF WAS WRONG about Expense.findAllWithPagination -- it is Expense.$.findAllWithPagination, and the unit caught it. Q38 found already broken in expenses by #data-model's own test, amended with the measurement. Q49 behind one constant, labelled recommended-not-decided. I caused Q33's third instance by running three units in parallel on one SQLite file -->
 - [x] 6. Actual API  <!-- five implementer units, ONE AT A TIME rather than in parallel, because five units on one SQLite file is how I caused Q33's third instance at checkpoint 5. All five operations served from the actual/ pool; the five stubs stay for the frontend until checkpoint 16. 68 suites, 1654 tests, lint clean, every figure re-run serially by the main session. The not-found rule is the ABSENCE of a second code, so errorCodeHash is pinned whole; mutation-tested by dropping StaffMemberId from the where clause. "Nothing is recorded" proved through the product's own read path and mutation-checked. A declared-but-unexercised session guard found in all three mutations by noticing the query resolver covered its equivalent -- 16 cases added, and the exercise DISPROVED a docblock about what the guard prevents. Q46's mechanism ran backwards five times exactly as checkpoint 4 predicted. Q50 capped at 100 (chosen, not confirmed), Q51 written into tests/_orders/README.md and all eight barrels. Two of my briefs were wrong and units caught both -->
 - [x] 7. Worker  <!-- NOT APPLICABLE, established with hor-execution-placement-pattern per operation rather than by eye, which is what this checkpoint's own clause demands. All five operations short-circuit at the flow's read-only or light-write step; the trigger question is never reached. Spec section 8's footnote says it outright -- Redis is not declared because this version runs no background job -- and section 7's retention line forecloses the one candidate a hard delete would suggest. Nothing written, and nothing invented to make the checkpoint non-empty. Two findings anyway: the skill had NO DIGEST and my brief did not ask for one (taken afterwards, pinned to hora-skills-ort-renchan 0.1.0 -- my process gap), and ioredis is a declared dependency with zero importers, so package.json alone would suggest a job facility that does not exist -->
-- [ ] 8. Security audit
+- [x] 8. Security audit  <!-- hor-security-audit, read-only, over this feature's change set read from the WORKING TREE (a commit range would be empty before the gate) plus the five declared operations. 0 HIGH, 1 MEDIUM, 1 LOW, 4 INFO; all fixed or accepted-and-recorded, none left silent. The non-disclosure property holds by the SHAPE of the contract -- no read narrows by id alone and no input type declares an owner field -- and the timing channel is closed because the validators do zero DB access. MEDIUM: this feature opened an alias-amplification surface (~250 aliased expenses calls in one 16kb body, ~500 DB round trips); limits measured from all 24 real documents, introspection exempted at depth 15, fragments expanded and cycles guarded. MY BRIEF WAS WRONG a third time -- an engine cannot reach validationRules at all. LOW: a stub-only operation would get NO auth filter; guard derived from the real loader for all three audiences. Q53, Q54, Q55 raised for what was accepted -->
 - [ ] 9. Verify the use cases again, against the built API
 
 
@@ -615,6 +615,100 @@ requirement behind it, maintained and tested forever.
 
 **68 suites, 1654 tests, lint clean - unchanged, and run anyway**, because "I changed nothing" and
 "I broke nothing" are different claims.
+
+
+## Checkpoint 8 - the audit, and a defect this feature opened rather than wrote
+
+**`hor-security-audit`, run read-only over this feature's change set** - 58 files read from the
+**working tree** rather than a commit range, because the backend commits do not land on a trunk
+until the gate boundary after checkpoint 9, so a range would have been empty. Plus the five
+operations the pinned contract declares, since a new caller wired to unchanged code still needs
+auditing for authentication and exposure.
+
+**0 HIGH, 1 MEDIUM, 1 LOW, 4 INFO.** Every one fixed or accepted-and-recorded; nothing left as a
+silent pass.
+
+### The non-disclosure property holds by shape rather than by check, which is the strongest form
+
+The audit enumerated every read and write of an expense in production code. **There is no read that
+narrows by `id` alone**, `staffMemberId` comes only from the session, and **none of the four input
+types declares a field to take an owner from.** So "nobody sees anybody else's" is a property of the
+contract's shape, not of a comparison somebody could forget.
+
+It also closed a channel I had not asked about: **the input validators perform zero database
+access**, so a `203.*` code can never be a function of whether a row exists. And in `correctExpense`
+the owner read runs *before* the category read, so probing somebody else's entry answers not-found
+whatever category is named - `ExpenseCategoryNotFound` is unreachable on a non-owned id.
+
+### MEDIUM - this feature opened an amplification surface it did not write
+
+Before `#expense-entry`, the staff audience exposed only sign-in operations: none paginated, none
+DB-heavy. **`expenses` is the first**, and nothing bounded a document's shape. A GraphQL document may
+repeat one field under many aliases, and the 16 kB body cap allows roughly **250 aliased `expenses`
+calls** - each a `count()` *and* a `findAll()` of up to 100 joined rows, so about **500 database
+round trips in one request**, on a path with no rate limiter.
+
+**The limits are measured, not rounded.** All 24 GraphQL documents written in this repository's tests
+and in the frontend were parsed: every real document asks for **exactly one** root selection, and the
+deepest is **4**. Chosen 10 and 6. `getIntrospectionQuery()` measures **depth 15**, so depth beneath a
+meta-field is not counted at all - GraphiQL is mounted, and a cap that broke introspection would be
+a worse defect than the one it fixes.
+
+**Two details that would have defeated a naive counter.** Fragments are expanded before counting,
+because `query { ...Many }` bypasses a counter reading only the operation body. And a fragment is
+never followed twice, because this runs *before* `NoFragmentCyclesRule` and a cyclic spread would
+recurse forever - it under-counts a cycle deliberately, which is safe in exactly one direction:
+under-counted means passed on to GraphQL, which refuses it for the cycle.
+
+Amplification drops from ~250x to <=10x. Staff only: admin and customer serve one `healthCheck` each
+and read no row, so there is nothing to amplify.
+
+**And my brief was wrong, for the third time this feature.** I said renchan supports
+`validationRules` and the engine "simply never sets one". The forwarding is real - and **an engine
+cannot reach it**: `validationRules` comes from `GraphqlHttpHandlerBuilder.extraCreateHandlerParams`,
+a static getter returning `{}` that never consults the engine, and `BaseGraphqlServerEngine` has no
+such member at all. **Verified by the main session.** Using that seam would need two framework
+subclasses plus a line in `server/index.js` - which cannot be imported here (Q24), so reverting it
+would silently remove the limit **with nothing failing.** The limit is express middleware instead,
+where the whole chain is testable today.
+
+### LOW - a hazard about the future, not the present
+
+renchan builds its resolver map from the **union** of the actual and stub pools but its **filter**
+map from the actual pool alone. A stub-only name therefore gets `filter === undefined`, and the
+wrapper's `filter?.()` is a no-op - no `Unauthenticated`, no `Unauthorized`.
+
+**Nothing is exposed today**: every operation has both, so the actual always wins. **The hazard is
+that deleting or renaming one `actual/` resolver would silently convert its operation into an
+unauthenticated, state-changing stub answering fabricated success** - and this feature added five
+such pairs, three of them mutations, the largest set in the repository.
+
+The guard derives both sets from the real loader off each engine's own config, with a non-vacuity
+case, for all three audiences - **a hand-written list would rot into exactly the false pass it
+guards against.** Proved to fire by moving `ExpensesQueryResolver` out of the tree.
+
+### The INFO that was mine
+
+`ExpensesInputValidator`'s class comment still said the limit was uncapped - **in two places**. I
+added the cap at checkpoint 6 and left the comment. The audit's reasoning is why it matters: a stale
+comment invites a later maintainer to delete the cap as an invention, **which would reopen the
+MEDIUM.**
+
+### Accepted and recorded rather than fixed
+
+- **Q53** - the `sort` echo (injection path closed by construction; a live instruction for the
+  frontend not to render it as markup) and the model hook's row-id messages (unreachable from any
+  resolver path, masked in production).
+- **Q54** - the two boilerplate audiences still carry `origin: '*'` and 10 mb bodies. Harmless while
+  they serve one `healthCheck`; **the exposure arrives silently the moment either gets a real
+  operation.**
+- **Q55** - nothing rate-limits the read path. The shape limit caps one request's fan-out, not
+  requests per second, and §7 asks for a limiter only on the two sign-in operations. **Raised as the
+  honest limit of the fix rather than as a new discovery.**
+- **`ioredis`** - correctly scoped **out** by the audit: it predates this feature. My brief said it
+  was this feature's, and it is not. Already recorded at checkpoint 7.
+
+**70 suites, 1767 tests, lint clean**, re-run by the main session.
 
 ## Frontend gate
 - [ ] 10. Open the frontend

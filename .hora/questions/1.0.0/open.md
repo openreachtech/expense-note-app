@@ -2774,3 +2774,104 @@ If the answer is instead that native Windows *should* work, then Q24 is not out 
 and the upstream issues stand as filed. Those are the only two consistent positions; what cannot
 hold is the current one, where the requirement is real but unwritten and the documentation offers
 Windows help.
+
+
+## Q53. Two checkpoint 8 findings accepted rather than fixed, and why each is safe to accept
+
+<!-- spec: expense-entry -->
+<!-- blocking: no -->
+<!-- category: accepted-finding -->
+
+Checkpoint 8's exit condition allows a finding to be **fixed or explicitly accepted and recorded** —
+and says an accepted finding is recorded as a question, never left as a silent pass. These are the
+two. Both are INFO in the audit skill's own vocabulary. Neither is a vulnerability; each is recorded
+so a later reader does not have to re-derive that it was looked at.
+
+### A caller's `sort` clause is echoed back into the response unvalidated
+
+`ExpensesQueryResolver` reads `input.pagination.sort` and puts it in the response, and
+`ExpensesInputValidator` declares no rule for it.
+
+**The injection path is closed by construction, and that was verified rather than assumed.**
+`createRequestPagination()` passes only `limit` and `offset`, so the clause reaches no `order`, no
+`where` and no SQL. The contract also states in writing that no operation in 1.0.0 lets a caller
+choose a sort, which is why no rule exists — there is nothing for a rule to be about.
+
+**What remains is an arbitrary caller-controlled string reflected to that same caller.** Accepted on
+the server. **It is a live instruction for the frontend**: the screen must not render
+`pagination.sort` as markup. Recorded here rather than only in a code comment, because the frontend
+checkpoints are a different feature's work and a comment in a resolver is not where that reader
+looks.
+
+### The model's hook messages carry row ids and are unmasked outside production
+
+`Expense.verifyStaffMember()` and `verifyExpenseCategory()` throw messages naming the id they
+failed on. renchan masks any unrecognised error to `100.X000.001` — **except** that
+`passesThoughError()` returns `this.env.isPreProduction()`, so the raw error passes through
+untouched in every non-production environment.
+
+**Accepted for three reasons, and the first two are structural.** The owner id comes from the
+session rather than from input, so `verifyStaffMember` cannot fire on a caller-supplied value. All
+three mutations verify the category inside the same transaction before the hook runs, so
+`verifyExpenseCategory` is unreachable from a resolver path. And the values are row ids, not
+personal data — §7's list is passwords, hashes, tokens, digests, `sessionKey` and email addresses.
+
+**Recorded so the hook is not later relied on as a caller-facing refusal.** If a future path lets one
+fire, the message reaches a caller unmasked outside production, and the fix at that point is an
+error code rather than a sentence.
+
+## Q54. The two boilerplate audiences still allow any origin and a 10mb body
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: security -->
+
+Found at `#expense-entry`'s checkpoint 8, while scoping the shape limit to the staff audience.
+**Out of this feature's change set** — inherited boilerplate, not a regression — so it is recorded
+rather than fixed here.
+
+`AdminGraphqlServerEngine` and `CustomerGraphqlServerEngine` carry `origin: '*'`, a `10mb` JSON body
+limit, and the upload middleware. `StaffGraphqlServerEngine` carries none of those: an env-driven
+explicit allow-list, a 16 kB cap, and no upload path — every one of those a decision `#sign-in`
+made and wrote down.
+
+**Harmless today and precisely conditional.** Each of the two serves a single `healthCheck` that
+reads no row, so there is nothing to expose and nothing to amplify. **The exposure arrives the
+moment either audience is given a real operation** — and it arrives silently, because nothing about
+adding an operation prompts anybody to look at the engine's CORS line.
+
+Both files also sit in `eslint.config.js`'s "never add other files to this list" exception block,
+which means the usual mechanical pressure does not reach them either.
+
+**Where it lands.** Either the two engines adopt the staff engine's settings now, while the change
+is free and nothing depends on the old ones, or a note goes beside each stating the settings are
+boilerplate defaults that must be reviewed before the audience gets an operation. The first is
+cheaper. The second is what this question is, until somebody decides.
+
+## Q55. Nothing rate-limits the read path, and the shape limit does not change that
+
+<!-- spec: expense-entry -->
+<!-- blocking: no -->
+<!-- category: security -->
+
+Raised as the honest limit of checkpoint 8's MEDIUM fix rather than as a new discovery.
+
+`GraphqlOperationShapeInspector` caps **one document's fan-out** — at most 10 root selections and 6
+levels of depth, so a single request can no longer stand in for 250. **It does not cap requests per
+second.** A caller holding a valid session may send the bounded document as often as they like.
+
+`express-rate-limit` is a dependency and is wired, but only into `SignInFailureRateLimit` and
+`AccessTokenRenewalRateLimit` — §7 asks for a limit on `signIn` and `renewAccessToken`, and those
+are exactly the two that have one. **§7 asks for nothing on a read path**, so this is a gap in the
+specification's coverage rather than a failure to implement it.
+
+**Why it is not urgent.** Every one of these operations requires a session, the audience is the
+twenty-to-fifty members of staff §3 describes, and each page is capped at
+`PAGINATION.MAXIMUM_LIMIT` rows. The realistic actor is a signed-in employee, not the internet.
+
+**Why it is worth a decision anyway.** The reasoning that made the shape limit worth adding applies
+one level up: the audience will grow, `#monthly-summary` adds a second read that sums rows rather
+than listing them, and a limiter is far cheaper to add before a frontend polls an endpoint than
+after. If the answer is that an authenticated internal system does not need one, **that is a
+legitimate answer and this question is where it should be written down** — so the next audit finds a
+decision rather than an omission.
