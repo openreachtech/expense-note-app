@@ -3058,3 +3058,41 @@ that changes by pull request.
 
 **Removal condition:** if the contract ever ships inside the frontend repository, or its CI gains
 sight of the authority, delete the copy and read the authority directly.
+
+### Asked directly whether this is cheap to guard. It is not, and here is exactly why
+
+**Neither continuous integration can see both files, and that was measured rather than assumed:**
+
+| runner | sees the authority | sees the copy |
+|---|---|---|
+| `expense-note-frontend-staff` CI | **no** — one `actions/checkout`, its own repository | yes |
+| the outer repository's CI | yes | **no** — `.gitignore:35` is `/*-frontend*/` |
+
+So there is no runner an automated comparison could execute in. **The blocker is a repository-layout
+decision, not a missing test** — the outer repository deliberately gitignores its sub-repositories,
+which is what makes them independent, and undoing that to guard a test fixture would be a large
+change for a small reason.
+
+**What would have to change, stated so the entry is actionable rather than resigned:** either the
+outer repository stops ignoring the sub-repositories (so its CI sees both), or the frontend's CI
+checks out the parent, or the contract ships as a published artifact both consume. **All three are
+bigger than the problem.** The orchestrator step remains the proportionate fix.
+
+### What was done instead, because it was cheap and is better than nothing
+
+The vendored copy's header now carries the **authority's fingerprint** — `sha256 e98a3a6edf510ed8`,
+the first sixteen hex of the authority file — with the one-line command that regenerates it:
+
+```
+sha256sum .hora/contracts/1.0.0/staff-graphql.graphql | cut -c1-16
+```
+
+**This does not make drift impossible; it makes it cheap to detect.** "Is this copy current?" stops
+being a two-repository diff somebody has to think of doing and becomes one command against a number
+written beside the thing it describes. A person, a reviewer, or `/hora-build` can answer it in
+seconds.
+
+**Being honest about the residue:** the fingerprint is itself manual. Nothing forces it to be
+updated when the contract moves, so a sufficiently careless recopy could leave a stale number beside
+fresh content. It is a smaller version of the same hole, not its closure — and it is recorded that
+way rather than described as a fix.
