@@ -3007,6 +3007,66 @@ The `@openreachtech/hora-skills-ort-furo` package, which is not this repository'
 here, and not this feature's to fix.** Adjacent to Q45 and Q44, the other two findings about this
 frontend stack that belong upstream.
 
+## Q58. An instrument's verdict is evidence about the instrument, in both directions
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: process-finding -->
+
+Raised at `#expense-entry`'s checkpoint 14, because the same thing happened twice within minutes, to
+two different agents, on the same file — and the two halves point opposite ways.
+
+### What happened
+
+The vendored contract copy had to be shown byte-identical to its authority below a header.
+
+**The main session got it wrong twice.** First attempt cut at a line number computed from a `####`
+pattern — which matched a banner *inside* the copied contract body, not the header's end. Second
+attempt took the first non-`####` line, which was a blank separator. Both reported DIFFER. **The
+third was right, and the body is identical.**
+
+**The peer session got it wrong twice, independently, on the same file.** First attempt stripped
+every `#` line from both sides — which also strips the contract's own GraphQL comments. Second
+stripped `####` lines, eating the `SCALARS` / `PAGINATION` / `QUERY` banners inside the body. Both
+reported DIFFER.
+
+**Four wrong verdicts, two agents, one correct file.**
+
+### Why it is worth an entry rather than a shrug
+
+This project has collected a family of findings where **an instrument reported success over a
+failure**: a test that defended the defect it was written against (Q46), `--detectOpenHandles` never
+reporting the handles it existed to find (Q51's amendment), a skill example that compiles and
+silently does not work (Q56).
+
+**This is the same family running the other way — an instrument reporting failure over a success.**
+And it is the more dangerous direction to be careless in, because a red result *feels* like
+diligence. The peer said it plainly: had it stopped at the first answer, it would have sent a defect
+report against a file that is correct.
+
+**So the family is not "instruments miss things".** It is:
+
+> **An instrument's verdict is evidence about the instrument as much as about the subject.**
+
+### The defence, and it is one question
+
+**Ask what would have to be true for this verdict to be wrong, and then check that.**
+
+- Checkpoint 9's memo near-miss is that question asked properly: the page came back well-formed and
+  the criterion *appeared* met, and the second call at `offset: 2` was made because the claim had not
+  been shown — not because anything suggested it was false.
+- The four diffs above are that question not asked at all. Each stopped at the first answer the tool
+  produced.
+
+**The asymmetry worth naming:** a green result invites the question and rarely gets it; a red result
+feels like it has already done the work. Both need it equally.
+
+### Where it lands
+
+Nowhere outside this project — it is a practice, not a defect. Recorded because the benchmark this
+work feeds is about what a process catches, and **this is a case where the process caught its own
+instruments four times in a row.** Adjacent to Q46, Q51, Q56 and Q57, which are its instances.
+
 ## Q57. The frontend's contract copy has no guard, because its CI cannot see the authority
 
 <!-- spec: none -->
