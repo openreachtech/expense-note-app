@@ -3527,6 +3527,35 @@ tests/_orders/`, and `test:live` sets `NODE_ENV=live`, whose config is the Maria
 the same `_orders` suites against MariaDB.** So a behavioural tie test would have failed there — in
 CI, on the right engine, for the right reason.
 
+#### When did `_orders` last run green against MariaDB? All along — and that is the finding
+
+Read from the workflow's run history rather than guessed:
+
+```
+2026-09-23  success  update/resolver-with-the-same-day-tie-break
+2026-09-22  success  feature/expense-entry          (twice)
+2026-09-13  success  update/e2e-seeded-mariadb-for-sign-in
+2026-09-11  success  feature/sign-in                (and one earlier failure)
+```
+
+**The MariaDB job has been green since `#sign-in`, and it was green over this defect for the whole
+of `#expense-entry`.** So the tie was wrong on `live` from the moment `expenses` existed, on a job
+that runs the right suites on the right engine, and that job passed every time.
+
+**Which means the defect was not invisible for want of an engine. It was invisible for want of an
+assertion.** Nothing in `_orders` asked about same-day order until this change, so the job had
+nothing to fail on.
+
+**That is the sharper version of the whole family**, and it cuts against the comfortable reading of
+every other entry here:
+
+> **Running on the right engine buys nothing if nothing asserts the property.**
+
+A CI job on the production dialect looks like coverage and is only an opportunity for coverage.
+Q46's test defended a defect; `--detectOpenHandles` never reported the handles it was there to find;
+the shape limit's skill example compiled and did nothing. **This one is the null case of the same
+family: an instrument correctly pointed, correctly run, green — and asked nothing.**
+
 **The true exposure is narrower and is the backend gate's lesson again:** a dialect-dependent defect
 is invisible **locally**, where every suite is SQLite, and is caught only by an invocation nobody
 runs by hand. A local green is not evidence about MariaDB, and the command that would be is
