@@ -952,8 +952,14 @@ should look different from one missing because nobody thought of it.**
 
 ## Checkpoint 12 - nothing new, and the most useful output is twelve refusals
 
-**Every component this screen needs already exists.** Eight furo-vue components plus
-`AppRefusalMessage`, this app's only own component. Nothing was built, so no new-component
+**Every component this screen needs already exists.** **Eleven** furo-vue components plus
+`AppRefusalMessage`, this app's only own component.
+
+> **Corrected at checkpoint 18.** This said *eight*, which was the count of component **skills**
+> matched, not of components used - three of those eight route to two components each. The eleven
+> are `FuroAlertDialog`, `FuroButton`, `FuroControlBlock`, `FuroDatePicker`, `FuroEmptyState`,
+> `FuroErrorState`, `FuroNumberField`, `FuroPagination`, `FuroSelect`, `FuroTable`, `FuroTextField`.
+> The substance - nothing new was built - was right; the number was not. Nothing was built, so no new-component
 justification is owed - which is the exit condition met rather than dodged.
 
 **All twenty component skills were matched, not just the ones used.** The checkpoint says to check
@@ -1024,9 +1030,14 @@ caveat should look different from a forgotten one.
 
 ## Checkpoint 15 - four states, and a claim decomposed rather than defended
 
-**One screen, four states, one unit** - filled, loading, empty and error. The three non-filled ones
-are what acceptance fails on, so each is reachable from the context and each has a test behind the
-parcel that selects it.
+**One screen, four states, one unit** - the ENTRIES' filled, loading, empty and error. The three
+non-filled ones are what acceptance fails on, so each is reachable from the context and each has a
+test behind the parcel that selects it.
+
+> **Scoped at checkpoint 18.** This read as though four were all the states the screen has. They are
+> the four the **entries** have. The review found a **fifth condition with no state at all** - the
+> form's own source, the category read, failing - which left the form permanently unusable. Not
+> false as written, but narrower than it read, and the gap was in the design rather than the wiring.
 
 ### The date rule, and the honest scope of "the screen refuses"
 
@@ -1123,9 +1134,15 @@ worker count locally and in CI.
 `beforeRequest` and lowered in `afterRequest`, so the screen is pending for exactly as long as
 something is in flight - an answer, a refusal and a network failure all arrive at the same place.
 
-**Every message goes through `extractResolvedErrorMessage()`, the single resolution point.** No
-context maps a code: swapping it for the inherited `getErrorMessage()`, which returns the *code*,
-fails 13 tests.
+**Every message from a RESPONSE goes through `extractResolvedErrorMessage()`, the single resolution
+point.** No context maps a code: swapping it for the inherited `getErrorMessage()`, which returns the
+*code*, fails 13 tests.
+
+> **Corrected at checkpoint 18.** This said *every message*, without qualification. One does not:
+> the client-side future-date refusal reads `ERROR_MESSAGE_HASH` directly, deliberately, so that a
+> member of staff cannot tell which side noticed - checkpoint 15 chose that and explains it. **The
+> code is right and the sentence was wrong**, and "every" is exactly the claim a later reader would
+> rely on to conclude the file needs no second look.
 
 ### The omission checkpoint 15 recorded is closed, and its boundary stated
 
