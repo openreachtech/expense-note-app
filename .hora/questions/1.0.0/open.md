@@ -2814,6 +2814,58 @@ hold is the current one, where the requirement is real but unwritten and the doc
 Windows help.
 
 
+### The separation, done at `#expense-entry`'s checkpoint 16 — which findings are the product's and which are this machine's
+
+Owed since the backend gate. **Two populations, and conflating them would let a benchmark of this
+process carry defects that only exist because the work was done on an unsupported platform.**
+
+#### Artefacts of native Windows — not product findings
+
+| | what it is | evidence it is environmental |
+|---|---|---|
+| **Q24** | `DeepBulkClassLoader` passes a raw absolute path to `import()` | **Measured on both platforms.** `D:\…` fails `ERR_UNSUPPORTED_ESM_URL_SCHEME`; the same file imports fine under WSL2 because a POSIX path begins `/`. Real, filed upstream in four repositories, and **out of the supported environment** |
+| **Q13** | the executable bit lost on every shell script | `core.fileMode=false`, git's **default on Windows**. Under WSL the bit would have been recorded and the scripts would never have arrived unrunnable |
+| **the `export` failure** | `npm test` and `db:refresh` die at `'export' is not recognized` | npm on Windows runs scripts through `cmd.exe`. The scripts are correct; `sh` runs them. Needs `npm_config_script_shell=bash` here and nothing at all in CI |
+
+**None of these is a defect in what was built.** All three would have been invisible on the platform
+the kit requires — which is Q52, and is why that question matters more than it first looked.
+
+#### Product findings — real regardless of platform
+
+Everything else. Named because a reader should not have to infer the complement: Q33's shared-database
+order dependence, Q38's explicit ids against auto-increment, Q43's access token in browser storage,
+Q46's test defending its own defect, Q47's missing transitive dependency, Q48's `createdAt` on the
+contract, Q50's unbounded page size, Q51's serial-versus-parallel gap, Q53–Q55's audit findings,
+Q56's skill-versus-library divergences, Q57's contract copy, Q58's instrument verdicts. **Every one
+reproduces on Linux.**
+
+#### The "reached in part" records, which are the mixed case and the reason this was worth doing
+
+Four records across two features — `#sign-in`'s checkpoints 14, 16 and 17, and `#expense-entry`'s
+checkpoint 4 — say evidence was gathered **in process** rather than over a socket, naming Q24.
+
+**Their content stands and their stated cause does not.** What was verified is exactly what they
+say: the schema, the resolver pools, the field wiring and the type coercion are real; express, the
+middleware chain, the body limit and the CORS allow-list were never exercised. That was measured and
+does not change.
+
+**But "the server cannot start" is a claim about this machine, not about the product.** Q24's
+amendment established the socket is **unreached rather than unreachable** — and, importantly, that
+there is a **second wall** on the supported platform: `node_modules` here holds Windows binaries, so
+under WSL the server gets past the loader and dies at
+`sqlite3 … invalid ELF header`. **That second wall is environmental too, and it is this project's
+setup rather than upstream's.**
+
+So the accurate form of all four records is: **"not started here, for two reasons — one upstream and
+filed, one this tree's own installation."** Neither is evidence about whether the product works.
+
+#### What this changes about `#expense-entry`'s checkpoint 16
+
+Its exit condition says the screen shows real data from the **actual** API. **Not met, and recorded
+in those words** — nothing was served over a socket. `#sign-in`'s checkpoint 16 recorded the same
+shortfall, and **the pair is the evidence Q52 rests on**: two features, two gates, the same clause
+unmet for the same environmental reason, in a project whose platform requirement is written nowhere.
+
 ## Q53. Two checkpoint 8 findings accepted rather than fixed, and why each is safe to accept
 
 <!-- spec: expense-entry -->
@@ -2913,3 +2965,371 @@ than listing them, and a limiter is far cheaper to add before a frontend polls a
 after. If the answer is that an authenticated internal system does not need one, **that is a
 legitimate answer and this question is where it should be written down** — so the next audit finds a
 decision rather than an omission.
+
+
+## Q56. The component skills disagree with the library they document, in ways that compile
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: upstream-defect -->
+
+Found at `#expense-entry`'s checkpoint 12 and confirmed while digesting five component skills. **This
+is the second feature to find it** — `#sign-in`'s checkpoint 12 recorded the same manifest-versus-source
+disagreement, and it is still present in `@openreachtech/furo-vue 1.3.2`.
+
+**Every item below was read from `node_modules/`, and every one would have compiled.** That is what
+makes them worth a question rather than a note: a skill's example that is wrong about a prop name
+produces a screen that renders, passes lint, passes the suite, and silently does not do the thing.
+
+### The one with a specification consequence
+
+**`hof-cp-date-time` says an out-of-range date is "non-interactive". It is marked, not blocked.**
+
+`reka-ui/dist/DateField/DateFieldRoot.js:146` computes `isInvalid` from `minValue`/`maxValue`, and its
+only consumers are line 247 (`data-invalid`) and line 254 (a slot prop). **`modelValue` is never
+touched**, and `FuroDatePickerContext.js:773` emits `change-value` / `update:value` / `commit-value`
+with the out-of-range date.
+
+The skill is right about the **calendar grid** — `Calendar/useCalendar.js:112` really does disable
+those cells — and wrong about the **typed segments**. So a member of staff can type tomorrow's date
+and the form holds it.
+
+**§11 requires an expense dated after today to be refused**, so this is not cosmetic. The criterion
+is the backend's to hold and it does; the screen must check before sending rather than trusting
+`maxValue` to have stopped it. Verified independently by the main session.
+
+### The ones that make a correct-looking example wrong
+
+- **`FuroTable` has a `row-actions` slot no skill lists**, and providing it makes the table render
+  its own trailing column **with `@click.stop` already applied** (`FuroTableContext.js:380`). The
+  skill's own example instead hand-rolls an `actions` column through the `cell` slot. **Following
+  the example produces a worse version of something the library already does.** `sort-icon` and
+  `footer` are also undocumented — and `sort-icon` is missing from the component's own
+  `FuroTableSlots` typedef, so the component under-documents itself too.
+- **`hof-cp-date-time`'s control-block example passes `parcel.error`.** The field is
+  `errorMessages: Array<string>`. An `error` key is silently ignored and **no message renders** — on
+  a control whose whole purpose is showing one.
+- **An `id` on `<FuroSelect>` reaches no DOM element**, falling through `SelectRoot` → `PopperRoot`,
+  which renders only its slot. So a `FuroControlBlock`'s `controlId` cannot label it, and the label
+  association silently does not exist. The working seam is `:trigger-parcel="{ id: … }"`. An `id` on
+  `<FuroDatePicker>` *does* land. **Two sibling components, opposite behaviour, neither documented.**
+- **`FuroAlertDialog`'s `busy` set inside the `confirm` handler comes too late** — `onConfirm()`
+  emits and then calls `closeInternal()` synchronously, reading `parcel.busy` before the prop has
+  updated, so the dialog closes anyway. A removal confirmation that is supposed to stay open while
+  the request is in flight will not.
+- **`FuroPagination` throws when `page` and `offset` disagree**; the skill says it prefers `page`.
+- **`FuroSelect`'s `update:value` in multiple mode** returns the whole array, not the first value.
+  The skill also lists 4 of its 12 slots, and `portalParcel` is a declared prop the template never
+  uses.
+- **Every component skill's example writes `:parcel="{ … }"` inline**, several with method calls in
+  property values — which this project's UI/UX context §8 rule 12 and `javascript-style.md` both
+  forbid. `hof-uiux-forge` says the project context wins, so the examples cannot be copied as
+  written.
+
+### Why this is one question rather than eight
+
+They share a cause: **the skills were written against a version of the library and have not been
+re-read against it since.** Fixing them one at a time as each is met means every project on this kit
+re-finds them, which is what happened here — `#sign-in` found two, `#expense-entry` found seven more,
+and the two features share one of them exactly.
+
+**All of it is recorded in the five digests**, so this project's own implementers meet the library's
+real behaviour rather than the skill's account of it. That protects this repository and nothing else.
+
+### The finding above the finding
+
+**One occurrence is a defect. Two occurrences across two features, with the first one recorded and
+nothing changed upstream, is a process fact.** `#sign-in` met the `parcel.error` divergence at its
+own checkpoint 12 and wrote it down. `#expense-entry` met the identical one, in the identical
+component, in the same library version, and had to re-derive it from source — because a finding
+recorded in a project's own `.hora/` reaches nobody outside that project.
+
+**So the digests are a workaround for a missing feedback path, not a fix.** Every project on this
+kit pays the same discovery cost, once per feature, forever, until somebody re-reads the skills
+against the library they document.
+
+**And these belong to the family this project keeps finding**: an instrument reporting success over
+a failure. A skill example wrong about a prop name compiles, lints, passes the suite, and silently
+does not work — the same shape as `--detectOpenHandles` never reporting the handles it existed to
+find (Q51's amendment), and as the test that defended the defect it was written against (Q46).
+
+### Where it lands
+
+The `@openreachtech/hora-skills-ort-furo` package, which is not this repository's. **Not fixable
+here, and not this feature's to fix.** Adjacent to Q45 and Q44, the other two findings about this
+frontend stack that belong upstream.
+
+## Q58. An instrument's verdict is evidence about the instrument, in both directions
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: process-finding -->
+
+Raised at `#expense-entry`'s checkpoint 14, because the same thing happened twice within minutes, to
+two different agents, on the same file — and the two halves point opposite ways.
+
+### What happened
+
+The vendored contract copy had to be shown byte-identical to its authority below a header.
+
+**The main session got it wrong twice.** First attempt cut at a line number computed from a `####`
+pattern — which matched a banner *inside* the copied contract body, not the header's end. Second
+attempt took the first non-`####` line, which was a blank separator. Both reported DIFFER. **The
+third was right, and the body is identical.**
+
+**The peer session got it wrong twice, independently, on the same file.** First attempt stripped
+every `#` line from both sides — which also strips the contract's own GraphQL comments. Second
+stripped `####` lines, eating the `SCALARS` / `PAGINATION` / `QUERY` banners inside the body. Both
+reported DIFFER.
+
+**Four wrong verdicts, two agents, one correct file.**
+
+### Why it is worth an entry rather than a shrug
+
+This project has collected a family of findings where **an instrument reported success over a
+failure**: a test that defended the defect it was written against (Q46), `--detectOpenHandles` never
+reporting the handles it existed to find (Q51's amendment), a skill example that compiles and
+silently does not work (Q56).
+
+**This is the same family running the other way — an instrument reporting failure over a success.**
+And it is the more dangerous direction to be careless in, because a red result *feels* like
+diligence. The peer said it plainly: had it stopped at the first answer, it would have sent a defect
+report against a file that is correct.
+
+**So the family is not "instruments miss things".** It is:
+
+> **An instrument's verdict is evidence about the instrument as much as about the subject.**
+
+### The defence, and it is one question
+
+**Ask what would have to be true for this verdict to be wrong, and then check that.**
+
+- Checkpoint 9's memo near-miss is that question asked properly: the page came back well-formed and
+  the criterion *appeared* met, and the second call at `offset: 2` was made because the claim had not
+  been shown — not because anything suggested it was false.
+- The four diffs above are that question not asked at all. Each stopped at the first answer the tool
+  produced.
+
+**The asymmetry worth naming:** a green result invites the question and rarely gets it; a red result
+feels like it has already done the work. Both need it equally.
+
+### The recurring failure mode has a name: the check assumed a FORMAT, not a content
+
+**Five wrong verdicts now, and every one of them was built around an assumption about layout rather
+than about meaning.**
+
+| wrong check | the assumption that broke it |
+|---|---|
+| cut at a line number from a `####` pattern | that `####` appears only in the header, not as a banner inside the body |
+| cut at the first non-`####` line | that the header is followed immediately by content, not by a blank line |
+| strip every `#` line from both sides | that `#` marks only the header, not the contract's own GraphQL comments |
+| strip every `####` line | that the body contains no `####` banners |
+| grep a sentence on one line | **that a sentence occupies one line** — it was wrapped across two |
+
+**So the defence has a concrete form, not just a posture.** *What would have to be true for this
+verdict to be wrong?* has an answer that keeps recurring here: **that the thing I searched for is
+laid out the way I assumed.** A looser search, or a search for a distinctive fragment rather than a
+whole sentence, would have caught all five.
+
+### Two instances that generalise past "check your check"
+
+**An exit code is an instrument too.** Starting Docker Desktop with `cmd.exe /c start "" "…Docker
+Desktop.exe"` **returned 0 and started nothing** — `tasklist` showed no docker process three minutes
+later. `Start-Process` from PowerShell worked. Caught only by reading the process table instead of
+the exit code.
+
+So the precondition a checkpoint needs is sharper than "the service must be running": **a checkpoint
+whose exit condition needs a service must establish the service is ANSWERING, not that the start
+command returned.**
+
+**And the sharpest instance is different in kind from every other one here: a correct measurement of
+the wrong moment.** Reading `SHOW TABLES` on the live database, one session saw `SequelizeMeta` and
+nothing else, and reported the seeding as half-run. **The measurement was accurate** — that query
+really did return one row. The query was issued **during the migration run**, after `db:setup` had
+created the database and before the ten create-table migrations landed. `docker ps` in that session's
+own output said `Up 7 seconds`.
+
+**The instrument did not lie. A snapshot was read as a conclusion.**
+
+> **A correct measurement of the wrong moment is indistinguishable from a correct measurement of the
+> wrong thing.**
+
+**And the defence is a different one from the rest of this entry.** For the other instances it is
+*check the instrument*. For this one it is **establish that what you are sampling has stopped
+changing** — the warning was sitting in the same output as the reading.
+
+**What made it recoverable was the response rather than the catch.** The challenge was specific,
+plausible, and matched a real failure mode: `SequelizeMeta` alone genuinely is the shape of a
+half-run refresh. The session holding the correct earlier answer **re-measured from scratch instead
+of restating it**, on the stated ground that its own earlier reading was as much an instrument
+verdict as the challenge. **That is the discipline running in its hardest direction — against a
+challenge you turn out to be right about**, where restating costs nothing and is almost always
+correct.
+
+### The same family covers announcing work and reporting it done
+
+Three times in this feature the main session wrote that an action had been taken — dispatching a
+unit, landing two questions, ticking a checkpoint — when it had not. **The count is a tally and not
+the finding.** The mechanism is:
+
+> **Announcing an action and reporting it as taken are the same sentence.** So the only defence is
+> to read the artefact before writing the claim.
+
+**Which is this entry's own subject.** An announcement is an instrument reporting on work; reading
+one's own last message to find out what happened is trusting the instrument instead of the subject.
+The habit that finally caught it was checking the file before writing, and it took three instances
+to install because nobody had written the mechanism down.
+
+### Where it lands
+
+Nowhere outside this project — it is a practice, not a defect. Recorded because the benchmark this
+work feeds is about what a process catches, and **this is a case where the process caught its own
+instruments five times, across two sessions, in one evening.** Adjacent to Q46, Q51, Q56 and Q57,
+which are its instances.
+
+## Q57. The frontend's contract copy has no guard, because its CI cannot see the authority
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Found at `#expense-entry`'s checkpoint 14, by the unit building the API clients — **proactively, not
+after a failure.**
+
+Checkpoint 14's exit condition is that every client matches `.hora/contracts/<version>/` **exactly**.
+The only way to prove that without transcribing anything is to make the contract file itself the
+oracle: `validate(buildSchema(contract), parse(document))`, plus a coverage walk for the fields
+`validate()` deliberately allows a document to omit.
+
+**But the contract is not in the frontend repository, and the frontend's CI checks out the frontend
+repository alone** (`.github/workflows/test.yml` → one `actions/checkout`, no second repo).
+`expense-note-frontend-staff` is its own git repository; the outer tree tracks only `.hora/`.
+
+**So a test reading `../.hora/contracts/1.0.0/staff-graphql.graphql` passes locally and fails in
+CI** — the exact class of gap that cost the backend gate two days, caught this time before it was
+committed rather than after.
+
+### What was done, and the hole it leaves
+
+The contract is vendored to `tests/contract/staff-graphql.graphql`, byte-identical below a header
+naming `.hora/contracts/1.0.0/staff-graphql.graphql` as the authority and saying a disagreement is a
+defect in the copy. **Identity verified by the main session**, not asserted.
+
+**Nothing keeps it in step.** If the contract changes and the copy does not, every client test still
+passes — against a contract nobody agreed to any more. **An oracle that has silently drifted is worse
+than no oracle**, because it reports success with more authority than a missing check would.
+
+That is the same family this project keeps finding — an instrument reporting success over a failure
+(Q46, Q51's amendment, Q56) — except this one is **installed knowingly**, which is the only reason it
+is bearable. It is recorded here so the next person meets it as a known limit rather than as a
+mystery.
+
+### Where it lands
+
+Not a spec matter, and not fixable inside the frontend repository.
+
+**The cheapest sound fix is a step in the orchestrator**: whenever a contract changes, refresh every
+vendored copy of it. `/hora-build`'s checkpoint 14 is the natural home, since that is the checkpoint
+that creates the dependency.
+
+Two alternatives, both worse. Checking the parent out in frontend CI couples a repository to its
+container for a test fixture. Publishing the contract as a package adds a release cycle to a file
+that changes by pull request.
+
+**Removal condition:** if the contract ever ships inside the frontend repository, or its CI gains
+sight of the authority, delete the copy and read the authority directly.
+
+### Asked directly whether this is cheap to guard. It is not, and here is exactly why
+
+**Neither continuous integration can see both files, and that was measured rather than assumed:**
+
+| runner | sees the authority | sees the copy |
+|---|---|---|
+| `expense-note-frontend-staff` CI | **no** — one `actions/checkout`, its own repository | yes |
+| the outer repository's CI | yes | **no** — `.gitignore:35` is `/*-frontend*/` |
+
+So there is no runner an automated comparison could execute in. **The blocker is a repository-layout
+decision, not a missing test** — the outer repository deliberately gitignores its sub-repositories,
+which is what makes them independent, and undoing that to guard a test fixture would be a large
+change for a small reason.
+
+**What would have to change, stated so the entry is actionable rather than resigned:** either the
+outer repository stops ignoring the sub-repositories (so its CI sees both), or the frontend's CI
+checks out the parent, or the contract ships as a published artifact both consume. **All three are
+bigger than the problem.** The orchestrator step remains the proportionate fix.
+
+### What was done instead, because it was cheap and is better than nothing
+
+The vendored copy's header now carries the **authority's fingerprint** — `sha256 e98a3a6edf510ed8`,
+the first sixteen hex of the authority file — with the one-line command that regenerates it:
+
+```
+sha256sum .hora/contracts/1.0.0/staff-graphql.graphql | cut -c1-16
+```
+
+**This does not make drift impossible; it makes it cheap to detect.** "Is this copy current?" stops
+being a two-repository diff somebody has to think of doing and becomes one command against a number
+written beside the thing it describes. A person, a reviewer, or `/hora-build` can answer it in
+seconds.
+
+**Being honest about the residue:** the fingerprint is itself manual. Nothing forces it to be
+updated when the contract moves, so a sufficiently careless recopy could leave a stale number beside
+fresh content. It is a smaller version of the same hole, not its closure — and it is recorded that
+way rather than described as a fix.
+
+## Q59. The two skills the acceptance gate runs on have no digests, and the gate is where that costs most
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Found at `#expense-entry`'s checkpoint 18. **`hof-e2e-test-specification` and `hof-acceptance-review`
+were both matched, both invoked, and neither has a digest** under `.hora/digests/` — which holds 46
+files and neither of these.
+
+**Third instance of the same gap**, and the pattern is now the finding rather than the instance:
+`hor-execution-placement-pattern` at checkpoint 7 (taken afterwards), five component skills at
+checkpoint 12 (taken), and these two.
+
+### Why the acceptance gate is the worst place for it
+
+A digest exists so an implementer meets the conventions rather than re-reading a whole skill. **At
+checkpoint 18 the skill is not a how-to, it is the standard.** Its phases decide what is checked and
+its severity vocabulary decides what a finding is called — so an agent reading the skill fresh is
+re-deriving the *criteria of acceptance*, not just a file layout.
+
+**And it is the one checkpoint whose output is a verdict.** Everywhere else a misread skill produces
+code a later checkpoint can correct. Here it produces a pass.
+
+### Two prerequisites the skills ask for and this project does not have
+
+Both absent from `expense-note-frontend-staff`, and a read-only reviewer cannot create them:
+
+- **`ai/specs/e2e/`** — so the 25 scenarios at checkpoint 18 were **derived in the run** rather than
+  reconciled against a maintained list. Derived coverage is complete *as derived*; nothing carries it
+  to the next run, which will derive it again and may derive it differently.
+- **`ai/contexts/acceptance-context.md`** — so the run command, the per-role credentials and the
+  deliberate UI exclusions are unwritten. The review's gate 1 passed **only** through its own "or
+  phase 4 is recorded as not run" clause.
+
+### The pair of facts worth keeping together
+
+**25 scenarios derived, coverage complete against all five operations, and none executed.**
+
+That is the honest summary of what this platform allowed, and the two halves belong side by side:
+the first says the feature's surface is fully described, the second says nothing was driven through
+it. Separated, either one misleads — the first reads as thorough, the second as negligent, and the
+truth is that one is a consequence of the other being impossible here.
+
+**It belongs beside Q52** as evidence, not inside a checkpoint comment where only a reader of that
+checkpoint finds it.
+
+### Where it lands
+
+The digests are this project's to take, and I did not take these two at the gate — a verifier is
+read-only and the digester is a different agent, so it needed the main session to notice, which it
+did only afterwards. **Taking them before `#monthly-summary`'s own checkpoint 18 is the cheap fix.**
+
+The two missing prerequisite files are `/hora-setup`'s or `/hora-build`'s, not a feature's. **A
+checkpoint that requires a file no checkpoint creates is a gap in the sequence rather than in any
+one feature's work.**

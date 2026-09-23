@@ -794,8 +794,17 @@ actually asks. A second call at `offset: 2` returned it:
   expenseCategory: { id: 10000003, name: 'supplies' } }
 ```
 
-`memo: null` crosses as a JSON null rather than a failure. The near-miss is the point: **a
-verification that stops at the first plausible-looking answer proves the thing next to the claim.**
+`memo: null` crosses as a JSON null rather than a failure.
+
+**The part that makes this worth recording is that the first answer looked correct.** The mutation
+returned an `expenseId`, the page came back well-formed, and nothing anywhere was red — the criterion
+appeared met. There was no signal to investigate. **The wrong answer was plausible, not obviously
+wrong**, which is exactly what makes asking for `offset: 2` a discipline rather than a lucky
+afterthought: it was asked because the claim had not actually been shown, not because anything
+suggested it was false.
+
+**A verification that stops at the first plausible-looking answer proves the thing next to the
+claim.**
 
 ### One more property confirmed in passing
 
@@ -824,14 +833,460 @@ storage directory clean after each. Full default run **72 suites, 1824 tests, li
 difference from 70/1767 being exactly the two test files the fix added.
 
 ## Frontend gate
-- [ ] 10. Open the frontend
-- [ ] 11. Reconfirm UI/UX and the use cases
-- [ ] 12. Component design
-- [ ] 13. The frontend modules the implementation needs
-- [ ] 14. API client
-- [ ] 15. UI
-- [ ] 16. Wire the data-fetching logic in
-- [ ] 17. Local test environment
+- [x] 10. Open the frontend  <!-- skills: hof-nuxt, hof-furo-env, both digests present at hora-skills-ort-furo 0.1.0 and reused. ONE route, /expenses aliased to / -- the deciding fact is that section 11's correction use case is served by data `expenses` already returns, established at checkpoint 2 and observed at 9, so no /expenses/[id] is needed. pages/index.vue DELETED: the boilerplate stub rendering nothing (Q41), which would otherwise have made two route records claim /. Env files needed NOTHING -- #sign-in's address checked against the backend's port and endpoint rather than trusted. Session requirement is the existing global gateway; skipFilter defaults false, so the page is guarded by existing. Reachability READ OFF THE BUILD (route record, alias, meta, middleware), not asserted; that it paints in a browser was NOT established and is said so -->
+- [x] 11. Reconfirm UI/UX and the use cases  <!-- main session, in conversation. The shared UI/UX context is the real output -- the UI generator (12, 15) and the auditor (18) both read it. Section 3 carried a sentence that went stale the moment checkpoint 10 landed ("a screen belonging to a later feature does not exist yet"); it is now a table of which routes exist. Eight rules added, each a criterion or a recorded trap: a correction sends EVERY field because correctExpense is a full replace, and a not-found must look identical in all three cases -- with the rule saying explicitly not to add "this entry was already deleted" as a kindness, since that sentence is the disclosure the rule prevents. All three use cases have a path through the interface; nothing went back to checkpoint 2 -->
+- [x] 12. Component design  <!-- NOTHING NEW. Eight furo-vue components plus AppRefusalMessage serve the whole screen, so no new-component justification is owed. All twenty component skills matched, not just the ones used -- twelve reasoned noes are as much the output as eight yeses. The refusal that matters: FuroEditableField commits ONE value while correctExpense is a full replace, so inline edit would clear the memo -- checkpoint 2's trap met as a component choice, and the design makes it structural (one form, two modes, no code path that can send a partial correction). Design at ai/contexts/uiux-context-expense-entry.md, which the forge and the auditor BOTH load by filename convention -- verified at both skill sources. Q56 raised: seven skill-versus-library divergences, each of which would have compiled; second feature to find the class. Five digests taken rather than skipped, as checkpoint 7 taught -->
+- [x] 13. The frontend modules the implementation needs  <!-- skills: hof-error-handling, hof-modules, both digests present. ERROR_CODE_HASH 13 -> 45: 31 codes read out of the five resolvers' own getters, plus 102.X000.001. expenseCategories contributes none and that is written in as CHECKED. The identical-refusal requirement is ENFORCED rather than remembered -- 204.M005.002 and 204.M006.002 carry the same sentence byte for byte and a test asserts they are equal, so editing one alone fails. 102.X000.001 is mapped because the gateway asks only existsToken() -- whether a token is HELD, never whether it is good -- and runs on navigation, not on an in-flight call. Shared-logic clause NOT APPLICABLE, stated rather than assumed. The future-date authority is settled in the file that will hold the check: both sides refuse, that is not duplication, and THE BACKEND IS AUTHORITATIVE where the browser's timezone and Asia/Tokyo disagree -->
+- [x] 14. API client  <!-- skill: hof-graphql, digest present. Five Payload/Launcher/Capsule trios; signOut already existed and was not touched; documents generated from the contract by the skill's own generator rather than transcribed. MY BRIEF PROPOSED THE WRONG CHECK and the unit refused it: an AST diff needs a document in the contract to diff against and there is none, so it would have meant hand-writing the expected document -- the transcription step the check exists to remove. Replaced by validate(buildSchema(contract), parse(document)) PLUS a coverage inspector, because validate() accepts partial selection BY DESIGN and so catches an added field and not a missing one. The contract file is the oracle, so nothing is transcribed. Mutation-checked BOTH directions by the main session. The literal exit condition -- works against the stub -- is unreachable: checkpoint 6's actual pool shadows the stub pool and the backend does not start here. Q57 raised for the vendored copy's drift risk -->
+- [x] 15. UI  <!-- one screen, four states, one unit -- filled, loading, empty, error, each reachable from the context and each with a test behind the parcel that selects it. THE DATE RULE: the screen refuses AND the backend refuses; the check is isSpentOnLaterThanToday() called from onSubmitForm(), which returns before the request, and generateTodayDate() reads the browser's calendar fields rather than toISOString(), which would call a Tokyo evening tomorrow. Two tests prove the send is DECLINED, not just messaged. SCOPE STATED: link 3 of the typed-segment chain (onChangeSpentOn) is untested and that is an omission, not the forced Q44 gap -- closed at 16. A loading button's missing accessible name was REMOVED rather than compensated, by closing the dialog before sending. --color-ring turns out FIXED and six digests still say otherwise, which checkpoint 18 audits against -->
+- [x] 16. Wire the data-fetching logic in  <!-- five seams filled, no markup moved. Pending state is raised in beforeRequest and lowered in afterRequest rather than set by hand, so an answer, a refusal and a network failure all arrive at the same place. Every message goes through extractResolvedErrorMessage(), the single resolution point -- swapping it for the inherited getErrorMessage(), which returns the CODE, fails 13 tests. onChangeSpentOn's test closes link 3 and the file states what it does NOT cover. A DEFECT CARRIED FORWARD FROM #sign-in IS FIXED: the gateway created furo's AccessTokenClerk against localStorage while Q43 put the token in MemoryStorage, which made /expenses unreachable in a redirect loop -- found where the carry-forward note predicted. Seven mutations run, each failing 6-14 tests. The exit condition's literal words are NOT met: nothing was served over a socket (Q24), the same shortfall #sign-in's 16 recorded, and the pair is what Q52 rests on. Stub CHECKED, not asserted: 10 suites, 70 tests -->
+- [x] 17. Local test environment  <!-- PARTLY PROVEN, and the two clauses have different answers. APPLICABLE rather than n/a because this feature added SEED DATA, which is what the exemption turns on. SEEDING CLAUSE MET against real MariaDB: only mariadb brought up (section 8 declares none of the other five services), db:refresh:live exit 0, 14 rows 10200001-10200014, 10 for one member of staff and 4 for another, two null memos. spent_on is `date` with NO time component and memo is varchar(191) NULL -- the contract's YYYY-MM-DD claim checked for the first time against a database that distinguishes the types, rather than SQLite's affinity. And expenses_smi_so_index exists as (staff_member_id, spent_on) in that order -- THE INDEX CHECKPOINT 1's ORDERING DECISION RESTS ON, confirmed on a real server for the first time. RUNNING CLAUSE NOT STARTED HERE, two reasons: Q24 upstream and filed, plus this tree's Windows-native node_modules which kills it under WSL at sqlite3 invalid ELF header. Migration REFUSED as a decision -- it would change the thing being measured half way through a benchmark. NOTHING TO COMMIT and that is a result. Two environment preconditions nothing asks for: Docker answering (its start command returned 0 having started nothing) and port 3306 free (a WSL MariaDB held it; I declined to stop it, the user decided) -->
+
+
+## Checkpoint 10 - one route, and a stub that had to go
+
+**`/expenses`, aliased to `/`.** Section 11.2 describes one screen, and the three things done on it
+are not three screens.
+
+**The deciding fact came from two checkpoints back.** Section 11's second use case - *"opens that
+entry, corrects the amount"* - is served by data `expenses` **has already returned**. Checkpoint 2
+established it from the spec, checkpoint 9 observed it against the built API. So opening an entry
+for correction needs no further read, which means no `/expenses/[id]` route to carry an identifier
+and no param to fetch by. **Splitting it would have added routes the spec does not describe and put
+a page load between a member of staff and a correction already on screen.**
+
+`/expenses` rather than a page at the root, because the house pattern is a feature-named directory
+holding `index.vue`, never a bare leaf file. **`#sign-in` had already imagined this exact path** -
+its own tests use `redirect: '/expenses'` as a fixture in sixteen places.
+
+**The alias is required rather than decorative.** `SignInPageContext`'s `DEFAULT_DESTINATION_PATH`
+is `/`, so a sign-in with no `?redirect=` lands there; without the alias that is a route with
+nothing on it. Aliasing answers it and leaves another feature's constant and its tests untouched,
+which editing them would not have.
+
+**`pages/index.vue` was deleted**, and it is recorded here because it is the removal of an existing
+file. It was the boilerplate stub whose entire template is `<!-- TODO: fulfill here -->` - it
+renders nothing, and Q41 had already flagged it. With it in place **two route records would claim
+`/` and vue-router would resolve one arbitrarily.**
+
+**Nothing was needed in the environment files, and that is the result rather than an omission.**
+`#sign-in` wired `ENDPOINT_URL` and `WEBSOCKET_URL` in all three, and they were checked against the
+backend rather than trusted: it listens on `4900` and declares `graphqlEndpoint: '/graphql-staff'`.
+All six of section 11.2's operations are on that same audience at that same address, so this feature
+introduces no new address, key or origin.
+
+**The session requirement uses the existing mechanism and adds no second one.**
+`middleware/000.gateway.global.js` is global and `FuroMeta.skipFilter` defaults to `false`, so a
+page is guarded **by existing**. This page sets no `skipFilter`.
+
+### Reachability was read off the build, and the limit is stated
+
+`npm run build` succeeded and the compiled client bundle carries the route record verbatim -
+`path:"/expenses"`, `alias:["/"]`, the `pageTitle` meta, and the gateway middleware compiled around
+it. **That is the route table vue-router itself receives**, so it is evidence rather than inference.
+Confirmed independently by the main session: exactly two page records, and the `path:"/"` also
+present in the bundle is vue-router's own internal blank-route object (`matched:[]`), not a third
+page - checked rather than assumed.
+
+**What was not established: that it paints in a browser.** With `ssr: false` the nitro server
+answers every path with the same SPA shell, so an HTTP 200 on `/expenses` would have proved only
+that a static server is running. The built route record is the stronger evidence and a weaker one
+was not manufactured to fill the gap.
+
+## Checkpoint 11 - the third pass, and the file both generators read
+
+**This asks whether a person can do the use cases on a screen.** Checkpoint 2 asked whether the spec
+supported them; checkpoint 9 asked whether the API did. **The context file is the real output** -
+the UI generator at 12 and 15 and the UI auditor at 18 both read it, so a feature missing from it is
+generated and audited with no project context.
+
+### A sentence that had gone stale in the file, found before the unit landed
+
+Section 3 said *"a screen belonging to a later feature does not exist yet and must not be linked to
+or stubbed."* True while `#sign-in` was the only screen; **false the moment checkpoint 10 landed
+`/expenses`.** A stale prohibition there would either suppress a link that should exist or make the
+audit flag one that should. It is now a table of which routes exist, because that changes as
+features land, and `#monthly-summary`'s screen is still correctly named as absent.
+
+### Eight rules, each an acceptance criterion or an already-recorded trap
+
+The two that carry the most:
+
+- **A correction sends every field, always.** `correctExpense` is a **full replace** - so a
+  correction that omits the memo clears it. Flagged at checkpoint 2 as the thing a screen gets wrong
+  once and a member of staff discovers by losing a memo.
+- **A not-found must look identical in all three cases** - somebody else's entry, one already
+  removed, and an id that never existed. The backend answers one code for all three, and the rule
+  says plainly **not** to add *"this entry was already deleted"* as a kindness: **that sentence is
+  the disclosure the rule exists to prevent.** A screen can undo a backend's non-disclosure property
+  with one helpful message.
+
+The rest: pre-fill from the list rather than a second request, since no read-one operation exists; a
+removal is confirmed, because section 11.2's call table specifies it and the delete is permanent;
+entries read newest `spentOn` first, **with the consequence stated rather than hidden** - an expense
+paid last week and recorded today appears below this week's, which is the cost accepted knowingly at
+checkpoint 1; the memo renders empty rather than as the text "null"; `pagination.sort` is untrusted
+text echoed back unvalidated (Q53); and no page asks for more than 100 rows (Q50).
+
+**All three use cases have a path through the interface**, so nothing went back to checkpoint 2.
+
+### Commands, and a caveat that is absent because it does not apply
+
+- `npm run lint` - clean. **Exactly what CI runs.**
+- `npm run build` - succeeded. **Exactly what CI runs.**
+- `npm test --script-shell=bash` - **25 suites, 348 tests passed.** Baseline was 337; the 11 new
+  ones are checkpoint 10's and account for the whole delta.
+
+**That last is not bare `npm test`, and the difference is this machine rather than the repository.**
+`npm test` dies here with `'export' is not recognized` before a single test runs: the script body
+begins `export NODE_OPTIONS=...` and npm on Windows uses `cmd.exe`. CI runs it on Linux, where `sh`
+handles it, so `--script-shell=bash` runs the identical script string under the shell CI's own
+`sh` provides.
+
+**The concurrency caveat that applies to the backend does not apply here, and that is stated rather
+than left to be inferred from its absence.** This repository has its own runner, no database of any
+kind, and `jest --maxWorkers=5` in the script itself - the same worker count locally and in CI.
+There is no serial-versus-parallel gap on this side. **A caveat missing because it does not apply
+should look different from one missing because nobody thought of it.**
+
+
+## Checkpoint 12 - nothing new, and the most useful output is twelve refusals
+
+**Every component this screen needs already exists.** **Eleven** furo-vue components plus
+`AppRefusalMessage`, this app's only own component.
+
+> **Corrected at checkpoint 18.** This said *eight*, which was the count of component **skills**
+> matched, not of components used - three of those eight route to two components each. The eleven
+> are `FuroAlertDialog`, `FuroButton`, `FuroControlBlock`, `FuroDatePicker`, `FuroEmptyState`,
+> `FuroErrorState`, `FuroNumberField`, `FuroPagination`, `FuroSelect`, `FuroTable`, `FuroTextField`.
+> The substance - nothing new was built - was right; the number was not. Nothing was built, so no new-component
+justification is owed - which is the exit condition met rather than dodged.
+
+**All twenty component skills were matched, not just the ones used.** The checkpoint says to check
+the existing skills "exhaustively" before designing anything, and the way to fail it is to build
+something the library already ships. **Twelve reasoned noes are as much the output as eight yeses.**
+
+### The refusal that matters, and it is the checkpoint 2 trap again
+
+**`FuroEditableField` - inline click-to-edit - is the obvious fit for *"corrects the amount"* and is
+wrong.** It commits **one value**, and `correctExpense` is a **full replace**, so an amount-only
+commit would **clear the memo**.
+
+That is the trap checkpoint 2 recorded from the SDL, now met at the level of a component choice.
+**And the design makes it structural rather than remembered**: one form in two modes, keyed on a
+context property, so there is no code path that *can* send a partial correction. A rule nobody can
+break is better than a rule everybody remembers.
+
+Also refused with reasons: a kebab menu for two row actions; tabs, which would hide the list behind
+the form - the same split checkpoint 10 already refused at route level; and a toast, because the
+screen re-reads after every write, so **the changed list is the confirmation** and it persists where
+a toast times out - and a refusal message must stay readable rather than expire.
+
+### Where the design lives, and why that is a mechanism rather than filing
+
+`ai/contexts/uiux-context-expense-entry.md`. **Verified at both skill sources by the main session:**
+`hof-uiux-forge` and `hof-uiux-audit` each resolve project context as `uiux-context.md` **plus any
+`uiux-context-<word>.md`**, read together. So checkpoint 15's generator and checkpoint 18's auditor
+**load it without anybody remembering to.** A `docs/` page or a block comment would have depended on
+memory.
+
+It is a **sibling** rather than an edit, because checkpoint 11 owns the other file - the same reason
+§8 rule 15 gives for extending a component rather than modifying it.
+
+### Seven library facts that contradict the skills, each of which would have compiled
+
+Recorded as **Q56**, and this is the **second feature to find the class** - `#sign-in`'s checkpoint
+12 found the same manifest-versus-source disagreement, still present in furo-vue 1.3.2.
+
+**The one with a specification consequence, verified independently by the main session:**
+`FuroDatePicker`'s `maxValue` **marks** an out-of-range date and does not **block** one. `reka-ui`'s
+`isInvalid` only feeds a `data-invalid` attribute; `modelValue` still updates and the change events
+still fire. The skill is right about the calendar grid and wrong about the typed segments, **so a
+member of staff can type tomorrow.** §11's future-date criterion stays the backend's to hold, and
+the screen must check before sending rather than trust the component.
+
+The rest are in Q56. The sharpest of them: `FuroTable` has a `row-actions` slot no skill lists, which
+applies `@click.stop` itself - **while the skill's own example hand-rolls a worse version of it.**
+
+### Five digests taken, because checkpoint 7 taught me not to skip that
+
+`hof-cp-table`, `-date-time`, `-select`, `-dialog`, `-empty-state` - all used at this checkpoint with
+no digest, all now written and pinned to `hora-skills-ort-furo 0.1.0`. At checkpoint 7 I let a
+matched skill be used with no digest and had to go back for it; this time the list was asked for in
+the brief. **The digester was told to verify the divergences rather than copy them**, and all four it
+was handed held, plus several it found.
+
+### Commands, with the figures beside them
+
+- `npm run lint` - clean. **Exactly what CI runs.**
+- `npm run build` - succeeded. **Exactly what CI runs.**
+- `npm test --script-shell=bash` - **25 suites, 348 tests.** Unchanged, because nothing was built.
+  Not bare `npm test`, which dies on Windows before any test runs; the script string is identical.
+
+**The concurrency caveat does not apply in this repository** - its own runner, no database, and
+`--maxWorkers=5` written into the script itself, the same locally and in CI. Stated because an absent
+caveat should look different from a forgotten one.
+
+
+## Checkpoint 15 - four states, and a claim decomposed rather than defended
+
+**One screen, four states, one unit** - the ENTRIES' filled, loading, empty and error. The three
+non-filled ones are what acceptance fails on, so each is reachable from the context and each has a
+test behind the parcel that selects it.
+
+> **Scoped at checkpoint 18.** This read as though four were all the states the screen has. They are
+> the four the **entries** have. The review found a **fifth condition with no state at all** - the
+> form's own source, the category read, failing - which left the form permanently unusable. Not
+> false as written, but narrower than it read, and the gap was in the design rather than the wiring.
+
+### The date rule, and the honest scope of "the screen refuses"
+
+**The screen refuses a future date, and the backend refuses it too.** The check is
+`ExpensesPageContext#isSpentOnLaterThanToday()`, called from `#onSubmitForm()`, which returns before
+the request. Two ISO strings compared lexically - no date arithmetic, no library.
+
+**`generateTodayDate()` reads the browser's own calendar fields rather than `toISOString()`**, which
+answers the UTC date and would call a Tokyo evening "tomorrow" - a refusal a member of staff could
+not possibly understand. It is `static` so a test can substitute it, which four describes do.
+
+The refusal sentence is **read out of the shared error hash** rather than written a second time, so
+**a member of staff cannot tell which of the two sides noticed.** And the backend stays
+authoritative, exactly as checkpoint 13 settled it: the screen never suppresses a response and never
+decides a date is acceptable; it declines to send one it can already see is late.
+
+**Two tests prove the send is declined rather than merely accompanied by a message** - the refusal
+text is asserted **and** `expect(submitExpenseFormSpy).not.toHaveBeenCalled()`.
+
+#### What that claim does not cover, stated because nobody had stated its scope
+
+A peer asked at four consecutive checkpoints what happens when a member of staff **types** tomorrow
+into the segments rather than picking it from the grid. The answer is neither "it refuses" nor "it
+does not", and decomposing it is what made it checkable:
+
+| link | evidence |
+|---|---|
+| 1. somebody types tomorrow into the segments | — |
+| 2. `FuroDatePicker` emits `change-value` with the out-of-range date | **established** — Q56, read from `reka-ui`'s source: `modelValue` updates and all three emits fire |
+| 3. `onChangeSpentOn` writes it into `formValueHashReactive.spentOn` | **not tested** |
+| 4. `onSubmitForm` refuses and does not send | **established** — the test above |
+
+**So: the screen refuses a future date that has reached its state, and nothing proves a typed segment
+puts it there.**
+
+**The gap is part forced and part omission, and collapsing the two would have been the weaker
+answer.** Q44 makes the template binding at `index.vue:194` genuinely unreachable - no `.vue` file
+here can be unit-tested. But `onChangeSpentOn` is a plain method with no test of its own, and "no
+`.vue` file can be tested" would have absorbed both while sounding just as reasonable. **Closed at
+checkpoint 16.**
+
+**A record saying "the screen refuses" without this would have been Q56's own shape, written by the
+session that raised Q56** - a claim true of the half that was exercised, standing in silently for the
+half that was not.
+
+### An accessibility gap removed rather than compensated for
+
+`#sign-in` found that a loading `FuroButton` has no accessible name - its label is
+`visibility: hidden`, its spinner `aria-hidden`. Every button here that can load carries an
+`aria-label`, **except the removal dialog's confirm button, which has no attribute seam short of
+replacing the library's whole footer.**
+
+**So the state was removed instead: the confirmation closes before the removal is sent**, and that
+button therefore never loads while on screen. A documented departure from checkpoint 12's design
+rather than an oversight - and it is why the gap does not exist here at all rather than being
+papered over.
+
+`aria-describedby` is wired from the refusal region to all four controls, two of them through
+`triggerParcel` and `inputParcel` **because a plain `id` reaches no DOM element** on `FuroSelect`
+(its root renders a fragment) or `FuroNumberField` (the parcel lands on the wrapper, not the input).
+Each was read from the installed package.
+
+### A recorded finding that turned out to be fixed
+
+**`--color-ring` is no longer undefined.** `#sign-in` found it missing and a focus ring invisible.
+`nuxt.config.js` now loads `furo.css` first - with a comment naming that variable as the reason - and
+`0030.variables-semantic-color.css:31` declares `--color-ring: var(--palette-blue-500)` = `#3b82f6`,
+**3.68:1** against the card. **Verified by the main session**, both the load order and the
+declaration.
+
+**Six component digests still carry the old claim** that this project imports no furo stylesheet, and
+derive from it that every `--color-*` resolves to nothing. **Checkpoint 18's audit reads those
+digests.** A stale claim there would produce confident false findings against a screen that is
+correct - which is Q58's mechanism pointed at this project's own records.
+
+### Commands, with the figures beside them
+
+- `npm run lint` - clean. **Exactly what CI runs.**
+- `npm run build` - succeeded. **Exactly what CI runs.**
+- `npm test --script-shell=bash` - **43 suites, 598 tests.** Baseline 523; +75, all additions to the
+  one existing context suite, none weakened or removed.
+- `node .claude/skills/hof-uiux-forge/scripts/validate-tokens.cjs` - clean, exit 0. The forge's own
+  mechanical gate.
+
+**The concurrency caveat does not apply in this repository** - own runner, no database, the same
+worker count locally and in CI.
+
+
+## Checkpoint 16 - wired, and the guard on its own screen unbroken
+
+**Five seams filled**, no markup moved, the state machine not restructured.
+
+**Pending state is never set by hand around a call.** Each flag is raised in the request's own
+`beforeRequest` and lowered in `afterRequest`, so the screen is pending for exactly as long as
+something is in flight - an answer, a refusal and a network failure all arrive at the same place.
+
+**Every message from a RESPONSE goes through `extractResolvedErrorMessage()`, the single resolution
+point.** No context maps a code: swapping it for the inherited `getErrorMessage()`, which returns the
+*code*, fails 13 tests.
+
+> **Corrected at checkpoint 18.** This said *every message*, without qualification. One does not:
+> the client-side future-date refusal reads `ERROR_MESSAGE_HASH` directly, deliberately, so that a
+> member of staff cannot tell which side noticed - checkpoint 15 chose that and explains it. **The
+> code is right and the sentence was wrong**, and "every" is exactly the claim a later reader would
+> rely on to conclude the file needs no second look.
+
+### The omission checkpoint 15 recorded is closed, and its boundary stated
+
+`onChangeSpentOn` now has a test, closing **link 3** of the typed-segment chain - that what the
+picker emits reaches `formValueHashReactive.spentOn`. The test file says plainly what it does **not**
+cover: the template binding in `index.vue`, which Q44 makes genuinely unreachable. **The forced half
+and the omission stay apart rather than letting "no `.vue` file can be tested" absorb both.**
+
+### A defect carried forward from `#sign-in`, found where it was predicted
+
+`middleware/000.gateway.global.js` still created furo's `AccessTokenClerk`, which reads
+`window.localStorage`, while Q43 had put the token in `MemoryStorage` behind `AppAccessTokenClerk`.
+
+**It is not a style mismatch - it makes `/expenses` unreachable in a loop.** The gate answers "no
+session" on every navigation, redirects to sign-in, sign-in finds the session already in memory and
+navigates back, and the gate runs again.
+
+`#sign-in`'s checkpoint 16 recorded it as carried forward **to this feature**, and it is the guard on
+the screen this checkpoint wires. **A carry-forward note doing the job carry-forward notes almost
+never do.**
+
+### The suite was shown to have teeth rather than assumed to
+
+**Seven mutations against the finished code**, each failing 6-14 tests: a broken `onChangeSpentOn`,
+code-instead-of-message, memo as `''` rather than `null`, the re-read deleted, hooks not passed, the
+token kept on sign-out, rows wiped on a refused read.
+
+That is the inverse of Q46's question. Instead of asking whether the tests pass, it asks **what has
+to break for them to fail** - and gets an answer.
+
+### The exit condition's literal words are NOT met, in the words used to the peer
+
+**"The screen shows real data from the actual API" is not met: nothing was served over a socket.**
+Q24 stops the backend booting here. `#sign-in`'s checkpoint 16 recorded the identical shortfall, and
+**the pair of them is the evidence Q52 rests on** - two features, two gates, the same clause unmet
+for the same environmental reason, in a project whose platform requirement is written nowhere.
+
+**The stub was checked rather than asserted:** clean tree, nine resolvers present under
+`stub/`, last touched by checkpoint 4's commit, **10 suites and 70 tests passing.**
+
+**And there was no endpoint to change**, which contradicts the checkpoint's own framing.
+`GraphqlResolversBuilder` already resolves `actual ?? stub`, so the stub was shadowed at checkpoint 6
+and the frontend has no stub layer of its own. "This is where the stub is left behind" does not
+describe this stack.
+
+### Commands, with the figures beside them
+
+- `npm run lint` - clean. **Exactly what CI runs.**
+- `npm run build` - succeeded. **Exactly what CI runs.**
+- `npm test --script-shell=bash` - **43 suites, 682 tests.** Baseline 598; +84, all in the one
+  context suite, none weakened or removed.
+- the stub check, in the backend: **10 suites, 70 tests.**
+
+**The concurrency caveat does not apply in this repository** - own runner, no database, the same
+worker count locally and in CI.
+
+
+## Checkpoint 17 - one clause met against a real server, one not started
+
+**Applicable rather than not-applicable, and the reason is worth stating because half of it cannot
+run.** The exemption is for a feature that added no service, no role and **no seed data**. This
+feature added seed data - the `expenses` development seeder - so the checkpoint applies, exactly as
+it did for `#sign-in`.
+
+### The seeding clause: MET, and against MariaDB rather than SQLite
+
+```
+docker compose -f docker-compose.development.yml up -d mariadb    -> Started, healthy
+npm_config_script_shell=bash npm run db:refresh:live              -> 10 migrations, 5 seeders, EXIT=0
+```
+
+Only `mariadb`. The compose file also declares `redis`, `minio`, `elasticsearch`, `kafka` and
+`qdrant`, and **§8 declares none of them for this version** - bringing them up would be building an
+environment the spec does not describe.
+
+**What this proves that the suite could not.** The unit tests run on SQLite, whose type affinity
+accepts almost anything. Read off the running MariaDB:
+
+| column | real type | why it matters |
+|---|---|---|
+| `spent_on` | **`date`** | **no time component** - the contract's `YYYY-MM-DD` claim checked for the first time against a database that actually distinguishes the types |
+| `amount` | `int(11)` | integer yen, no decimal |
+| `memo` | `varchar(191)` **NULL** | the one genuinely optional field, nullable on a real server |
+| `status` | `varchar(32)` | |
+| `created_at` / `updated_at` | `datetime(3)` | |
+
+**And the index §9.3 calls "the one read that matters" exists as declared:**
+`expenses_smi_so_index`, `staff_member_id` at position 1 and `spent_on` at position 2.
+**That is the index checkpoint 1's ordering decision rests on** - "most recent first" resolved to
+`spent_on` partly because §9.3 indexes it - **and this is the first time it has been confirmed on a
+real server.**
+
+Rows match the seeder exactly: **14 rows, `10200001`-`10200014`, 10 for staff `10110001` and 4 for
+`10110002`, two null memos.**
+
+### The running clause: NOT STARTED HERE, for two reasons rather than one
+
+*"The application runs locally together with every service behind it, each role can sign in"* was not
+established, and the wording is deliberate - **not started here**, rather than `#sign-in`'s "blocked
+by Q24":
+
+1. **Q24, upstream and filed.** The loader passes a raw `D:\…` path to `import()`. Measured, and it
+   does **not** reproduce on WSL.
+2. **This tree's own installation.** Under WSL the server gets *past* the loader and dies at
+   `sqlite3 … invalid ELF header`, because `node_modules` holds Windows binaries. Measured.
+
+**The migration was refused as a decision, not hit as a constraint.** A WSL-native install in place
+would break the Windows installation every test in this project runs against; in a copied tree it
+means re-establishing three repositories to prove one clause. **And it would change the thing being
+measured half way through** - this work is a benchmark against controls built on this same Windows
+installation, so migrating one side at checkpoint 17 of feature two narrows the comparison rather
+than widening it.
+
+### Nothing to commit, and that is a result
+
+The branch `update/e2e-expenses-seed-for-expense-entry` was cut per `commits.md` and **carries no
+commit.** `#sign-in` added `db:teardown:live` / `db:refresh:live`; this feature needed no new script,
+only the seeder it already ships. **Manufacturing a change to justify the branch would be worse than
+an empty one** - the same shape as "nothing was needed in the env files" at checkpoint 10.
+
+### Two environment preconditions nothing in the checkpoint sequence asks for
+
+**Recorded because both cost time tonight and neither is written anywhere.**
+
+- **Docker must be running *and answering*.** Starting it with `cmd.exe /c start` **returned 0 and
+  started nothing**; only reading the process table caught it. Q58's exit-code line.
+- **Port 3306 must be free, and it was not.** A MariaDB inside the default WSL distro held it, with
+  `wslrelay.exe` publishing it to Windows localhost - traced from `netstat` to the PID to the distro.
+  **I declined to stop it**: starting a stopped service is recoverable, stopping a running database
+  is not, and I could not inventory what depended on it. **The user decided it was disposable and
+  stopped it.** The three workarounds were each worse than the block - `db:refresh:live` begins with
+  `db:migrate:undo:all`, which would have been pointed at a server nobody here created.
+
+**Both belong to Q52's shape**: an environment fact the process assumes and never asks for.
+
+### One reading challenged, and re-measured rather than restated
+
+A peer read the live database as holding `SequelizeMeta` and nothing else, and asked whether the
+refresh had half-run. **The correct response was to re-measure**, because the earlier answer was as
+much an instrument verdict as the challenge - and it held: eleven tables, 14 expense rows.
+
+The cause was neither of the two things guessed. **The query was issued during the migration run** -
+`docker ps` in that session's own output read `Up 7 seconds`. A correct measurement of the wrong
+moment. Recorded in Q58, where it is the instance that generalises furthest.
 
 ## Acceptance gate
-- [ ] 18. Acceptance (E2E and unit both)
+- [x] 18. Acceptance (E2E and unit both)  <!-- PASSED AFTER FIXES, not on arrival. Recorded at .hora/acceptance/1.0.0/expense-entry.md. Skills matched: hof-e2e-test-specification and hof-acceptance-review, NEITHER of which has a digest. Unit suites run with CI's OWN invocations including --maxWorkers=3: backend 64/1510 and 8/314 on release (identical in content to the feature branch, but release is what the merge produced), frontend 43/700, lint clean in both, build succeeds. 25 scenarios derived, coverage complete against all five operations, none executed. ALL SEVEN of section 11's criteria established from code and assertions rather than from checkpoint records. FIVE FINDINGS -- two Major: a removal on the last page hid every remaining entry behind a false "No entries yet", and a failed category read left the form permanently unusable. The first was pinned by a test that asserted the request offset and never the screen, so it passed under broken and fixed code alike -- Q46's shape in code this project shipped. THREE OVERSTATEMENTS in this feature's own records, corrected in place: eleven components not eight, one message bypassing the single resolution point, and four states that are the ENTRIES' four. All three the same shape -- a claim whose scope nobody stated. Live sweep skipped by default AND could not have run here; both facts recorded separately -->
