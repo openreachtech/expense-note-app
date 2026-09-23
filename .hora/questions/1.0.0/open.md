@@ -3131,6 +3131,34 @@ verdict to be wrong?* has an answer that keeps recurring here: **that the thing 
 laid out the way I assumed.** A looser search, or a search for a distinctive fragment rather than a
 whole sentence, would have caught all five.
 
+### The property that unites them: each failure returned a plausible value rather than an error
+
+A sixth instance made it explicit. `git show origin/release/1.0.0:.hora/questions/1.0.0/open.md`
+under Git Bash has its `rev:path` argument **path-converted before git sees it** — the colon becomes
+a semicolon and the slashes become backslashes — so git answers *"fatal: ambiguous argument"*, the
+output is empty, and `grep -c` on it prints **`0`**. Both sessions hit it, minutes apart, and both
+read `0` as *"the questions are not there"*. `MSYS_NO_PATHCONV=1` fixes it.
+
+**Six wrong verdicts now, six different causes** — `#` stripping, `####` stripping, a line-number
+from a pattern, a blank separator, a wrapped sentence, and a shell mangling the argument. What they
+share is not the mechanism:
+
+> **Every one of them returned a plausible value rather than an error.**
+
+**`0` is a legitimate answer to a question that was never asked.** That is what makes this family
+different from an ordinary bug: **an instrument that fails by returning a valid-looking value cannot
+be caught by reading its output.** There is nothing in `0` to look wrong at.
+
+**So the two defences that do work are both external to the reading:**
+
+1. **Know roughly what the answer should be** before asking. `0` matches for a file you just wrote
+   two sections into is not a plausible number, and noticing that is the whole catch.
+2. **Ask the instrument something you already know the answer to.** A grep that cannot find a
+   heading you can see with your own eyes is a broken grep, not an absent heading.
+
+The same holds one level up: a suite reporting 0 failures, a command returning exit 0, and a query
+returning one row are all plausible values, and all three have been wrong in this project.
+
 ### Two instances that generalise past "check your check"
 
 **An exit code is an instrument too.** Starting Docker Desktop with `cmd.exe /c start "" "…Docker
