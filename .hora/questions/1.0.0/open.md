@@ -3498,6 +3498,40 @@ by a different route. So the clause belongs in **§6**, beside the `month` row t
 `#monthly-summary`.** `EXPENSES_ORDER` would gain a second key, and its docblock — which currently
 records that no tie-break was decided — would need to say that one now has been, and where.
 
+#### Measured afterwards, and it makes the decision stronger than "settling an unspecified order"
+
+**Without the tie-break the product was already wrong on the engine it runs on, and right only in the
+suite.** Two rows sharing a `staff_member_id` and a `spent_on`, ordered by `spent_on` descending with
+no second key:
+
+| engine | tied rows come back | |
+|---|---|---|
+| **SQLite** — what every local suite runs on | **descending** by id | *accidentally* what §6 asks for |
+| **MariaDB** — what §8 declares as the store | **ascending** by id | **the opposite of §6** |
+
+The SQLite result is an accident of §9.3's index: `(staff_member_id, spent_on)` walked **backwards**
+hands tied rows back rowid-descending. Nothing promises that; it is this plan on this engine.
+
+**So `live` was returning a day's entries oldest-recorded first while every local suite reported the
+order §6 requires.** Measured on the running container by two sessions independently, with the probe
+rows removed afterwards and the count verified.
+
+#### And the generalisation that looked obvious is wrong — checked rather than recorded
+
+The tempting conclusion is that **an order correct on SQLite and wrong on MariaDB is invisible to
+every test this project runs**, since the suites are SQLite. **That is false, and worth stating
+because it would have been a plausible and demoralising entry.**
+
+`.github/workflows/test-with-mariadb.yml` runs `npm run test:live -- --seeded --maxWorkers=3
+tests/_orders/`, and `test:live` sets `NODE_ENV=live`, whose config is the MariaDB block. **CI runs
+the same `_orders` suites against MariaDB.** So a behavioural tie test would have failed there — in
+CI, on the right engine, for the right reason.
+
+**The true exposure is narrower and is the backend gate's lesson again:** a dialect-dependent defect
+is invisible **locally**, where every suite is SQLite, and is caught only by an invocation nobody
+runs by hand. A local green is not evidence about MariaDB, and the command that would be is
+`npm run test:live`.
+
 #### The alternative worth naming
 
 **Leave the tie unsettled and say so explicitly in §12**, as §11.2 effectively does. Honest, cheaper,
