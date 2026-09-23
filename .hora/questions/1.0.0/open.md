@@ -3208,6 +3208,43 @@ one's own last message to find out what happened is trusting the instrument inst
 The habit that finally caught it was checking the file before writing, and it took three instances
 to install because nobody had written the mechanism down.
 
+### The diagnosis of an instrument failure is an instrument too, and this one was wrong
+
+**Found at `#monthly-summary`'s checkpoint 1, and it is the sharpest form this entry has taken.**
+
+Searching for surviving copies of a clause the spec had already lost, `grep -rn "inherits the same
+ceiling"` from the repository root returned **one hit — the checkpoint record's own quotation** — and
+read as clean. The clause was in fact alive in `constants/paginationConstants.cjs`, twice.
+
+**The cause I then recorded was that a root search cannot see the nested `expense-note-backend`
+repository.** It explained the symptom exactly, it was written into five artefacts as the lesson,
+and it is **false**: a root `grep -rn` descends into that repository perfectly well, which one
+control search for another phrase in that same file settled by matching it on line 4.
+
+**The real cause is the fifth row of the table above.** `inherits the` ends line 14 and `same
+ceiling` begins line 15, so the string exists on no single line of the file. **It is not a new
+mechanism — it is this entry's own already-recorded one, hit again, and then misdiagnosed as a
+different one.**
+
+> **A wrong search costs a search. A wrong cause gets written down as the lesson.**
+
+**Both steps returned a plausible value rather than an error**, which is this entry's property
+applied twice in one finding: the grep returned a clean result rather than saying it could not match
+across lines, and the diagnosis returned a cause that fit every observation rather than saying it had
+not been tested. **The second is the worse half**, because the first is discarded when the search is
+redone and the second is what survives into the record.
+
+**What caught it was the entry's own second defence, asked of a diagnosis instead of a tool**: *ask
+the instrument something you already know the answer to.* One control grep for a phrase known to be
+in that file, in that nested repository, would have taken five seconds at any point — and the reason
+it was finally run is that a background job carrying the original search's output completed and
+invited a second look at a result already treated as settled.
+
+**So the rule this adds is narrow and checkable:** *a cause that explains the symptom has not thereby
+been tested.* Before a diagnosis is written down as the finding, run the one command that would
+distinguish it from its nearest rival. Here the rival was "the phrase does not occupy one line", and
+the two make opposite predictions about a control search.
+
 ### Where it lands
 
 Nowhere outside this project — it is a practice, not a defect. Recorded because the benchmark this
