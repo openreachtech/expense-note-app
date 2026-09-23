@@ -840,7 +840,7 @@ difference from 70/1767 being exactly the two test files the fix added.
 - [x] 14. API client  <!-- skill: hof-graphql, digest present. Five Payload/Launcher/Capsule trios; signOut already existed and was not touched; documents generated from the contract by the skill's own generator rather than transcribed. MY BRIEF PROPOSED THE WRONG CHECK and the unit refused it: an AST diff needs a document in the contract to diff against and there is none, so it would have meant hand-writing the expected document -- the transcription step the check exists to remove. Replaced by validate(buildSchema(contract), parse(document)) PLUS a coverage inspector, because validate() accepts partial selection BY DESIGN and so catches an added field and not a missing one. The contract file is the oracle, so nothing is transcribed. Mutation-checked BOTH directions by the main session. The literal exit condition -- works against the stub -- is unreachable: checkpoint 6's actual pool shadows the stub pool and the backend does not start here. Q57 raised for the vendored copy's drift risk -->
 - [x] 15. UI  <!-- one screen, four states, one unit -- filled, loading, empty, error, each reachable from the context and each with a test behind the parcel that selects it. THE DATE RULE: the screen refuses AND the backend refuses; the check is isSpentOnLaterThanToday() called from onSubmitForm(), which returns before the request, and generateTodayDate() reads the browser's calendar fields rather than toISOString(), which would call a Tokyo evening tomorrow. Two tests prove the send is DECLINED, not just messaged. SCOPE STATED: link 3 of the typed-segment chain (onChangeSpentOn) is untested and that is an omission, not the forced Q44 gap -- closed at 16. A loading button's missing accessible name was REMOVED rather than compensated, by closing the dialog before sending. --color-ring turns out FIXED and six digests still say otherwise, which checkpoint 18 audits against -->
 - [x] 16. Wire the data-fetching logic in  <!-- five seams filled, no markup moved. Pending state is raised in beforeRequest and lowered in afterRequest rather than set by hand, so an answer, a refusal and a network failure all arrive at the same place. Every message goes through extractResolvedErrorMessage(), the single resolution point -- swapping it for the inherited getErrorMessage(), which returns the CODE, fails 13 tests. onChangeSpentOn's test closes link 3 and the file states what it does NOT cover. A DEFECT CARRIED FORWARD FROM #sign-in IS FIXED: the gateway created furo's AccessTokenClerk against localStorage while Q43 put the token in MemoryStorage, which made /expenses unreachable in a redirect loop -- found where the carry-forward note predicted. Seven mutations run, each failing 6-14 tests. The exit condition's literal words are NOT met: nothing was served over a socket (Q24), the same shortfall #sign-in's 16 recorded, and the pair is what Q52 rests on. Stub CHECKED, not asserted: 10 suites, 70 tests -->
-- [ ] 17. Local test environment
+- [x] 17. Local test environment  <!-- PARTLY PROVEN, and the two clauses have different answers. APPLICABLE rather than n/a because this feature added SEED DATA, which is what the exemption turns on. SEEDING CLAUSE MET against real MariaDB: only mariadb brought up (section 8 declares none of the other five services), db:refresh:live exit 0, 14 rows 10200001-10200014, 10 for one member of staff and 4 for another, two null memos. spent_on is `date` with NO time component and memo is varchar(191) NULL -- the contract's YYYY-MM-DD claim checked for the first time against a database that distinguishes the types, rather than SQLite's affinity. And expenses_smi_so_index exists as (staff_member_id, spent_on) in that order -- THE INDEX CHECKPOINT 1's ORDERING DECISION RESTS ON, confirmed on a real server for the first time. RUNNING CLAUSE NOT STARTED HERE, two reasons: Q24 upstream and filed, plus this tree's Windows-native node_modules which kills it under WSL at sqlite3 invalid ELF header. Migration REFUSED as a decision -- it would change the thing being measured half way through a benchmark. NOTHING TO COMMIT and that is a result. Two environment preconditions nothing asks for: Docker answering (its start command returned 0 having started nothing) and port 3306 free (a WSL MariaDB held it; I declined to stop it, the user decided) -->
 
 
 ## Checkpoint 10 - one route, and a stub that had to go
@@ -1181,6 +1181,95 @@ describe this stack.
 
 **The concurrency caveat does not apply in this repository** - own runner, no database, the same
 worker count locally and in CI.
+
+
+## Checkpoint 17 - one clause met against a real server, one not started
+
+**Applicable rather than not-applicable, and the reason is worth stating because half of it cannot
+run.** The exemption is for a feature that added no service, no role and **no seed data**. This
+feature added seed data - the `expenses` development seeder - so the checkpoint applies, exactly as
+it did for `#sign-in`.
+
+### The seeding clause: MET, and against MariaDB rather than SQLite
+
+```
+docker compose -f docker-compose.development.yml up -d mariadb    -> Started, healthy
+npm_config_script_shell=bash npm run db:refresh:live              -> 10 migrations, 5 seeders, EXIT=0
+```
+
+Only `mariadb`. The compose file also declares `redis`, `minio`, `elasticsearch`, `kafka` and
+`qdrant`, and **§8 declares none of them for this version** - bringing them up would be building an
+environment the spec does not describe.
+
+**What this proves that the suite could not.** The unit tests run on SQLite, whose type affinity
+accepts almost anything. Read off the running MariaDB:
+
+| column | real type | why it matters |
+|---|---|---|
+| `spent_on` | **`date`** | **no time component** - the contract's `YYYY-MM-DD` claim checked for the first time against a database that actually distinguishes the types |
+| `amount` | `int(11)` | integer yen, no decimal |
+| `memo` | `varchar(191)` **NULL** | the one genuinely optional field, nullable on a real server |
+| `status` | `varchar(32)` | |
+| `created_at` / `updated_at` | `datetime(3)` | |
+
+**And the index §9.3 calls "the one read that matters" exists as declared:**
+`expenses_smi_so_index`, `staff_member_id` at position 1 and `spent_on` at position 2.
+**That is the index checkpoint 1's ordering decision rests on** - "most recent first" resolved to
+`spent_on` partly because §9.3 indexes it - **and this is the first time it has been confirmed on a
+real server.**
+
+Rows match the seeder exactly: **14 rows, `10200001`-`10200014`, 10 for staff `10110001` and 4 for
+`10110002`, two null memos.**
+
+### The running clause: NOT STARTED HERE, for two reasons rather than one
+
+*"The application runs locally together with every service behind it, each role can sign in"* was not
+established, and the wording is deliberate - **not started here**, rather than `#sign-in`'s "blocked
+by Q24":
+
+1. **Q24, upstream and filed.** The loader passes a raw `D:\…` path to `import()`. Measured, and it
+   does **not** reproduce on WSL.
+2. **This tree's own installation.** Under WSL the server gets *past* the loader and dies at
+   `sqlite3 … invalid ELF header`, because `node_modules` holds Windows binaries. Measured.
+
+**The migration was refused as a decision, not hit as a constraint.** A WSL-native install in place
+would break the Windows installation every test in this project runs against; in a copied tree it
+means re-establishing three repositories to prove one clause. **And it would change the thing being
+measured half way through** - this work is a benchmark against controls built on this same Windows
+installation, so migrating one side at checkpoint 17 of feature two narrows the comparison rather
+than widening it.
+
+### Nothing to commit, and that is a result
+
+The branch `update/e2e-expenses-seed-for-expense-entry` was cut per `commits.md` and **carries no
+commit.** `#sign-in` added `db:teardown:live` / `db:refresh:live`; this feature needed no new script,
+only the seeder it already ships. **Manufacturing a change to justify the branch would be worse than
+an empty one** - the same shape as "nothing was needed in the env files" at checkpoint 10.
+
+### Two environment preconditions nothing in the checkpoint sequence asks for
+
+**Recorded because both cost time tonight and neither is written anywhere.**
+
+- **Docker must be running *and answering*.** Starting it with `cmd.exe /c start` **returned 0 and
+  started nothing**; only reading the process table caught it. Q58's exit-code line.
+- **Port 3306 must be free, and it was not.** A MariaDB inside the default WSL distro held it, with
+  `wslrelay.exe` publishing it to Windows localhost - traced from `netstat` to the PID to the distro.
+  **I declined to stop it**: starting a stopped service is recoverable, stopping a running database
+  is not, and I could not inventory what depended on it. **The user decided it was disposable and
+  stopped it.** The three workarounds were each worse than the block - `db:refresh:live` begins with
+  `db:migrate:undo:all`, which would have been pointed at a server nobody here created.
+
+**Both belong to Q52's shape**: an environment fact the process assumes and never asks for.
+
+### One reading challenged, and re-measured rather than restated
+
+A peer read the live database as holding `SequelizeMeta` and nothing else, and asked whether the
+refresh had half-run. **The correct response was to re-measure**, because the earlier answer was as
+much an instrument verdict as the challenge - and it held: eleven tables, 14 expense rows.
+
+The cause was neither of the two things guessed. **The query was issued during the migration run** -
+`docker ps` in that session's own output read `Up 7 seconds`. A correct measurement of the wrong
+moment. Recorded in Q58, where it is the instance that generalises furthest.
 
 ## Acceptance gate
 - [ ] 18. Acceptance (E2E and unit both)

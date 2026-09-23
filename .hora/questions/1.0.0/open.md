@@ -3131,6 +3131,41 @@ verdict to be wrong?* has an answer that keeps recurring here: **that the thing 
 laid out the way I assumed.** A looser search, or a search for a distinctive fragment rather than a
 whole sentence, would have caught all five.
 
+### Two instances that generalise past "check your check"
+
+**An exit code is an instrument too.** Starting Docker Desktop with `cmd.exe /c start "" "…Docker
+Desktop.exe"` **returned 0 and started nothing** — `tasklist` showed no docker process three minutes
+later. `Start-Process` from PowerShell worked. Caught only by reading the process table instead of
+the exit code.
+
+So the precondition a checkpoint needs is sharper than "the service must be running": **a checkpoint
+whose exit condition needs a service must establish the service is ANSWERING, not that the start
+command returned.**
+
+**And the sharpest instance is different in kind from every other one here: a correct measurement of
+the wrong moment.** Reading `SHOW TABLES` on the live database, one session saw `SequelizeMeta` and
+nothing else, and reported the seeding as half-run. **The measurement was accurate** — that query
+really did return one row. The query was issued **during the migration run**, after `db:setup` had
+created the database and before the ten create-table migrations landed. `docker ps` in that session's
+own output said `Up 7 seconds`.
+
+**The instrument did not lie. A snapshot was read as a conclusion.**
+
+> **A correct measurement of the wrong moment is indistinguishable from a correct measurement of the
+> wrong thing.**
+
+**And the defence is a different one from the rest of this entry.** For the other instances it is
+*check the instrument*. For this one it is **establish that what you are sampling has stopped
+changing** — the warning was sitting in the same output as the reading.
+
+**What made it recoverable was the response rather than the catch.** The challenge was specific,
+plausible, and matched a real failure mode: `SequelizeMeta` alone genuinely is the shape of a
+half-run refresh. The session holding the correct earlier answer **re-measured from scratch instead
+of restating it**, on the stated ground that its own earlier reading was as much an instrument
+verdict as the challenge. **That is the discipline running in its hardest direction — against a
+challenge you turn out to be right about**, where restating costs nothing and is almost always
+correct.
+
 ### The same family covers announcing work and reporting it done
 
 Three times in this feature the main session wrote that an action had been taken — dispatching a
