@@ -202,13 +202,741 @@ coincidence.
 checkpoint that was not already corrected before it ran.
 
 ## Backend gate
-- [ ] 3. DB and API schemas
-- [ ] 4. Stub API
-- [ ] 5. The modules the implementation needs
-- [ ] 6. Actual API
-- [ ] 7. Worker
-- [ ] 8. Security audit
-- [ ] 9. Verify the use cases again, against the built API
+- [x] 3. DB and API schemas  <!-- skills: hor-graphql-schema, hor-type-interface, hoc-naming, hoc-jsdoc; digests ALL REUSED at hora-skills-ort-renchan 0.1.0 and hora-skills-ort-core 0.2.0, none taken, the installed versions being unchanged. NO MIGRATION AND NO MODEL CHANGE, established by reading #data-model's create-table migration rather than assumed: it ships every section 9.3 column plus the composite (staff_member_id, spent_on) index, cut for this feature's read before this feature existed. Four files: the SDL, its test, the two type interfaces, and resolver id Q004. Expense is REFERENCED, never redeclared -- the contract's own instruction and section 4's export seam expressed in the schema. Contract agreement measured TWICE by two different instruments (field-by-field, and printSchema of the whole schema as one string): IDENTICAL. MY BRIEF WAS WRONG A FOURTH TIME -- I briefed three files and it is four; the SDL test precedent begins at exactly the checkpoint I told the unit to mirror, and complying would have shipped a surface with no test while its sibling had one. Two digests found to disagree with EACH OTHER on where type declarations live; the tree outranks both -->
+- [x] 4. Stub API  <!-- skills: hor-stub-api; digest REUSED at hora-skills-ort-renchan 0.1.0, none taken. One schema-accurate stub, same class name and signature the actual will carry, seven September 2026 entries already in section 6's entry order with no sorting applied. totalAmount is SUMMED from the stub's own rows, never hand-written, because section 12's first criterion holds by construction and a hand-written total could disagree with the rows beside it -- a deliberate, recorded deviation from hor-stub-api's only-one-computation line, the spec outranking the digest as the contract outranked a skill at Q48. Four of section 12's criteria are NOT testable at a stub and the docblock disclaims them rather than implying them. THE STUB-FILTER GUARD FIRED FOR THE FIRST TIME IN ITS LIFE and it was right: a stub-only operation is served with no authentication filter, monthlyExpenses's actual is checkpoint 6's, so tests/__tests__/ is RED by exactly one case. Left red rather than exempted -- an exemption is the very edit that test exists to make look like a security change -- bounded by closing at checkpoint 6, by never reaching release (the branch merges only after checkpoint 9), and by every checkpoint verifying the failing set is EXACTLY that one case. The guard's own docblock had gone false and was corrected, comment only. Q62 raised -->
+- [x] 5. The modules the implementation needs  <!-- catalog check FIRST and once, then ONE implementer unit. 33 tracked packages searched: ADOPTED mentsu-value-inspector (already a declared dependency, already the pattern); DECLINED mentsu-search-condition, renchan-funnel, mentsu-validation-rules, mentsu-schema's DateonlyScalar and mentsu-value-normalizer, each with its reason, because 'not used' and 'not considered' look identical later. NOTHING in the catalog computes a month boundary and THIS REPOSITORY HAS NO DATE LIBRARY AT ALL, so CalendarMonthRangeBuilder was written fresh -- a new class rather than a method on CalendarDateInspector, whose create() requires a calendarDate a month range does not have. The class exists because section 7 requires a single indexed read against section 9.3's composite index, and YEAR()/MONTH() would be non-sargable AND does not exist in SQLite. MY BRIEF WAS WRONG A FIFTH TIME and it changed the design: the range takes NO timezone, because spentOn is DATEONLY and a month's two ends are the same strings in every zone -- section 6's Asia/Tokyo governs deriving a date from an instant, which is the recording side. The unit added the century leap-year cases (1900 and 2000) I had not asked for, which are the ones that prove the technique rather than the result. Exit condition checked as the clause demands: all six imports checkpoint 6 will make CONFIRMED TO RESOLVE by the main session in one process. No seeder needed -- June 2026 already has both boundary days plus a second member of staff's row; prefix 103 allocated for checkpoint 6's own fixtures. Failing set still EXACTLY the one checkpoint-4 reconciliation -->
+- [x] 6. Actual API  <!-- skills: hor-query-resolver, hor-resolver-validator, hor-constant-definition, hor-backend-testing, hoc-jest; digests ALL REUSED at hora-skills-ort-renchan 0.1.0 / hora-skills-ort-core 0.2.0. Both suites GREEN: __tests__ 1693/1693, _orders 326/326, lint clean, every figure re-run by the main session. Q62'S WINDOW IS SHUT -- reconcile-stub-resolvers-with-actual went green ON ITS OWN when the actual resolver landed and was never touched, which is this checkpoint's own exit evidence. The total is summed over the rows returned, never a second SUM(), because section 12.1's reason for one operation is that the two cannot disagree and a second query is a second observation. WHAT THE VALIDATOR DELIBERATELY DOES NOT DO is the interesting half: no minimum year (retention says how long a row is kept, not which months may be asked for), no maximum and no not-in-the-future rule (section 11 refuses a DATED expense, a rule about writing, and refusing a future month would break section 12.2's navigation). The 1-9999 year bound is the DATE FORMAT's constraint, measured: an unbounded -5 builds '00-5-06-01' which returns a plausible empty read, so the bound turns a plausible empty month into a stated refusal -- Q58 answered at the input. A CHECKPOINT 3 MISS CLOSED HERE: section 6's entry order was a private constant of ExpensesQueryResolver and this feature owed the identical clause, so two copies could drift and reintroduce Q61's defect; declared once now, and deleting the second key fails 4 tests across BOTH resolvers. Five mutation checks; the sharpest is that 12 tests catch a widened range and NONE catches it at the upper end except the 2 in _orders. My brief was wrong a sixth time about the test path -->
+- [x] 7. Worker  <!-- NOT APPLICABLE, established with hor-execution-placement-pattern (digest REUSED at hora-skills-ort-renchan 0.1.0) rather than by eye. This feature declares ONE operation, so the per-operation walk is complete rather than sampled. monthlyExpenses is a query: it short-circuits at the flow's FIRST question (is it a write?) and the trigger question at step 4 is never reached. The aggregation was the one thing that could have argued otherwise, and the skill's own heavy/light rule answers it -- heavy means external I/O, AI calls, large record counts or file generation, while section 7 bounds this at a few hundred rows under one second over rows already in hand, which is the skill's 'short aggregations within a single request'. Section 8 says it outright in the spec (Redis is not declared, because this version runs no background job), so this walk CONFIRMS rather than decides. Section 4 forecloses the one candidate: CSV export is file generation and so the heavy side by name, but it is 1.2.0 and its seam makes it a CALLER of this operation rather than a rewrite. Nothing written, nothing invented to make the checkpoint non-empty. One finding restated because it is still true: ioredis remains declared with ZERO importers, so package.json still suggests a job facility section 8 says does not exist -->
+- [x] 8. Security audit  <!-- hor-security-audit, read-only, in a VERIFIER as the clause requires. THE DIGEST DID NOT EXIST -- Q59's fourth instance -- so it was taken first and pinned at hora-skills-ort-renchan 0.1.0, verified against the installed package. 0 HIGH, 5 MEDIUM, 1 INFO, and NO FINDING ORIGINATES IN THIS FEATURE'S CHANGE SET. Scope arbitration recorded rather than silently resolved: the skill's frontmatter scopes it repo-wide and redirects diffs to /security-review, checkpoint 8 overrides that in writing with its reason, and /security-review is not equipped here anyway. Change set read as release/1.0.0..feature/monthly-summary, which needed justifying because the clause assumes a range would be EMPTY before the gate -- here every checkpoint is committed on the feature branch and the backend tree is clean, so both views agree. Q63 RAISED: introspection is enabled in every environment and is RECORDED NOWHERE -- a grep over all questions and all acceptance records returns nothing, so it was either never checked or judged out of scope without being written down, and THE RECORDS CANNOT DISTINGUISH THOSE. A check that was run and passed and a check that was never run look identical in a record that only lists findings; Q58's family as an absence. Q55 AMENDED because this feature holed one of its own mitigations: monthlyExpenses is the product's first read with no enforced row ceiling, and the shape limit's arithmetic was measured against a 100-row-per-alias read. The other four MEDIUMs are Q16 and Q54, verified still exactly as recorded. Six checks answered only partially, each NAMED, per the skill's own rule that a gap must never look like not applicable. Q62's window confirmed shut by a second instrument. My brief was wrong a seventh time about the change set's contents -->
+- [x] 9. Verify the use cases again, against the built API  <!-- main session, in conversation. Both of section 12's use cases driven as REAL CALLS against the built schema with a real access token on a real header, through the same GraphqlSchemaBuilder the server uses, nothing stubbed; in process because server/index.js cannot boot here (Q24). June 2026 answered totalAmount 3451 over 2026-06-30 (1) and 2026-06-01 (3450) -- the sum is right, both month ends are present, the order is newest spentOn first, and 10110002's 2026-06-18 (1860) is ABSENT from both the list and the total, which would read 5311 if scoping leaked, so the number itself is the evidence. Use case 2 moved to July (2100) and May (0, empty) ON THE SAME TOKEN with no second sign-in, which is the half of 'without leaving the screen' a code reading cannot establish. No session answered 102.X000.001 -- the ENGINE's Unauthenticated code, not this resolver's, so the refusal came before resolve() was entered; month 13 answered 203.Q004.002. Nothing fell short, nothing went back to checkpoint 3, and NO FIELD WAS ADDED ON THE WAY PAST. Walkthrough deleted, tree clean. One mechanical finding: a plain-named file under tests/_orders/ does not run at all -- jest.config declares no testMatch so only *.test.js matches -- and the first attempt reported 'No tests found, exiting with code 0', a pass-shaped answer to a question nobody asked. Q58 again -->
+
+## Checkpoint 3 - one query's surface, no table, and a fourth wrong brief
+
+**The DB half is not applicable, and it was established rather than assumed** - which is what this
+checkpoint's own clause asks for. `#data-model` shipped §9.3's `expenses` table complete: every
+column, and **three indexes including the composite `(staff_member_id, spent_on)`**, whose migration
+carries the comment *"One member of staff's month is the heaviest read this version has."* That
+index was cut for this feature before this feature existed. **No migration, no model change.**
+
+### What was written
+
+| file | |
+|---|---|
+| `server/graphql/schemas/staff/004-monthly-summary.graphql` | new. `type Query`, `MonthlyExpensesInput`, `MonthlyExpensesResult`, verbatim from the pinned contract |
+| `tests/__tests__/server/graphql/schemas/staff/004-monthly-summary.js` | new. 4 tests |
+| `types/StaffGraphQL.d.ts` | the two interfaces, `expenses` typed `Array<Expense>` |
+| `server/graphql/resolver-id-hash-staff.js` | `monthlyExpenses: 'Q004'` |
+
+**`Expense` is referenced and never redeclared**, which is the contract's own instruction and §4's
+export seam in the schema: a month's entries and the total taken over them cannot describe different
+shapes if there is only one shape. The loader concatenates the directory into one schema, so a
+second declaration would be a duplicate type rather than an override.
+
+**There is deliberately no MUTATION section.** §12.1 declares one query and nothing else.
+
+### The agreement with the contract was measured twice, by two different instruments
+
+Not by eye, and not once. **Two instruments agreeing is the point** - Q58 is this project's standing
+finding that a single verdict is evidence about the instrument as much as about the subject.
+
+| | what it compared | result |
+|---|---|---|
+| the unit | type-by-type and field-by-field, including argument names and full nullability | 25 types, 62 fields, no DIFF/EXTRA/MISSING |
+| the main session | `printSchema(lexicographicSortSchema(...))` of the **whole** schema against the whole contract, as one string | **IDENTICAL** |
+
+```
+node <script>   # built through the framework's own SchemaFilesLoader, as the server loads it
+types   SDL 28 / contract 28      <- 28 counts built-in scalars, 25 does not; same convention both sides
+fields  SDL 62 / contract 62
+Query   expenseCategories, expenses, monthlyExpenses, signedInStaffMember
+RESULT: printSchema IDENTICAL
+```
+
+**The type counts differ between the two instruments and neither is wrong** - they filter built-in
+scalars differently, and each compared like with like. Recorded because a reader meeting `25` and
+`28` for the same schema deserves the reason rather than a doubt.
+
+### My brief was wrong for the fourth time, and the unit caught it again
+
+**I briefed three files. It is four.** `#expense-entry`'s checkpoint 3 also left an SDL test, at
+`tests/__tests__/server/graphql/schemas/staff/003-expense-entry.js`, and **that directory exists
+solely for it** - 001 and 002 have no such test, so the precedent begins at exactly the checkpoint I
+told the unit to mirror.
+
+**Had the unit complied, this checkpoint would have shipped a schema surface with no test behind it
+while its sibling had one.** The unit read the tree instead and wrote the parallel file.
+
+**Four for four now, and the mechanism is the same one every time**: I brief from what I remember of
+a sibling rather than from the sibling. The defence is the unit's licence to trace rather than
+comply, and it has now paid four times.
+
+The test it wrote asserts the **merged runtime schema** rather than this file's text, and asserts
+`print(astNode)` of each whole definition - so **an added field fails it as well as a missing one**.
+It also pins the printed `Expense`, which fails if `#monthly-summary` ever gives itself a second row
+shape.
+
+### A disagreement between two digests, recorded rather than silently resolved
+
+`hor-type-interface` prescribes one file per resolver at `types/resolvers/<category>/<name>.d.ts`
+under `namespace graphql.<category>`. `hor-graphql-schema` prescribes one
+`types/<Audience>GraphQL.d.ts` under `namespace server.graphql.<audience>`.
+
+**The two digests disagree with each other, not merely with the tree.** The tree does the latter and
+the tree outranks a digest, so that is what was followed - but a future unit reading
+`hor-type-interface` alone would be led somewhere the tree does not go.
+
+### Verification
+
+Every figure re-run by the main session, not taken from the unit's report.
+
+```
+npm_config_script_shell=bash npm run lint                                    clean
+npm_config_script_shell=bash npm test -- --seeded --maxWorkers=3 tests/__tests__/   65 suites / 1516 tests
+npm_config_script_shell=bash npm test -- --seeded --maxWorkers=3 tests/_orders/      8 suites /  316 tests
+```
+
+`__tests__` was 64/1512 before this checkpoint, so the delta is exactly the four new tests. **The
+unit ran only `__tests__`; `_orders` is the main session's addition**, because CI runs both and a
+green claim that covers one of them is the narrower claim said as the wider one.
+
+Committed as two commits matching `#expense-entry`'s own granularity, read out of its history rather
+than chosen: the SDL with its test, then the types with the resolver id.
+
+## Checkpoint 4 - one stub, and a guard that fired for the first time
+
+**The stub exists and the checkpoint's own exit condition is met**, but `tests/__tests__/` **is
+red**, deliberately and by exactly one test. That is the whole of this checkpoint's interest.
+
+### The stub
+
+`stub/queries/MonthlyExpensesQueryResolver.js`, same class name and signature the actual will carry
+at checkpoint 6, so that swap is a change of endpoint rather than a rewrite. Seven September 2026
+entries, written already in §6's `entry order` with **no sorting applied** - a stub holds literals,
+and ordering them by hand is how it stays literal. First and last day of the month present; two
+entries sharing a date, written later-recorded-first, so a screen meets §6's tie-break on its first
+read; one null memo; one corrected entry; every `status` `recorded`.
+
+**`totalAmount` is summed from the stub's own rows and never hand-written.** §12's first criterion
+is that the total equals the sum of the entries shown, and checkpoint 1 established that this holds
+*by construction*. A hand-written total could silently disagree with the rows printed beside it, and
+a screen built against that would look right and be wrong.
+
+**That is a deliberate deviation from `hor-stub-api`, recorded rather than slipped in.** The
+digest's general rule forbids `map`/`filter`/`reduce` **over input**, which this is not - the reduce
+runs over a module-level hardcoded array. But its stub-specific line says the pagination slice plus
+`.length` is *the only computation any stub may perform*, and this is a second one. **The spec
+criterion outranks the digest**, the same arbitration Q48 settled between the contract and a skill.
+The deviation is kept minimal: the reduce sits at module scope, so `resolve()` stays a pure return
+of literals.
+
+**Four of §12's criteria are not testable at a stub, and the docblock says so rather than leaving it
+implied** - the exclusion half of the month boundary (a stub filters nothing), the empty month (one
+hardcoded month cannot be empty), the session refusal and the own-entries-only rule (both need an
+owner and a filter a stub has neither of).
+
+### The guard fired, and it was right
+
+`tests/__tests__/server/graphql/reconcile-stub-resolvers-with-actual.js` asserts that **every
+operation in the stub pool also has one in the actual pool**, because renchan builds its
+authentication filter map from the *actual* pool alone - so a stub-only operation is served with
+**no filter at all**.
+
+`monthlyExpenses`'s actual resolver is checkpoint 6's work. So the stub added here puts the tree in
+exactly the state that file exists to report, and it reported it:
+
+```
+npm_config_script_shell=bash npm test -- --seeded --maxWorkers=3 tests/__tests__/
+Test Suites: 1 failed, 65 passed, 66 total
+Tests:       1 failed, 1522 passed, 1523 total
+  reconcile-stub-resolvers-with-actual > ... > audience: staff
+  Expected ArrayContaining [... monthlyExpenses ...]   Received [... without it ...]
+```
+
+**The two lists differ by `monthlyExpenses` and nothing else.**
+
+**This is not a false positive and it was not treated as one.** `#expense-entry` never met it
+because the guard was written at *its* checkpoint 8, once both pools were already complete - so
+**this guard has never before run against a mid-feature tree**, and `#monthly-summary` is the first
+feature to reach checkpoint 4 with it installed.
+
+### Left red, and why that is the honest option rather than the lazy one
+
+Four alternatives were considered and each is worse:
+
+| option | why not |
+|---|---|
+| exempt `monthlyExpenses` in the test | **precisely the edit the test exists to make look like a security change** |
+| land the actual resolver here | empties checkpoint 4 of its purpose - a stub exists to give the frontend an endpoint *before* real logic |
+| a placeholder actual returning literals | **strictly worse than a stub**: it is filtered, so it *looks* authentic, and checkpoint 6 must remember to gut it |
+| run the test only at the acceptance gate | relocates the cost rather than paying it, and leaves the window unchecked anyway |
+
+**The red stands because it is the only option where the tree's actual state and the suite's verdict
+agree.**
+
+**Three things bound it, and together they are why this is tolerable rather than merely tolerated:**
+
+1. **It closes at checkpoint 6**, which is the next checkpoint that writes a resolver.
+2. **It never reaches `release/1.0.0`.** `feature/monthly-summary` merges only once checkpoint 9
+   passes, and checkpoint 6 is before that. **The unfiltered operation exists on an unmerged branch
+   and nowhere else.**
+3. **While it is open, every checkpoint verifies the failing set is *exactly* this one case.** *"1
+   failed, and it is this one"* is a checkable claim; *"some tests fail"* is not - and the danger of
+   an expected red is that a genuine regression hides inside it.
+
+### The guard's own docblock had gone false, and was corrected
+
+It said *"Every operation of every audience currently has both an actual and a stub, so the actual
+always wins and everything is filtered"*, under the heading *"It is not live today, and that is the
+point"*. **Both became false one commit earlier.**
+
+Corrected in place, **comment only - every changed line begins with ` *`, and the assertion, the
+cases and the sentinels are untouched.** Same reasoning as `paginationConstants.cjs` earlier today:
+a docblock asserting a state the tree has left is a claim a later reader relies on, written by
+somebody who was right at the time. It now records that it fired, why that was correct, and why the
+red was left standing.
+
+Raised as **Q62**, because every future feature hits this at its own checkpoint 4 and no checkpoint
+currently owns the window.
+
+### Verification
+
+```
+npm_config_script_shell=bash npm run lint                                          clean
+npm_config_script_shell=bash npm test -- --seeded --maxWorkers=3 tests/__tests__/  66 suites: 65 passed, 1 FAILED
+                                                                                  1523 tests: 1522 passed, 1 FAILED
+npm_config_script_shell=bash npm test -- --seeded --maxWorkers=3 tests/_orders/     8 suites / 316 tests, all green
+```
+
+**The one failure, named in full, and it is the only one:**
+
+```
+tests/__tests__/server/graphql/reconcile-stub-resolvers-with-actual.js
+  reconcile-stub-resolvers-with-actual
+    > to leave no stub operation without an actual counterpart
+      > audience: staff
+```
+
+**EXPECTED. This is Q62's window, and it closes at checkpoint 6.** Recorded this way on purpose: *a
+red suite whose cause is a known structural window is a different claim from a red suite*, and the
+difference should be legible here without anybody first going to read Q62.
+
+**Everything that makes it a bounded claim rather than an excuse is checkable from this block
+alone** - the failing set is one named test, the cause is one named operation whose actual resolver
+is one named checkpoint away, and `_orders` is untouched and fully green.
+
+Every figure re-run by the main session rather than taken from the unit's report.
+
+## Checkpoint 5 - one module, and the first brief this feature that owed no correction
+
+**One module, not three.** The catalog check ran first and once, as this checkpoint's own clause
+requires, and what it settled was mostly what *not* to write.
+
+### The catalog: 33 tracked packages, and three verdicts
+
+| job | verdict |
+|---|---|
+| (year, month) → a month's date range | **NOTHING MATCHES**, and **there is no date library in this repository at all** |
+| summing an integer field | **NOTHING MATCHES, and that is the right answer** |
+| validating `year` / `month` | **ADOPT `mentsu-value-inspector`** - already a declared dependency and already the pattern |
+
+**The declines are recorded because "not used" and "not considered" look identical six months later.**
+`mentsu-search-condition` (a saved list-view filter contract whose own README says it generates no
+query); `renchan-funnel` (its `TodayValueSuite` is the closest thing in the catalog to date
+arithmetic, but it offsets by days only and drags a Kafka-shaped dependency in for one string);
+`mentsu-validation-rules` (owns a `BetweenConditionSuite`, so it had to be named rather than skipped
+- but it is a DB-stored, user-configurable rule-tree engine, the opposite shape to a fixed GraphQL
+input); `mentsu-schema`'s `DateonlyScalar` (a predicate, not a generator).
+
+**The money question was asked and answered in the right direction.** `bignumber.js` reaches this
+repository only transitively, and the catalog's only BigNumber surfaces are *converters*, not
+arithmetic. §9.3 types `amount` as `int`, §4 puts a second currency permanently out of scope, and
+`Number.MAX_SAFE_INTEGER` is ~9x10^15 yen against §7's few hundred rows. **Reaching for precision
+machinery because a field is called a total would be buying it for a problem that does not exist.**
+
+### The module: `CalendarMonthRangeBuilder`
+
+A new class beside `CalendarDateInspector`, **not a method on it** - that class's concept is one
+calendar date and its verdicts, and its `create()` requires a `calendarDate`, so reaching a method
+through it would mean inventing a date the method ignores. Add a class, do not widen one.
+
+**Why the class exists at all** is §7 rather than taste. One member of staff's month must stay a
+single indexed read against §9.3's composite `(staff_member_id, spent_on)`. The obvious
+`WHERE YEAR(spent_on) = ? AND MONTH(spent_on) = ?` wraps the indexed column in a function, which
+makes the predicate non-sargable - **and SQLite does not have those functions at all** (it needs
+`strftime`) while MariaDB does. A range over the bare column is the one predicate both dialects
+answer from the index. **The spec forces the shape.**
+
+### My brief was wrong a fifth time, and this one changed the design
+
+**I said the range should be read in `CALENDAR.TIMEZONE`. It must take no timezone at all.**
+
+`spentOn` is a `DATEONLY` - a calendar date with no instant and no zone - and **the first and last
+day of June 2026 are the same two strings in every timezone on earth**. The zone was already spent
+upstream at `#expense-entry`, when a date was chosen from an instant. Threading one through here
+would add a property that changes no output and imply a zone-dependence the data model does not
+have.
+
+**Where the zone still decides something is *which* month is the current one** (§12.2), and
+`CalendarDateInspector#buildTodayCalendarDate()` already answers that, in the right place.
+
+**This does not contradict checkpoint 1's note that §6 already covers the timezone** - and the
+distinction is worth keeping, because the two are easy to collapse. §6's `Asia/Tokyo` governs
+**deriving a date from an instant**, which is the recording side and is where an expense at 23:00 on
+the 31st lands in one month or another. **Reading a month somebody named explicitly needs no zone.**
+The docblock says so in the file, because a reader who knows §6 will otherwise wonder why the class
+ignores it.
+
+### The unit added two cases I did not ask for, and they are the ones that matter
+
+**The century rules: `2000-02` is 29 days and `1900-02` is 28.** A hand-written `% 4` gets 1900
+wrong; `Date.UTC` does not. **Those cases prove the technique rather than the result** - every other
+February case would pass against a naive implementation too.
+
+Verified independently by the main session, eight probes through the real module:
+
+```
+NODE_ENV=development node <probe>
+2026-06 -> 2026-06-01 .. 2026-06-30      2000-02 -> 2000-02-01 .. 2000-02-29
+2024-02 -> 2024-02-01 .. 2024-02-29      1900-02 -> 1900-02-01 .. 1900-02-28
+2026-02 -> 2026-02-01 .. 2026-02-28      2026-12 -> 2026-12-01 .. 2026-12-31
+```
+
+### The exit condition is "they are there", and that was checked rather than assumed
+
+This checkpoint's clause says to **list what checkpoint 6 will import and confirm each one
+resolves**, and that it is the main session's job because a unit sees only its own module. Six
+imports, all resolved in one process: `CalendarMonthRangeBuilder`, `CalendarDateInspector`,
+`Expense`, `IntegerValueInspector`, `ValueInspector`, `BaseInputValidator`.
+
+**The probe failed on its first run with `no NODE_ENV`** - the model pulls in `app/globals/env.js` -
+which is worth recording as the shape of the check rather than a fault: an import probe that does
+not construct the environment tests less than it appears to.
+
+### No seeder, and that was established rather than assumed
+
+The `expenses` development seeder already covers **June 2026 with both boundary days for one member
+of staff** (`2026-06-01`, `2026-06-30`) **and a June row belonging to a second** (`10110002`,
+`2026-06-18`). So §12's boundary criterion and its another-member-of-staff criterion are both
+reachable from fixtures that already exist.
+
+**What is absent is a row on the day before and the day after a month**, which §12's criterion names
+explicitly. That is checkpoint 6's own test fixture rather than a seeder change: editing a shared
+seeder would move counts that `#expense-entry`'s suites assert absolutely, and `#expense-entry`
+already set the pattern of a test creating its own member of staff. **Row-id prefix `103` was
+allocated for exactly that**, ascending from `102` - the only rule the bank has, and one written
+down in no skill, only in `#expense-entry`'s record where it was noted as undocumented.
+
+### Two notes handed forward rather than acted on
+
+- **The folder now reads inconsistently on one verb.** `hoc-naming` gives `generate~` to a primitive
+  and `build~` to a temporary object. The new class follows it: `generateFirstCalendarDate()` returns
+  a string, `buildCalendarDateRange()` returns the pair. **The sibling's `buildTodayCalendarDate()`
+  returns a string under `build~`**, against the table. Costed rather than guessed: **11 call sites
+  across 2 files, both the class and its own test - no resolver calls it**, so a rename is a cheap
+  `retake/`. **Not done here**, because renaming another feature's method to satisfy a style table is
+  how a checkpoint becomes an unbounded tidy-up.
+- **Two terms are glossary-worthy** and were reported rather than added by the unit: *calendar month
+  range*, and *first / last calendar date*.
+
+### Verification
+
+```
+npm_config_script_shell=bash npm run lint                                          clean
+npm_config_script_shell=bash npm test -- --seeded --maxWorkers=3 tests/__tests__/  66 passed, 1 failed / 1575 passed, 1 failed
+npm_config_script_shell=bash npm test -- --seeded --maxWorkers=3 tests/_orders/     8 suites / 316 tests, green
+```
+
+`__tests__` went 65 → 67 suites and 1523 → 1576 tests, the delta being the 53 new cases.
+
+**The failing set is still exactly `reconcile-stub-resolvers-with-actual > ... > audience: staff`
+and nothing joined it** - which is the check Q62 commits every checkpoint in this window to making,
+and the reason it is a checkable claim rather than a tolerated red.
+
+## Checkpoint 6 - the real operation, and the window closed itself
+
+**Both suites fully green.** `tests/__tests__/` **1693 / 1693**, `tests/_orders/` **326 / 326**, lint
+clean - every figure re-run by the main session.
+
+### Q62's window is shut, and that is this checkpoint's own exit evidence
+
+`reconcile-stub-resolvers-with-actual` had been red since checkpoint 4, by exactly one case, because
+`monthlyExpenses` was in the stub pool and not the actual one. **It went green on its own the moment
+this resolver landed, and the test file was never touched** - `git status` reports it unmodified.
+
+**That is the shape a guard should have.** Nobody edited it to accept the mid-feature state, and
+nobody had to remember to re-enable it. It reported a true thing, stayed red while the thing was
+true, and stopped when it stopped being true.
+
+### The total is summed over the rows the operation returns
+
+Never by a second `SUM()`. §12.1's stated reason for one operation is that the two can never
+disagree, and §12's first criterion is a statement about *those* rows - **a second query is a second
+observation, and it can see a different set.** An empty month sums to `0` by the reduction's seed
+rather than by a branch, which is why criterion 3 needs no special case.
+
+The month reaches the database as a range over the bare `spentOn` column, inclusive at both ends, so
+§9.3's composite index serves it. **Another member of staff's rows are outside the query rather than
+filtered out of its result**, so they can reach neither the entries nor the total.
+
+### What the validator does *not* do is the deliberate part
+
+Checkpoint 1 proposed no spec clause bounding `year` or `month`, so the line between *malformed
+input* and *invented policy* had to be walked rather than assumed.
+
+| | |
+|---|---|
+| **refused** | `month` outside 1-12; `year` outside 1-9999 |
+| **deliberately not refused** | a minimum year - §7's seven-year retention says how long a row is **kept**, not which months may be **asked for**, and somebody reading 1970 and being told it is empty has been told the truth |
+| **deliberately not refused** | a maximum year, or "not in the future" - §11 refuses an expense **dated** after today, which is a rule about **writing** a row. Refusing a future month would also make §12.2's month navigation refuse where it should show an empty month |
+
+**The year bound is the date format's constraint rather than a business rule, and it was measured
+rather than argued:**
+
+```
+node -e   an unbounded year, through the same padding the builder uses
+  -5     ->  00-5-06-01
+  12345  ->  12345-06-01
+```
+
+Those strings are compared against a `DATEONLY` column and **come back as a successful empty read**.
+**The bound turns a plausible empty month into a stated refusal** - Q58's family answered at the
+input rather than discovered in the output. It moves only if `spentOn` stops being `YYYY-MM-DD`,
+never because somebody decides which years a member of staff may read.
+
+### A checkpoint 3 miss, closed here rather than left
+
+§6 states the entry order in **one sentence for two screens**. That clause was a **private module
+constant** of `ExpensesQueryResolver`, and this checkpoint was about to write a second copy.
+
+**Two private copies can drift, and a drift reintroduces exactly the defect Q61 was raised to fix** -
+one screen breaking the tie while the other does not is that same disagreement by another route. So
+the clause is declared once and imported by both.
+
+**It belonged to checkpoint 3**, whose own clause says a constant two operations both add to is that
+checkpoint's shared file. **Missed there, closed here, recorded rather than quietly folded in.**
+
+`ExpensesQueryResolver`'s docblock was **rewritten, not deleted**. It said the constant was declared
+once *"so that the clause this operation owes is a fact of the file rather than a literal buried in a
+method"* - **a sentence describing a file-local constant, which had stopped being true.** It now says
+the clause is no longer this file's own, names where it went, and says what remains this file's own:
+answering for it.
+
+**The sharing is load-bearing rather than tidy, and the mutation check proves it**: deleting the
+second order key fails **four tests across both resolvers**, not only the one that declares it.
+
+### Mutation checks - five, each applied, measured and reverted
+
+**This is the project's recurring defect and the reason the checks are run**: a test that passes
+under broken and fixed code alike. An existing test once asserted a request offset and never what
+the screen showed, and passed over a real removal bug.
+
+| mutation | caught by |
+|---|---|
+| drop the owner from the `where` | **14 tests** |
+| drop the second order key | **4, across both resolvers** |
+| widen the range a day at each end | **12 in `__tests__`, plus the 2 in `_orders` that are the only ones catching the upper end** |
+| slice an entry off the total | **9 tests** |
+| move the session guard after input validation | **2** - and these are the only ones pinning *"before it reads anything"*, which a thrown code alone does not state |
+
+**The third row is the one worth keeping.** Twelve tests catch a widened range and **none of them
+catches it at the upper end** - only the two `_orders` cases do. A checkpoint that had settled for
+`__tests__` alone would have had twelve green assertions and a live off-by-one at the end of every
+month.
+
+### Test placement, reasoned rather than guessed
+
+`monthlyExpenses` **writes nothing**, so by the per-method rule its tests are `__tests__` - 117 of
+125. The other eight are in `_orders` because **the test's own path writes**: the day-after boundary,
+the same-date tie and the recorded/corrected/removed criterion all need rows made in a stated order.
+
+**Splitting them would have produced a test that asserts nothing** - the writes and the assertion
+would land in different phases, against different databases.
+
+Fixtures obey all three of `_orders/README.md`'s rules: no explicit `expenses` id (Q38), no
+`expense_categories` row created, and `staff_members` ids from **this feature's own prefix `103`**.
+
+### One brief error, and it was mine again
+
+**The test path.** My brief and `hor-query-resolver` both say the test path mirrors the resolver
+*without* the `actual/` segment. **The tree keeps it** - every `actual/queries/` and
+`actual/mutations/` test does, with one lone exception. The unit followed the tree.
+
+Six briefs, six corrections. **Every one caught by a unit that read the tree rather than complying.**
+
+### Verification
+
+```
+npm_config_script_shell=bash npm run lint                                          clean
+npm_config_script_shell=bash npm test -- --seeded --maxWorkers=3 tests/__tests__/  69 suites / 1693 tests, ALL GREEN
+npm_config_script_shell=bash npm test -- --seeded --maxWorkers=3 tests/_orders/     8 suites /  326 tests, ALL GREEN
+```
+
+`--runInBand` was used **only inside the mutation checks**, on a single `_orders` barrel, and never
+for a reported figure - said rather than omitted, because a figure measured on a different
+invocation from CI's is what cost this project two days at the backend gate.
+
+## Checkpoint 7 - not applicable, and it short-circuits at the first question
+
+**Nothing was written, and nothing was invented to make the checkpoint non-empty.**
+
+### The decision procedure, run rather than recalled
+
+`hor-execution-placement-pattern`'s flow opens with a question this feature answers immediately:
+
+> **1. Is it a write?** If read-only, return it via an API query / GET and you're done.
+
+**`monthlyExpenses` is a query.** It writes nothing, opens no transaction, and calls nothing that
+does. So it stops at step 1, and **step 4 - what triggers the Worker - is never reached.** The
+skill states the same thing a second way: *"Read-only processing is out of scope: as a rule it just
+returns synchronously via the API and is not turned into a Worker."*
+
+**This feature declares exactly one operation** (§12.1), so that is the whole of the per-operation
+walk rather than a sample of it.
+
+**The one thing that could have argued the other way is the aggregation**, and the skill's own
+heavy/light rule answers it: heavy means *"external I/O, AI calls, large record counts, or file
+generation"*. §7 bounds this at **a few hundred rows** and requires it **under one second**, and the
+sum is over rows already in hand. It is the skill's *"short aggregations that complete within a
+single request"*, which is the API side by name.
+
+### The spec says it outright, which is better than this walk concluding it
+
+§8, verbatim:
+
+> **Redis is not declared, because this version runs no background job.** Every write finishes
+> inside its own request, and nothing here leaves the process.
+
+**A walk that concludes what the spec already states is a walk that confirms rather than decides**,
+and that is the stronger position to be in - the same one `#expense-entry`'s checkpoint 7 reached.
+
+**And §4 forecloses the one candidate somebody might reach for.** Exporting a month as CSV is *"file
+generation"*, which is the heavy side by name - but it is **1.2.0, out of scope**, and §4's seam
+says the export will *call* this operation rather than re-derive it. **So the heavy thing this
+feature might one day acquire is a caller of it, not a rewrite of it.**
+
+### One finding, and it is unchanged rather than new
+
+**`ioredis` is still a declared dependency with zero importers.** Measured again rather than carried
+from `#expense-entry`'s record:
+
+```
+grep -n ioredis expense-note-backend/package.json       ->  "ioredis": "^5.8.0"
+grep -rn ioredis app/ server/ sequelize/                ->  no match
+```
+
+**So `package.json` alone still suggests a job facility that does not exist**, against a §8 that says
+in writing there is none. It is restated rather than omitted because it is still true and this is
+the checkpoint that owns the question - a caveat that still applies is said, not dropped because it
+was said before.
+
+## Checkpoint 8 - the audit, and a check nobody can prove was ever run
+
+**0 HIGH, 5 MEDIUM, 1 INFO. No finding originates in this feature's change set.** Every file the
+feature adds or edits passed checks 1, 2, 5, 6, 7, 20, 21 and 22 on its own terms.
+
+Run read-only in a **verifier** agent, as the checkpoint's own clause requires - the audit finds, it
+does not fix.
+
+### The digest did not exist, so it was taken first
+
+`hor-security-audit` is equipped and **had no digest** - the fourth instance of Q59's condition.
+Taken before the checkpoint ran, pinned `hora-skills-ort-renchan 0.1.0`, verified against the
+installed package rather than assumed. 506 lines at a size ratio of 0.79, deliberately high: the
+source is **34 finding clauses, 18 pass clauses and a set of fixed thresholds**, and compressing
+further would have cost criteria rather than words.
+
+### A scope arbitration, settled by reading rather than by preference
+
+**The skill's own frontmatter scopes it repo-wide** and redirects diff-only reviews to
+`/security-review`. **Checkpoint 8 overrides that deliberately**, in writing:
+
+> Run it against this feature's changes, not the whole repository ... Scoping it here keeps the
+> finding list attributable to the work that just happened.
+
+And `/security-review` **is not equipped in this project**, so it was never an alternative. Recorded
+because the disagreement is real and a later reader meeting the frontmatter deserves the resolution
+rather than the puzzle.
+
+**The change set was read as `release/1.0.0..feature/monthly-summary`, and that needed a
+justification** the clause does not supply. The clause says to read the working tree *because a
+commit range would be empty before the gate*. **Here it is not empty**: every checkpoint's work is
+already committed on `feature/monthly-summary`, which has not merged. The backend working tree is
+clean, so the two views agree and the range is the complete change set. **19 files, +6388 / -49.**
+
+### The finding that matters: introspection, and why it took four features to surface
+
+**GraphQL introspection is enabled in every environment, including production.** `graphql-http` does
+not disable it by default; only `NoSchemaIntrospectionCustomRule` in `validationRules` does, and a
+grep for either name returns **two hits, both inside one comment** explaining that an engine cannot
+reach `validationRules` at all.
+
+**Two details corroborate that it is expected to work today**, which is what makes it a decision
+nobody took rather than a setting somebody missed: the body-size cap is sized to leave room for *"the
+introspection query a schema-aware client sends"*, and the depth limit exempts meta-fields.
+
+**Reconnaissance, not access** - the schema's shape is enumerable before authenticating while the
+filter still refuses the operations. **This feature enlarges what is disclosed by two types; it did
+not create the condition.**
+
+**And it is recorded nowhere.** `grep -rni "introspect"` over every question and every acceptance
+record returns nothing, so it was either never checked or judged out of scope without being written
+down - **and the records cannot distinguish those two.** That is the finding under the finding:
+
+> **A check that was run and passed, and a check that was never run, look identical in a record that
+> only lists findings.**
+
+**Q58's family in the shape of an absence rather than a plausible value.** It is the argument for an
+audit that records a **verdict per check** rather than only its findings - which this run did, which
+is why a three-feature-old gap surfaced at all. Raised as **Q63**.
+
+### The finding this feature genuinely widened
+
+**Q55 anticipated `#monthly-summary` by name and got the direction right. It also contained a
+mitigation this feature has since holed.**
+
+Q55 argued the read path was not urgent partly because *"each page is capped at
+`PAGINATION.MAXIMUM_LIMIT` rows"*. That held while `expenses` was the only read. **`monthlyExpenses`
+consults no cap at all** - §12.1 declares no pagination input - so it is **the product's first read
+with no enforced row ceiling**.
+
+What bounds it instead is §7's prose, *"at most a few hundred rows"*: **an assertion about data, not
+an enforced limit.** And the shape limit's arithmetic no longer closes either - its 10 root
+selections were measured against `expenses` at 100 rows per alias, while ten aliased
+`monthlyExpenses` calls read ten whole months bounded by nothing the code enforces.
+
+**Class unchanged, magnitude changed**, so Q55 was amended rather than a new entry opened.
+
+### The other four, verified still exactly as recorded rather than assumed
+
+Q16 three times (no datastore TLS, hardcoded credentials in `sequelize/config.cjs`, `.env.live`
+tracked under a bare `.env` ignore) and Q54 once (the boilerplate audiences' `origin: '*'` and 10mb
+body). **`credentials: true` is not set on either, so check 10's HIGH combination does not apply** -
+a caveat stated rather than omitted.
+
+**A pre-existing accepted finding restated as new inflates the list; a new finding dismissed as
+pre-existing hides it.** Each was settled by evidence - the recorded question's own line numbers
+against the current file, and `git diff --name-only` showing the file is not in this change set.
+
+### What the audit could not answer at this scope, named rather than implied
+
+The skill's own rule 4 is *"a gap must never look like 'not applicable'"*, and it applies to scoping
+too. **Six checks were partial**: install hooks (the dependency tree's own scripts were not audited),
+ports (there is **no production deployment manifest in this repository**), datastore TLS and rate
+limiting (an edge proxy in front is outside the repository), seeder secrets (**this feature touches
+no seeder, so N/A for the change set - but no repo-wide sweep was done, which is a gap rather than an
+absence of subject**), advisories (`npm audit --omit=dev` only: **5 moderate, 0 high/critical**, one
+with no fix available), and error leakage (renchan's production masking was not re-derived; Q53
+covers it).
+
+### Q62's window confirmed shut, independently
+
+The verifier ran the guard read-only: **6 passed, 6 total**. A second instrument agreeing with
+checkpoint 6's own measurement, which is the standing practice after Q58.
+
+### My brief was wrong a seventh time
+
+I listed `constants/paginationConstants.cjs` in the change set. **It is not there** - the file is
+`constants/expenseEntryOrderConstants.cjs`, and `paginationConstants.cjs` is the pre-existing file
+holding the cap `monthlyExpenses` deliberately does not consult. Confirmed: `git diff --name-only`
+over the range matches it **zero** times, across 19 files.
+
+Also qualified rather than corrected: *"the working tree is clean"* is true, but only because
+`expense-note-backend` is **its own repository**. The outer repository is not clean - it carries this
+record and the new digest. The conclusion held; the reasoning needed the extra step.
+
+## Checkpoint 9 - both use cases walked as real calls, not read as code
+
+**Driven through the built schema with a real access token on a real header**, using the same
+`GraphqlSchemaBuilder` the running server uses and a real `StaffGraphqlContext` per request. In
+process rather than over a socket, because `server/index.js` cannot boot on this machine (**Q24** -
+the socket is unreached rather than unreachable).
+
+**Nothing was stubbed.** The schema, the resolvers, the validator, the session clerk, the encipher
+and the database all ran for real. The member of staff is the seeded `10110001`, signed in with the
+plaintext password recorded against the digest in the seeder - no row was created by hand and **no
+id from this feature's prefix was spent.**
+
+### Use case 1 - filing a claim at the end of the month
+
+> *picks that month, reads the total, and writes it on the claim form*
+
+```
+signIn                                -> staffMemberId 10110001, access token minted
+monthlyExpenses(year: 2026, month: 6) -> totalAmount 3451
+                                         2026-06-30   1      supplies   "one envelope, bought singly"
+                                         2026-06-01   3450   supplies   "notebooks and pens ..."
+```
+
+**Five things are true in that one answer, and each is an acceptance criterion rather than a
+detail:**
+
+| | |
+|---|---|
+| **3450 + 1 = 3451** | criterion 1 - the total **is** the sum of the entries shown, in the same answer |
+| **the 1st and the 30th are both present** | criterion 2's inclusion half, at both ends of the month |
+| **`06-30` comes before `06-01`** | §6's entry order - newest `spentOn` first |
+| **`10110002`'s `2026-06-18` (1860) is absent, and 1860 is not in the total** | criterion 5. The total would be **5311** if the scoping leaked, so the number itself is the evidence |
+| **`status: "recorded"` is exposed on every row** | §4's approval seam, read through the field rather than assumed |
+
+**The category came back eager-loaded**, so a month is a bounded number of queries rather than one
+per row.
+
+### Use case 2 - checking last month against a card statement
+
+> *switches to the previous month and reads its entries **without leaving the screen***
+
+```
+monthlyExpenses(year: 2026, month: 7) -> totalAmount 2100    (1200 + 640 + 260)
+monthlyExpenses(year: 2026, month: 5) -> totalAmount 0, expenses []
+```
+
+**Both on the same access token as use case 1, with no second sign-in and no re-authentication.**
+That is the half of the use case a code reading cannot establish: *"without leaving the screen"* is a
+claim about the session surviving the navigation, and the only way to show it is to navigate.
+
+**And May is criterion 3 answered on the way past** - a month holding nothing returns `totalAmount:
+0` with an empty list, not an error and not a null.
+
+### The two refusals, as a caller actually meets them
+
+```
+no access token at all  ->  data: null   errors: ["102.X000.001"]
+year 2026, month 13     ->                errors: ["203.Q004.002"]
+```
+
+**`102.X000.001` is the engine's own `Unauthenticated` code, not the resolver's.** That is criterion
+6 shown rather than argued: the refusal comes from the filter, **before `resolve()` is entered**, so
+nothing was read. A code from this resolver's own hash would have proved the opposite.
+
+**`203.Q004.002` is `InvalidMonth`** - the validator refusing a month that is not one, rather than
+the operation cheerfully reporting that the thirteenth month of 2026 is empty.
+
+### Nothing fell short, and nothing was added on the way past
+
+**No use case needed an operation §12.1 does not declare.** Nothing was sent back to checkpoint 3,
+and **no field was added while walking** - which the checkpoint warns against by name, because a
+frontend in another repository is already building against this contract.
+
+**The walkthrough was deleted afterwards and the tree verified clean.** It was a temporary file; what
+it established is written here, and what must keep holding is held by the 125 tests checkpoint 6 left
+behind.
+
+**One mechanical note worth keeping**, since it cost two attempts: a file placed under
+`tests/_orders/` with a plain name **does not run**. `jest.config.js` declares no `testMatch`, so
+jest's defaults apply and only `*.test.js` or a path under `__tests__/` matches - which is exactly
+why `_orders` suites are pulled in by a `_.test.js` barrel. The first run reported **"No tests found,
+exiting with code 0"**, which is a pass-shaped answer to a question nobody asked. **Q58 again**, and
+caught only because a walk that prints nothing is obviously wrong.
+
+### Verification at the gate
+
+```
+npm_config_script_shell=bash npm run lint                                          clean
+npm_config_script_shell=bash npm test -- --seeded --maxWorkers=3 tests/__tests__/  69 suites / 1693 tests
+npm_config_script_shell=bash npm test -- --seeded --maxWorkers=3 tests/_orders/     8 suites /  326 tests
+```
+
+**Both green, and `--maxWorkers=3` is exactly what CI runs.** Backend working tree clean.
 
 ## Frontend gate
 - [ ] 10. Open the frontend
