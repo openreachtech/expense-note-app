@@ -3131,6 +3131,34 @@ verdict to be wrong?* has an answer that keeps recurring here: **that the thing 
 laid out the way I assumed.** A looser search, or a search for a distinctive fragment rather than a
 whole sentence, would have caught all five.
 
+### The property that unites them: each failure returned a plausible value rather than an error
+
+A sixth instance made it explicit. `git show origin/release/1.0.0:.hora/questions/1.0.0/open.md`
+under Git Bash has its `rev:path` argument **path-converted before git sees it** — the colon becomes
+a semicolon and the slashes become backslashes — so git answers *"fatal: ambiguous argument"*, the
+output is empty, and `grep -c` on it prints **`0`**. Both sessions hit it, minutes apart, and both
+read `0` as *"the questions are not there"*. `MSYS_NO_PATHCONV=1` fixes it.
+
+**Six wrong verdicts now, six different causes** — `#` stripping, `####` stripping, a line-number
+from a pattern, a blank separator, a wrapped sentence, and a shell mangling the argument. What they
+share is not the mechanism:
+
+> **Every one of them returned a plausible value rather than an error.**
+
+**`0` is a legitimate answer to a question that was never asked.** That is what makes this family
+different from an ordinary bug: **an instrument that fails by returning a valid-looking value cannot
+be caught by reading its output.** There is nothing in `0` to look wrong at.
+
+**So the two defences that do work are both external to the reading:**
+
+1. **Know roughly what the answer should be** before asking. `0` matches for a file you just wrote
+   two sections into is not a plausible number, and noticing that is the whole catch.
+2. **Ask the instrument something you already know the answer to.** A grep that cannot find a
+   heading you can see with your own eyes is a broken grep, not an absent heading.
+
+The same holds one level up: a suite reporting 0 failures, a command returning exit 0, and a query
+returning one row are all plausible values, and all three have been wrong in this project.
+
 ### Two instances that generalise past "check your check"
 
 **An exit code is an instrument too.** Starting Docker Desktop with `cmd.exe /c start "" "…Docker
@@ -3420,3 +3448,60 @@ the entries list a member of staff already knows, so the two screens do not disa
 settle the tie as well is the real question, and it is the same one for both screens: **answering it
 here answers it for `#expense-entry` too**, which is an argument for doing it once rather than
 twice.
+
+### Q61's answer, worked out at checkpoint 1 rather than left to the query
+
+**Recommendation: order by `spent_on` newest first, and settle the tie with `id` descending — for
+BOTH screens, in §6, not once here and differently there.** Reasoning below so it can be rejected on
+its merits; it is a spec change and goes to the user as a proposal.
+
+#### The direction: newest first, matching §11.2
+
+Two readings pull opposite ways and both are real:
+
+- **Consistency** says newest first. `#expense-entry`'s entries list is newest `spent_on` first, and
+  a member of staff moves between the two screens. **Two lists of the same rows in opposite orders
+  is a worse surprise than either order is a cost.**
+- **The task** arguably says oldest first. §12's second use case is *"checking last month against
+  their card statement"*, and a card statement is chronological.
+
+**Consistency wins, and the reason is that the task reading does not actually survive contact.** A
+statement is ordered by the date the card was *charged*, which is not `spent_on` — it is closer to
+when the merchant settled. So the two columns do not line up row-for-row in either direction, and
+somebody comparing them is scanning, not walking two lists in step. **The benefit oldest-first was
+supposed to buy is not there to buy**, and the cost of disagreeing with the other screen is.
+
+#### The tie: settle it, and settle it once
+
+`#expense-entry`'s checkpoint 1 declined a tie-break and was right to: **inventing text nobody
+decided is how a spec acquires clauses with no owner**, and on a paginated list of one person's whole
+history the tie is rare.
+
+**Within a single month it is not rare.** A train fare and a lunch on the same day is one working
+day's ordinary expenses, and a month of normal use produces several such pairs. With no tie-break,
+**two reads of the same month may legitimately return those rows in different orders** — and §12's
+own use case has somebody reading down the column twice.
+
+**`id` descending is the cheapest stable tie-break available.** It is already the primary key, it is
+already indexed, it is monotonic with the order the entries were recorded, and it needs no schema
+change and no new column. Within one day it reads as *"most recently recorded first"*, which is a
+defensible answer rather than an arbitrary one.
+
+#### Why it must be one decision and not two
+
+**If this screen settles the tie and the entries list does not, two lists of the same rows disagree
+on same-day ordering** — which is the exact harm the consistency argument above is about, arriving
+by a different route. So the clause belongs in **§6**, beside the `month` row that already carries
+`Asia/Tokyo`, where both screens read it.
+
+**That makes this an amendment to `#expense-entry`'s decision as well as an answer for
+`#monthly-summary`.** `EXPENSES_ORDER` would gain a second key, and its docblock — which currently
+records that no tie-break was decided — would need to say that one now has been, and where.
+
+#### The alternative worth naming
+
+**Leave the tie unsettled and say so explicitly in §12**, as §11.2 effectively does. Honest, cheaper,
+and it keeps the two screens consistent with each other by both being unspecified. **The cost is that
+"the order within a day is undefined" is a sentence no member of staff will ever be told**, so the
+instability is experienced rather than expected. Recommended against, but it is a legitimate answer
+and is the one that changes least.
