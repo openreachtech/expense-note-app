@@ -2959,6 +2959,34 @@ specification's coverage rather than a failure to implement it.
 twenty-to-fifty members of staff §3 describes, and each page is capped at
 `PAGINATION.MAXIMUM_LIMIT` rows. The realistic actor is a signed-in employee, not the internet.
 
+### Amended at `#monthly-summary`'s checkpoint 8: the third clause above is no longer true
+
+**This entry anticipated `#monthly-summary` and got the direction right, but one of its own
+mitigations has since been holed by the feature it anticipated.**
+
+*"Each page is capped at `PAGINATION.MAXIMUM_LIMIT` rows"* held while `expenses` was the only read.
+**`monthlyExpenses` consults no cap at all** - §12.1 declares no pagination input, so there is no
+`limit` to cap, and the resolver's own docblock says so in writing. **It is the product's first read
+with no enforced row ceiling.**
+
+**What bounds it instead is §7's prose** - *"at most a few hundred rows"* - which is **an assertion
+about data, not an enforced limit**. Nothing in the schema or in `recordExpense` stops one member of
+staff accumulating far more rows in one month, and `recordExpense` is itself unmetered.
+
+**The arithmetic that made the shape limit sufficient no longer closes.** `MAXIMUM_ROOT_SELECTION_COUNT`
+is 10, and that number was measured against `expenses`, whose per-alias cost is bounded at 100 rows.
+**Ten aliased `monthlyExpenses` calls read ten whole months, each bounded by nothing the code
+enforces.**
+
+**The class of finding is unchanged and the magnitude is not**, which is why this is an amendment
+rather than a new entry. Still authenticated-only: the engine's filter refuses a tokenless caller
+before `resolve()` is entered.
+
+**So the decision this entry asks for now has a second half.** Beyond "does an authenticated
+internal audience need a read limiter", there is: **should `monthlyExpenses` carry an enforced row
+ceiling rather than a prose bound in §7?** A limiter keyed on the resolved `staffMemberId` - never on
+`X-Forwarded-For`, which nothing in this repository configures a trusted proxy chain for.
+
 **Why it is worth a decision anyway.** The reasoning that made the shape limit worth adding applies
 one level up: the audience will grow, `#monthly-summary` adds a second read that sums rows rather
 than listing them, and a limiter is far cheaper to add before a frontend polls an endpoint than
@@ -3672,3 +3700,70 @@ change to anybody's code:
 rather than the actual pool alone, the hazard disappears and so does this entry - but note the guard
 should then be re-derived rather than deleted, since what it protects would have moved rather than
 gone.
+
+## Q63. GraphQL introspection is enabled in every environment, including production
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: security -->
+
+Found by `#monthly-summary`'s checkpoint 8 audit. **MEDIUM. The cause predates this feature; what is
+new is that it turns out to be recorded nowhere.**
+
+### What was measured
+
+`graphql-http` does not disable introspection by default. It is disabled only by adding
+`NoSchemaIntrospectionCustomRule` to `validationRules`, and **nothing in this repository does that**:
+
+```
+git grep -n "NoSchemaIntrospection\|validationRules"   ->  two hits, BOTH inside one comment
+```
+
+Both are in `StaffGraphqlServerEngine.js`, in a comment explaining that **an engine cannot reach
+`validationRules` at all** - it is supplied by `GraphqlHttpHandlerBuilder.extraCreateHandlerParams`,
+a static getter returning `{}`, and passed to `createHandler` at
+`GraphqlHttpHandlerBuilder.js:297`.
+
+**Two independent details corroborate that introspection is expected to work today**, which is what
+makes this a decision nobody took rather than a setting somebody missed: the engine's
+`MAX_JSON_BODY_SIZE` comment sizes its 16kb cap to leave room for *"the introspection query a
+schema-aware client sends"*, and the depth limit deliberately exempts meta-fields.
+
+### The risk, stated at its true size
+
+**Reconnaissance, not access.** Every operation, input and field name of all three audiences is
+enumerable by anyone who can reach `/graphql-staff`, before authenticating. **The filter still
+refuses the operations themselves** - this discloses the shape of the API, not its data.
+
+`#monthly-summary` **enlarges what is disclosed** by adding `MonthlyExpensesInput` and
+`MonthlyExpensesResult` to the introspectable schema. It did not create the condition.
+
+### Why it is raised now rather than earlier, which is the part worth keeping
+
+**It should have been found at `#data-model`'s, `#sign-in`'s or `#expense-entry`'s checkpoint 8.**
+`grep -rni "introspect"` over `.hora/questions/` and `.hora/acceptance/` returns **nothing** - so it
+is either a genuinely missed check or one judged out of scope at an earlier gate **without being
+written down**. The records cannot distinguish those two, and that is itself the finding:
+
+> **A check that was run and passed, and a check that was never run, look identical in a record that
+> only lists findings.**
+
+That is Q58's family in the shape of an absence rather than a plausible value - and it is the
+argument for a checkpoint 8 that records its *verdict per check*, not only its findings. This run
+did exactly that, which is why the gap surfaced on the fourth feature rather than the tenth.
+
+### Where it lands
+
+**Not a spec matter.** §7 asks for TLS in front and two credentials; it says nothing about schema
+disclosure, and it arguably should not.
+
+**The realistic first step is a decision, not a code change**, because the change is genuinely hard
+to reach here: disabling introspection needs a `GraphqlServerBuilder` or handler-builder subclass to
+get at `validationRules`, and `server/index.js` cannot be imported on this machine (Q24). So:
+
+- **accept in writing** that an internal business system may disclose its schema shape, and say why;
+- **or** add `NoSchemaIntrospectionCustomRule` when the environment is production, gated the way
+  `AUTH_COOKIE_SECURE` already is.
+
+**Either answer is legitimate. What is not legitimate is the current state**, where the next audit
+re-derives this from scratch and cannot tell whether anybody ever considered it.
