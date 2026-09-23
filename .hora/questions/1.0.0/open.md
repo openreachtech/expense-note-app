@@ -3276,3 +3276,60 @@ seconds.
 updated when the contract moves, so a sufficiently careless recopy could leave a stale number beside
 fresh content. It is a smaller version of the same hole, not its closure — and it is recorded that
 way rather than described as a fix.
+
+## Q59. The two skills the acceptance gate runs on have no digests, and the gate is where that costs most
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: convention-gap -->
+
+Found at `#expense-entry`'s checkpoint 18. **`hof-e2e-test-specification` and `hof-acceptance-review`
+were both matched, both invoked, and neither has a digest** under `.hora/digests/` — which holds 46
+files and neither of these.
+
+**Third instance of the same gap**, and the pattern is now the finding rather than the instance:
+`hor-execution-placement-pattern` at checkpoint 7 (taken afterwards), five component skills at
+checkpoint 12 (taken), and these two.
+
+### Why the acceptance gate is the worst place for it
+
+A digest exists so an implementer meets the conventions rather than re-reading a whole skill. **At
+checkpoint 18 the skill is not a how-to, it is the standard.** Its phases decide what is checked and
+its severity vocabulary decides what a finding is called — so an agent reading the skill fresh is
+re-deriving the *criteria of acceptance*, not just a file layout.
+
+**And it is the one checkpoint whose output is a verdict.** Everywhere else a misread skill produces
+code a later checkpoint can correct. Here it produces a pass.
+
+### Two prerequisites the skills ask for and this project does not have
+
+Both absent from `expense-note-frontend-staff`, and a read-only reviewer cannot create them:
+
+- **`ai/specs/e2e/`** — so the 25 scenarios at checkpoint 18 were **derived in the run** rather than
+  reconciled against a maintained list. Derived coverage is complete *as derived*; nothing carries it
+  to the next run, which will derive it again and may derive it differently.
+- **`ai/contexts/acceptance-context.md`** — so the run command, the per-role credentials and the
+  deliberate UI exclusions are unwritten. The review's gate 1 passed **only** through its own "or
+  phase 4 is recorded as not run" clause.
+
+### The pair of facts worth keeping together
+
+**25 scenarios derived, coverage complete against all five operations, and none executed.**
+
+That is the honest summary of what this platform allowed, and the two halves belong side by side:
+the first says the feature's surface is fully described, the second says nothing was driven through
+it. Separated, either one misleads — the first reads as thorough, the second as negligent, and the
+truth is that one is a consequence of the other being impossible here.
+
+**It belongs beside Q52** as evidence, not inside a checkpoint comment where only a reader of that
+checkpoint finds it.
+
+### Where it lands
+
+The digests are this project's to take, and I did not take these two at the gate — a verifier is
+read-only and the digester is a different agent, so it needed the main session to notice, which it
+did only afterwards. **Taking them before `#monthly-summary`'s own checkpoint 18 is the cheap fix.**
+
+The two missing prerequisite files are `/hora-setup`'s or `/hora-build`'s, not a feature's. **A
+checkpoint that requires a file no checkpoint creates is a gap in the sequence rather than in any
+one feature's work.**
