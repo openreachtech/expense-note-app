@@ -3333,3 +3333,90 @@ did only afterwards. **Taking them before `#monthly-summary`'s own checkpoint 18
 The two missing prerequisite files are `/hora-setup`'s or `/hora-build`'s, not a feature's. **A
 checkpoint that requires a file no checkpoint creates is a gap in the sequence rather than in any
 one feature's work.**
+
+## Q60. §7's page-size row claims `monthlyExpenses` inherits a ceiling it cannot have
+
+<!-- spec: monthly-summary -->
+<!-- blocking: no -->
+<!-- category: contradiction -->
+
+Found at `#monthly-summary`'s checkpoint 1, on the first close reading of §12. **The defective
+sentence is one I wrote**, proposed as Q50's answer and merged at `f547202`.
+
+§7's `Page size` row ends:
+
+> `expenses` is the only paginated operation in 1.0.0; **`monthlyExpenses` inherits the same
+> ceiling**.
+
+**The first half is true. The second is false, and it contradicts three things.**
+
+| | what it says |
+|---|---|
+| **§12.1** | `MonthlyExpensesInput(year, month)` — **no pagination input at all** |
+| **the pinned contract** | `MonthlyExpensesResult { expenses, totalAmount }`, above a comment reading *"No pagination: spec 7 caps the heaviest read at a few hundred rows."* |
+| **§7's own "heaviest single operation" row** | *"one member of staff's month — at most a few hundred rows read and summed"* |
+
+**There is no `limit` on `monthlyExpenses` to cap.** And the two §7 rows now disagree with each
+other: one says a paginated read answers at most 100 rows, the other says the heaviest read is a few
+hundred — which is **more** than 100, in the one operation the sentence names.
+
+### How it got in, because that is the more useful half
+
+Q50 was about `expenses`, where the cap is real and needed. **The `monthlyExpenses` clause was added
+to make the rule sound general**, and generality was the wrong instinct: it described an operation
+the author had not re-read. §12.1 and the contract were both a grep away.
+
+**The proposal was reviewed and merged by a person**, which is the right process and did not catch
+it — because the row is self-consistent and reads as thorough. **A reviewer would have had to hold
+§12.1 in mind to see it**, which is exactly what checkpoint 1 of the feature that owns §12 is for.
+
+**Same shape as everything in Q58**: a claim whose scope nobody checked, stated confidently, in
+prose rather than in code — and this time in a specification, which is the artifact everything else
+is measured against.
+
+### What the correction should say
+
+The clause is **wrong rather than merely unnecessary**, so deleting it is not enough — a later
+reader would ask why the general rule skips one operation. It should say what is true: that
+`monthlyExpenses` is deliberately unpaginated, that §7's heaviest-operation row is what bounds it,
+and that the two rows agree rather than compete.
+
+## Q61. A month's entries have no stated order
+
+<!-- spec: monthly-summary -->
+<!-- blocking: no -->
+<!-- category: spec-gap -->
+
+Found at the same reading. **§12 never says what order a month's entries come back in.**
+
+`MonthlyExpensesResult` declares `expenses: [Expense!]!` and `totalAmount: Int!`, and §12.2's screen
+line says only *"reading one month at a time. The month it opens on is the current one."* No
+ordering clause anywhere.
+
+**§11.2 had exactly this gap and it was closed at `#expense-entry`'s checkpoint 1**, resolved to
+`spent_on` newest first, with §9.3's index named as the reason. §12 inherited the screen and not the
+sentence.
+
+### What is and is not at stake, because half of it is moot
+
+**The total is safe.** Summing is order-independent, so the acceptance criterion *"the total shown
+equals the sum of the amounts of the entries shown"* holds whatever order the list arrives in.
+
+**The list is not.** A member of staff *"checking last month against their card statement"* — §12's
+own second use case — is reading down a column and comparing. **An order nobody specified is an
+order that can change between releases without anybody noticing they changed it.**
+
+### And the tie question `#expense-entry` declined to settle arrives here
+
+`EXPENSES_ORDER` is `spentOn DESC` with **no tie-break**, deliberately: checkpoint 1 of that feature
+recorded that a same-date tie-break was never decided and that inventing one would be deciding it.
+
+**Within a single month, ties are not an edge case.** A member of staff who takes a train and buys
+lunch on the same day produces two rows with the same `spentOn`, and a month of ordinary use will
+have several. So the order within a day is unspecified, and two reads may legitimately differ.
+
+**The cheapest honest answer is probably the same as §11.2's** — newest `spent_on` first, matching
+the entries list a member of staff already knows, so the two screens do not disagree. Whether to
+settle the tie as well is the real question, and it is the same one for both screens: **answering it
+here answers it for `#expense-entry` too**, which is an argument for doing it once rather than
+twice.
