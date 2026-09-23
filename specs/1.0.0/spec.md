@@ -76,6 +76,7 @@ Baseline: not applicable — nothing is inherited
 | expense | one payment a member of staff made and records: the date it was paid, the amount, a category and an optional memo |
 | category | the fixed set an expense is filed under — transport, meals, supplies, other |
 | month | the calendar month an expense's date falls in, read in `Asia/Tokyo`. The unit a list and a total are taken over |
+| entry order | wherever a member of staff's entries are listed — §11.2's and §12.2's screens both — **newest `spent_on` first, and where two share a date, the more recently recorded first**. One sentence for both screens, because two lists of the same rows in different orders is a worse surprise than either order is a cost. Without the tie-break two reads of one month could differ, and same-day entries are ordinary rather than rare |
 | today | the current calendar date in `Asia/Tokyo` — the timezone every date in this product is read in. An expense dated after it is refused (§11) |
 | own entry | an expense recorded by the member of staff who is signed in. Nobody sees anybody else's |
 | session | a member of staff's signed-in state, held by two tokens rather than one — a short-lived access token the client sends, and a refresh token the browser keeps as a cookie. Signing out ends it |
