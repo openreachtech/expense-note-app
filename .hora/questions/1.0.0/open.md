@@ -3605,3 +3605,70 @@ and it keeps the two screens consistent with each other by both being unspecifie
 "the order within a day is undefined" is a sentence no member of staff will ever be told**, so the
 instability is experienced rather than expected. Recommended against, but it is a legitimate answer
 and is the one that changes least.
+
+## Q62. Checkpoint 4 necessarily breaks the stub-filter guard, and no checkpoint owns the window
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: process-finding -->
+
+Found at `#monthly-summary`'s checkpoint 4, the first checkpoint 4 ever to run with the guard
+installed.
+
+### The collision, which is structural rather than a mistake
+
+| | |
+|---|---|
+| **checkpoint 4** requires | a schema-accurate stub for **every** operation the feature adds |
+| **checkpoint 6** writes | the actual resolver behind it |
+| **`reconcile-stub-resolvers-with-actual`** asserts | every stub-pool operation also has an actual |
+
+So between checkpoints 4 and 6 the feature's operations are **stub-only**, and renchan builds its
+authentication filter map from the actual pool alone - `buildFilterSchemaHash()` is handed the
+actual names as `allowedSchemas`, a stub-only name is on neither that list nor `ignoredSchemas`, and
+the wrapper's `await filter?.(envelope)` is a no-op for `undefined`.
+
+**The operation is genuinely served with no authentication filter, and the guard genuinely fails.**
+Neither is wrong. The two checkpoints and the guard are each individually correct.
+
+### Why `#expense-entry` never met it
+
+**The guard was written at `#expense-entry`'s own checkpoint 8**, by which point its five stubs and
+five actuals all existed. It has therefore **never run against a mid-feature tree** until now. The
+collision was installed and invisible in the same feature.
+
+That is worth naming on its own: **a guard written after the state it guards against has passed
+cannot tell you it would have fired.** Its first real verdict comes a whole feature later.
+
+### What was decided here, and what is still open
+
+**Decided for this feature** (an implementation decision, taken rather than escalated): the red
+stands from checkpoint 4 to checkpoint 6, bounded three ways - it closes at 6, it lives only on an
+unmerged `feature/` branch that reaches `release/` no earlier than checkpoint 9, and **every
+checkpoint in the window verifies the failing set is exactly that one case**, which is a checkable
+claim where "some tests fail" is not.
+
+Rejected, with reasons, in the checkpoint record: exempting the operation (the very edit the guard
+exists to make conspicuous), landing the actual early (empties checkpoint 4 of its purpose), a
+filtered placeholder (worse than a stub - it *looks* authentic), and relocating the test to the
+acceptance gate (relocates the cost and leaves the window unchecked).
+
+### Where it lands
+
+**Not a spec matter.** `specs/` says nothing about stub pools, and should not.
+
+It is `/hora-build`'s, and the cheapest sound fix is a sentence in the checkpoints rather than a
+change to anybody's code:
+
+- **checkpoint 4's exit condition** acknowledges that a feature adding an operation will fail this
+  class of guard until checkpoint 6, and requires the expected failure to be **pinned by name** in
+  the record rather than described as a count.
+- **checkpoint 6's exit condition** requires verifying it **turned green**, so nobody can leave the
+  window open by forgetting it.
+
+**Both are one line, and together they convert an undocumented red into a tracked one.**
+
+**Removal condition:** if a future renchan builds its filter map from the union of the two pools
+rather than the actual pool alone, the hazard disappears and so does this entry - but note the guard
+should then be re-derived rather than deleted, since what it protects would have moved rather than
+gone.
