@@ -152,6 +152,31 @@ Those tokens live in `node_modules/@openreachtech/furo-vue/lib/assets/css/furo.c
 (which declares nothing at all) and `~/assets/css/main.css`. Every token above therefore resolves to
 nothing today. See Conflicts.
 
+**CORRECTED at `#monthly-summary`'s checkpoint 15, and the paragraph above is kept only as far as it
+is still true.** `nuxt.config.js` **does** import furo-vue's stylesheet, and imports it **first**:
+
+```
+'@openreachtech/furo-vue/lib/assets/css/furo.css',   <- nuxt.config.js:57, with a comment saying it must come first
+'~/assets/css/variables.css',
+'~/assets/css/main.css',
+```
+
+**So every token named above resolves.** What is still true is that `assets/css/variables.css`
+declares nothing of its own - but that no longer means a token resolves to nothing, because furo's
+own entry declares them. **The conclusion that followed from the old premise does not follow.**
+
+It was measured rather than argued: `validate-tokens.cjs` reports clean over this feature's two
+`.vue` files, and the screen renders with furo's scale.
+
+**Why it was wrong rather than merely out of date:** the claim was written when the boilerplate did
+not load furo.css, and the load was added later. Nothing makes a right-when-written sentence announce
+that it has expired - which is the third time this feature has met that shape, after
+`paginationConstants.cjs` and the stub-filter guard's own docblock.
+
+**Still true, and not corrected here:** the application declares no `@layer` order of its own
+(`assets/css/*.css` contains no `@layer` at all), so the note about unlayered application CSS
+beating `@layer furo` stands.
+
 Also **[source]:** because the component's rules sit in `@layer furo` and the application declares no
 layer order, unlayered application CSS always beats them.
 

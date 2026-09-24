@@ -939,14 +939,437 @@ npm_config_script_shell=bash npm test -- --seeded --maxWorkers=3 tests/_orders/ 
 **Both green, and `--maxWorkers=3` is exactly what CI runs.** Backend working tree clean.
 
 ## Frontend gate
-- [ ] 10. Open the frontend
-- [ ] 11. Reconfirm UI/UX and the use cases
-- [ ] 12. Component design
-- [ ] 13. The frontend modules the implementation needs
-- [ ] 14. API client
-- [ ] 15. UI
-- [ ] 16. Wire the data-fetching logic in
-- [ ] 17. Local test environment
+- [x] 10. Open the frontend  <!-- skills: hof-nuxt, hof-furo-env; digests REUSED at hora-skills-ort-furo 0.1.0, none taken. Route /monthly-expenses, named for what is on screen rather than the feature id, with no alias because / is already claimed. Guarded BY EXISTING via the global gateway middleware rather than a second mechanism. Route confirmed in the BUILT bundle, not inferred from the folder. No env variable added -- all three furo-env files already point at the staff endpoint, verified against the backend's own port and graphqlEndpoint. EXIT CONDITION MET IN HALF AND THE UNIT SAID SO: 'reachable' is not met, and find-unreachable-screens was RUN rather than predicted -- /monthly-expenses is a TRUE positive where /expenses is the known false one caused by a page-level alias. No link added on the unit's initiative, correctly. AND IT FOUND A TRAP IN .hora/tree/: that document claimed Nuxt auto-registration is configured, when nuxt.config turns auto-import off TWICE (components.dirs empty, imports.autoImport false) -- laid directly in the path of checkpoints 12 and 15, where a page's components would silently resolve to nothing. Verified and corrected -->
+- [x] 11. Reconfirm UI/UX and the use cases  <!-- main session, in conversation. The third pass, and the one that found the gap: checkpoint 2 asked whether the spec supports the use cases and 9 whether the API does; this asks whether a PERSON CAN DO THEM ON A SCREEN, and the answer was no for want of one link. The context file still said this screen 'does not exist. Do not link to it, do not stub it' -- and it is read automatically by the UI generator at 12 and 15 and the auditor at 18, so checkpoint 12 would have read that about the very screen it was told to build. DECIDED: the two signed-in screens link to each other, one link each, in the page's own header -- NOT chrome in the shared layout, which would put links to guarded screens in front of somebody with no session on the one screen reachable without one. Four rules added, two of them to stop a reasonable instinct: the month is screen state never a route segment; NEVER disable a future month (section 11 refuses a DATED expense, a rule about writing, and a future month is truthfully empty -- Q56's date-field lesson does NOT transfer); never sort (measured: no client-side sort exists anywhere today); an empty month says so and still shows a zero total. Nothing went back to checkpoint 2 -->
+- [x] 12. Component design  <!-- skills: all twenty hof-cp-* matched EXHAUSTIVELY, five adopted and fifteen declined with a reason each; digests reused at hora-skills-ort-furo 0.1.0. NOTHING NEW BUILT. The month control is FOUR controls because section 12's two use cases are two gestures on one piece of state, not a choice between two designs. FuroDatePicker rejected ON MEASUREMENT: there is no month mode -- granularity 'day' is hard-coded after the parcel spread and is not a parcel key. Rule 28 drove a real decision: the year window is recomputed around the SELECTED year, because one anchored on today would eventually select a year absent from its own options. MY OWN CHECKPOINT 11 ERROR FOUND HERE: the four rules I added collided with existing 21-26, so four numbers were used twice and checkpoint 18 cites them by number; renumbered 27-30. Rule 26 also still called the page size 'not yet user-confirmed', the THIRD document this feature has caught asserting a superseded state. Q64 raised: @iconify-json is absent, the bundle builds a remote collection against api.iconify.design, and furo draws ph: icons unasked -- so every dropdown caret is a third-party dependency, hidden by a context line saying no icon set is installed -->
+- [x] 13. The frontend modules the implementation needs  <!-- skills: hof-error-handling, hof-modules; digests reused at hora-skills-ort-furo 0.1.0. HALF TWO APPLICABLE: three Q004 codes mapped, read from the backend's own errorCodeHash. 204.Q004.001 takes the session-guard family's sentence and the non-disclosure pairing DELIBERATELY does not apply -- that pairing exists because one code covers three outcomes about an entry somebody owns, while this covers one outcome about the caller's own session and has nothing to disclose. Both 203.Q004 codes say the same thing and neither blames the reader, because the screen's controls cannot produce an invalid year or month. HALF ONE NOT APPLICABLE, decided rather than assumed: all three candidates have exactly one consumer today. Yen formatting is the honest candidate and was HANDED FORWARD as an explicit choice rather than manufactured. MY BRIEF WAS WRONG AN EIGHTH TIME AND WOULD HAVE BROKEN THE BUILD -- I specified ERROR_LOCALE_HASH and i18n locale paths and this repository has neither -->
+- [x] 14. API client  <!-- skills: hof-graphql; digest reused at hora-skills-ort-furo 0.1.0. The Payload/Capsule/Launcher trio for the one operation section 12.1 declares. THE CONTRACT IS THE ORACLE and nothing about the expected shape is transcribed: validate() catches a field the contract does not declare, a coverage walk catches one the document omits, and the root field and variable name are pinned so neither can pass vacuously against expenses, which shares the Expense row type. Mutation-checked BOTH directions. The vendored contract was verified sound both ways first -- fingerprint matches AND body byte-identical, 202 lines, zero diff -- because the fingerprint alone answers only whether the AUTHORITY moved, which Q57 says itself. THE STUB WAS ALREADY UNREACHABLE: renchan resolves actual ?? stub and checkpoint 6 landed the actual eight checkpoints earlier, so 'works against the stub' could only be established in process and CHECKPOINT 16 HAS NO STUB TO LEAVE BEHIND. Q65 raised. totalAmount falls back to null not 0, both asserted side by side, because section 12 makes 0 a real answer. I ran 13 and 14 concurrently against one tree and the whole-repo count moved under both units -- Q33's shape on the frontend: fencing directories does not fence a figure -->
+- [x] 15. UI  <!-- skills: hof-uiux-forge, every hof-css* , hof-furo-context-patterns, hof-prohibits, hof-layout-margin, hof-animation and the five adopted component skills; digests reused at hora-skills-ort-furo 0.1.0. ALL FOUR STATES built and reachable; find-unreachable-screens went 2 to 0. A zero and an absence are kept apart throughout -- landed is totalAmount !== null, which is why checkpoint 14's capsule falls back to null. The empty state renders INSTEAD OF the table, because the slot would keep four column headers above a colspan, which is the empty table rule 30 forbids. The yen-formatter choice checkpoint 13 handed forward was TAKEN: extracted and /expenses converged in the same change, with no constructor or create() signature altered so the large sibling suite was undisturbed. Two library gaps compensated for in this project's code (a FuroSelect id reaches no DOM element; a loading FuroButton has no accessible name) and one judged rather than patched (--color-link is 3.68:1, under the 4.5:1 floor, so links are drawn in the title foreground with an underline). TWO DOCUMENTS CORRECTED that would have misled checkpoint 18: two component digests asserted this project imports no furo stylesheet when nuxt.config loads furo.css FIRST, and the design document still cited the pre-renumber rule numbers in eight places -->
+- [x] 16. Wire the data-fetching logic in  <!-- skills: hof-furo-context-patterns, hof-graphql, hof-error-handling; digests reused at hora-skills-ort-furo 0.1.0. NO MARKUP MOVED and it was PROVED rather than asserted -- the template slice is byte-identical to the committed one, 352 lines, diff empty. One watcher with immediate: true covers the opening read and every month change. A STALE-RESPONSE GUARD, NOT A DISABLE: neither step button gained disabled or loading, because the design rejected that in writing and rule 28 would make a greyed-out next-month button a finding. TWO OF SECTION 12'S SIX CRITERIA HAVE NO FRONTEND SURFACE and are not claimed -- the month boundary is not drawable from a screen that names a month and never a date range, and another member of staff's rows are backend scoping this screen cannot even ask for. Criterion 1 is backed as the frontend's half only: the total shown is the figure the operation returned, never recomputed. Checkpoint 16's own 'this is where the stub is left behind' is VACUOUS here (Q65) so it was not claimed; the checkable half was done by blob hash. Q66 raised: the launcher's per-request hooks mean the first answer back lowers the wait for both, so the screen briefly says a month is empty while it is still loading -- reported rather than fixed, because both cheap fixes are wrong and a correct one needs a request token nothing specifies. THE FIRST OF MY BRIEFS ON THIS FEATURE THAT WAS RIGHT -->
+- [x] 17. Local test environment  <!-- NOT APPLICABLE by the clause's own terms: one already exists and this feature added no service, no role and no seed data it needs -- checkpoint 5 established that the expenses seeder already covers June 2026 with both boundary days and a second member of staff. BUT THE ENVIRONMENT'S DESCRIBED STATE WAS WRONG AND WAS NOT ACCEPTED: it was reported as still up with live seeded, and docker info said the daemon was NOT answering while the mariadb container read Exited (255) 20 minutes ago. Brought up, then the DATABASE was asked rather than the start command's exit code -- because a start command returning 0 having started nothing is one of Q58's own instances -- and it answered, with live holding 14 expenses and 13 staff members. Two further corrections: port 3306 is FREE locally (netstat showed OUTBOUND connections to a remote host, not a listener), and the container had been down about twenty minutes. Three times in this stretch my own exit code read 0 over a failing command because it came from a piped head; each was re-run properly. The application itself still does not start on this machine -- Q24 plus Windows binaries under WSL -- which is a platform limitation recorded at #expense-entry's acceptance, not a property of this feature -->
+
+## Checkpoint 10 - the route opened, and a document that would have wrecked checkpoint 12
+
+**`/monthly-expenses`**, named for what is on screen rather than for the feature id. The sibling is
+`/expenses` - the kebab-case plural of the collection it reads, which is also the query it opens on -
+and §12.1's query is `monthlyExpenses`. **`/monthly-summary` would have been the only route in this
+application named after a feature id.**
+
+A route of its own rather than `/expenses/summary`: the two read different operations, neither is
+subordinate, and a nested path would sit in the way of a future `/expenses/[id]`. **No alias**, since
+`/` is already claimed and two records claiming one path resolve arbitrarily.
+
+**Guarded by existing.** `middleware/000.gateway.global.js` guards every path but `/sign-in` and
+steps aside only for `$furo: { skipFilter: true }`; `FuroMeta#get:skipFilter` reads
+`this.furo.skipFilter ?? false`, so a page setting no such meta is guarded without declaring
+anything. One mechanism, not a second.
+
+**The route was verified in the built output rather than inferred from the folder** - the production
+bundle carries `"monthly-expenses"` and `"/monthly-expenses"`, and no `.js` sibling leaked into the
+route table, so `nuxt.config.js`'s `pages:extend` hook handled the new folder too.
+
+**No environment variable was added, and that was checked rather than assumed.** All three
+`.furo-env` files already point `ENDPOINT_URL` at the staff endpoint, verified against the backend's
+own listening port and `graphqlEndpoint` rather than trusted. `monthlyExpenses` is one more operation
+on the same endpoint.
+
+### The exit condition was met in half, and the unit said so rather than claiming it whole
+
+**"Reachable" is not met**, and the unit reported that plainly instead of reading the word narrowly.
+It ran the script rather than predicting it:
+
+```
+node .claude/skills/hof-acceptance-review/scripts/find-unreachable-screens.mjs expense-note-frontend-staff
+  /expenses          nothing outside this screen mentions the path   <- known FALSE positive (page-level alias)
+  /monthly-expenses  nothing outside this screen mentions the path   <- TRUE positive
+```
+
+**The contrast is the whole point.** `/expenses`'s report is the false positive `#expense-entry`'s
+acceptance already recorded, caused by an alias the script cannot see. **A second screen with no
+alias and nothing linking to it is the real thing.** Closing it is checkpoint 11's decision and 15-16's
+work, and the unit declined to add a link on its own initiative, which was right.
+
+### A trap in `.hora/tree/`, found by a unit that read the config instead of the document
+
+`.hora/tree/expense-note-frontend-staff.md` said **"Nuxt's component auto-registration is configured
+in `nuxt.config.js`, so a component dropped into `components/` is registered without an import."**
+
+**False, and `nuxt.config.js` turns auto-import off twice**: `components: { dirs: [] }` and
+`imports: { autoImport: false }`. Verified by the main session before correcting it.
+
+**It was laid directly in the path of checkpoints 12 and 15**, which build components and read this
+document. A page whose components silently resolve to nothing renders empty, and **the config is the
+last place somebody would look when the document told them the opposite.** Corrected, with the
+correction's own reason written beside it.
+
+**Two more stale documents were reported rather than edited**, correctly: `ai/contexts/uiux-context.md`'s
+screen table (checkpoint 11's to own, below) and a comment in `SignInPageContext` still calling `/` an
+empty stub, which the alias made false.
+
+## Checkpoint 11 - the third pass, and the decision nobody had taken
+
+**2 asked whether the spec supports the use cases, 9 whether the API does. This asks whether a person
+can do them on a screen** - and the answer was **no**, for want of one link.
+
+### What the context file said about this screen
+
+> `— | #monthly-summary (§12.2) | **does not exist.** Do not link to it, do not stub it`
+
+**Checkpoint 10 made that false**, and this file is read automatically by the UI generator at
+checkpoints 12 and 15 and the UI auditor at 18. **Checkpoint 12 would have read "does not exist, do
+not stub it" about the very screen it was told to build.**
+
+### The decision: two screens, two links, in the pages' own headers
+
+**Not chrome in `layouts/default.vue`.** That layout is shared with `/sign-in`, so chrome there would
+put links to guarded screens in front of somebody with no session - **every one of them bouncing
+straight back** - on the one screen §10.2 says is reachable without one.
+
+**The link on `/expenses` is a change to a screen `#expense-entry` already shipped**, and it is
+planned growth rather than a retake: that screen was complete for its own feature, and what changed
+is that there is now somewhere to go.
+
+### Both use cases now have a path, walked through the interface rather than the API
+
+| §12 use case | the path on screen |
+|---|---|
+| filing a claim at the end of the month | sign in -> `/` -> `/expenses` -> **the new link** -> `/monthly-expenses`, which opens on the current month -> read the total |
+| checking last month against a card statement | on `/monthly-expenses`, **move to the previous month without a route change** -> read its entries |
+
+### Four rules added, and two of them exist to stop a reasonable instinct
+
+- **21 - the month is screen state, never a route segment.** §12.2 wants the previous month *without
+  leaving the screen*, and its own call table says the operation is called *"on opening, and on
+  moving to another month"* - **a re-read, not a re-route.**
+- **22 - never disable or refuse a future month.** **The instinct is to grey them out and it is
+  wrong.** §11 refuses an expense **dated** after today, a rule about *writing a row*; §12 says
+  nothing of the kind about *reading a month*. A future month is truthfully empty with a total of
+  zero, which is §12's own third criterion, and refusing one would break this screen's navigation.
+  **Q56's date-field lesson does not transfer** - that was about §11's refusal, and this screen has
+  none.
+- **23 - never sort the entries.** §6 states one clause for both screens and the backend returns it
+  from a constant both resolvers share. **Measured: there is no client-side sort anywhere in this
+  application** - no `.sort(`, no `sortBy`, no `orderBy` - which is what makes the two lists agree.
+  A sort here would re-decide what Q61 settled.
+- **24 - an empty month says it is empty and still shows the total**, zero rendered rather than
+  hidden.
+
+**Nothing went back to checkpoint 2.** Both use cases have a path; one of them needed a link that did
+not exist, which is a gap in the interface rather than in the use case.
+
+## Checkpoint 12 - six regions, nothing new built, and twenty skills named
+
+**Every one of the twenty equipped component skills was named ADOPT or DECLINE with a reason.** Five
+adopted - button, control-block, empty-state, select, table. **`FuroPagination` declined on the
+record** so its absence is never read as an oversight: §12.1 declares no pagination and
+`MonthlyExpensesResult` carries no `pagination` field.
+
+The design lives at `ai/contexts/uiux-context-monthly-summary.md`, which the UI generator at 15 and
+the auditor at 18 both pick up through their `uiux-context-<suffix>.md` pattern.
+
+### The month control is four controls, not a choice between two
+
+§12's use cases are not in conflict - **they are two gestures on one piece of state.** A select pair
+makes *"switches to the previous month"* an open-scroll-pick, four gestures across a January
+boundary; a prev/next pair leaves *"picks that month"* with no pick and puts a month eight back eight
+clicks away. Both write the same `{ year, month }`, so there is no second source of truth.
+
+**`FuroDatePicker` was rejected on measurement rather than taste: there is no month mode.**
+`granularity: 'day'` is hard-coded on the line *after* the parcel spread, and `granularity` is not a
+parcel key - so a parcel value is spread in and then overwritten. A date picker also asks for a
+**date**, whose day would be invented and immediately discarded.
+
+**Rule 28 (never disable a future month) drove a real design decision**: the year select's options
+are recomputed around the **selected** year rather than around today's, because a window anchored on
+today would eventually select a year absent from its own options and blank the trigger.
+
+### Three divergences from the sibling screen, each reasoned
+
+- **The empty state goes outside the table, not in its `#empty` slot.** The slot keeps four column
+  headers above a `colspan`, which is *an empty table with a sentence in it* - and both §12's
+  criterion and rule 30 say **"rather than an empty table"**.
+- **Rows and total are cleared when the month changes, before the request goes out.** `/expenses`
+  keeps rows under an overlay so layout never collapses; here the rows belong to the **previous**
+  month, and showing them beside a heading that already says October is the same falsehood as a stale
+  total.
+- **The total has three states, not two** - figure, zero, dash. **A zero after a failed read would
+  state a total for a month nobody read.**
+
+### My own error, found by the unit and fixed by me
+
+**The §8 rule numbers I wrote at checkpoint 11 collided.** I appended four rules anchored on rule 20
+without checking that the section already ran to **26**, so the block read 19, my 21-24, 20, then the
+existing 21-26 - **four numbers used twice**, and checkpoint 18's auditor cites these by number.
+Renumbered to **27-30**; no rule's text changed.
+
+**The unit found it and declined to fix it** on the ground that the file is checkpoint 11's. That was
+right, and it is why the fix is mine.
+
+**Rule 26 also carried a claim that had gone false** - the page size as *"chosen and not yet
+user-confirmed"*, when Q50 was answered and §7 carries it. **Third document this feature has caught
+asserting a superseded state**, after `paginationConstants.cjs` and the stub-filter guard. Same shape
+every time: **the sentence was right when written, and nothing makes a right-when-written sentence
+announce that it has expired.**
+
+### Q64 raised, verified independently
+
+`@nuxt/icon` is configured, **`@iconify-json` is absent**, the generated bundle builds a
+`createRemoteCollection` against **`api.iconify.design`**, and furo draws `ph:check`,
+`ph:circle-notch`, `ph:caret-down` and more **unasked** inside `FuroSelect` and `FuroTable`. With
+`ssr: false` the browser fetches them. **Every dropdown caret in this product is a third-party
+availability dependency**, and `/expenses` already does it.
+
+What hid it: `uiux-context.md` §5 says *"Icon set: None installed"*. **The module is installed and
+icons are drawn** - what is missing is the local collection.
+
+### One finding nobody asked for, and it is design-load-bearing
+
+**The opening month must be read in `Asia/Tokyo`, not the browser.** Unlike `/expenses`, **nothing
+corrects a wrong month here** - `monthlyExpenses` truthfully answers whatever `{ year, month }` it is
+given - so a browser outside `Asia/Tokyo` opening at a month boundary lands on the wrong month.
+**That is exactly use case 1's moment**, filing at the end of the month.
+
+## Checkpoint 13 - one half applicable, and a brief that would have broken the build
+
+### Half two: three codes mapped
+
+Read from the backend resolver's own `errorCodeHash` rather than from my list: `InvalidYear`
+`203.Q004.001`, `InvalidMonth` `203.Q004.002`, `StaffMemberNotFound` `204.Q004.001`.
+
+**`204.Q004.001` takes the session-guard family's sentence, and the non-disclosure pairing
+deliberately does not apply.** `204.M005.002`/`204.M006.002` are byte-identical because **one code
+covers three outcomes about an entry somebody owns** and §7 requires them indistinguishable. This one
+covers **one** outcome, about the caller's **own** session, raised before the month is looked at and
+before a row is read - **it has nothing to disclose.** Applying the uninformative sentence would
+actively mislead: it would send somebody whose session had lapsed to reload a page about to refuse
+them again. Verified: six `StaffMemberNotFound` codes now exist and all six share one sentence.
+
+**Both `203.Q004` codes say the same thing and neither blames the reader.** The month control is two
+selects - year clamped 1-9999, twelve months always offered - so **a member of staff cannot type an
+invalid year or month**, and a message telling them to enter a valid year would be false in every
+situation that can produce the code. **Reload, not retry**: a retry resends the same refused input
+and fails identically.
+
+### Half one: not applicable, and nothing invented to make it non-empty
+
+Three candidates, each asked the clause's own question - *used in more than one component or page
+**today***? All three answered one.
+
+**The honest candidate is yen formatting**, whose second consumer arrives at checkpoint 15/16.
+Making it shared today would mean rewriting a shipped `#expense-entry` file; writing the module
+without that rewrite would leave **one eventual user beside an un-migrated duplicate** - worse than
+either end state. **Handed forward as an explicit choice rather than left to be decided by default.**
+
+### My brief was wrong an eighth time, and this one would have broken the build
+
+I specified **`ERROR_LOCALE_HASH` and i18n locale paths**. This repository has **neither** - it uses
+`ERROR_CODE_HASH` + **`ERROR_MESSAGE_HASH`** with literal English strings, keyed by the code value
+directly rather than the digest's two-hop form. **The digest names the i18n fork as an open decision
+and says not to guess.** The unit read the file and followed the repository; **had it complied, the
+first `t()` call would have failed.**
+
+## Checkpoint 14 - a client whose oracle is the contract, and a stub that was never reachable
+
+### Nothing about the expected shape is transcribed
+
+`validate(buildSchema(contract), parse(document))` catches a field the contract does not declare; a
+coverage walk catches a declared field the document **omits**, which `validate()` deliberately
+allows; and the root field and variable name are pinned so neither check can pass **vacuously**
+against the wrong operation - `expenses` shares the `Expense` row type, so that confusion is real.
+
+**Mutation-checked in both directions rather than trusted.** Adding `pagination { limit }` failed 4
+tests across 3 suites; deleting `totalAmount` made the coverage inspector return the missing path.
+
+**The vendored contract was verified sound both ways before being trusted as an oracle** - the
+recorded fingerprint `e98a3a6edf510ed8` matches the authority's current hash, **and** the copy's body
+is byte-identical, 202 lines each, zero diff. **The fingerprint alone answers only whether the
+authority moved, not whether the copy still matches it** - Q57 says so itself, which is why the
+second check exists.
+
+### The stub was already unreachable, and my brief had it wrong
+
+Verified in renchan rather than assumed: `actualResolverSchemaHash[it] ?? stubResolverSchemaHash[it]`
+- **the actual pool wins**, and checkpoint 6 landed it eight checkpoints before anything could build
+against a stub.
+
+**So "works against the stub" could only be established in process** - feeding the stub's own seven
+entries and its summed total through the contract's schema, with no socket, no listener and no fetch.
+**And checkpoint 16 has no stub to leave behind for this operation.** Raised as **Q65**, which
+reframes what the stub is actually worth here: **a schema-accurate fixture written independently of
+the resolver**, which is worth more than one the client's own author invented because it cannot drift
+toward the client by accident.
+
+### A judgement worth keeping
+
+**`#totalAmount` falls back to `null`, not `0`, and both are asserted side by side** so the
+distinction cannot be quietly removed. §12 makes `0` a real answer for an empty month, so a `0`
+fallback would make *"not asked yet"* and *"asked, and the month was empty"* **indistinguishable on
+screen**.
+
+### A process error of mine, and it is Q33's shape on the frontend
+
+**I ran checkpoints 13 and 14 concurrently against one working tree.** Directory fencing kept the
+files clean - neither unit touched the other's - but **the whole-repo test count moved under both of
+them**, 44 to 46 to 47 to 49 as files landed. Both units noticed, and both isolated their own
+attributable figure rather than quoting a number that was not theirs.
+
+**That is the frontend echo of Q33**, where three parallel units on one SQLite file caused a real
+failure. Here the harm was smaller and entirely about attribution: **a shared count is not a shared
+file, and fencing directories does not fence a figure.**
+
+## Checkpoint 15 - the screen, in all four states, and two documents corrected
+
+**All four states rendered and reachable** - filled, loading, empty, failed. **The three other than
+filled are the ones acceptance fails on**, which is why the clause gives all four to one unit rather
+than four authors none of whom holds the whole condition.
+
+**`find-unreachable-screens` went 2 to 0.**
+
+### A zero and an absence are kept apart throughout
+
+*Landed* is `totalAmount !== null` - **which is exactly why checkpoint 14's capsule falls back to
+`null` rather than `0`.** §12 makes zero a real answer for an empty month, so it cannot also mean *"no
+answer yet"*. The total reads a dash while loading and after a failure, and **zero only for a month
+that was read and was empty**.
+
+**The empty state renders instead of the table, not in its `#empty` slot** - the slot keeps four
+column headers above a `colspan`, which is *an empty table with a sentence in it*, and both §12's
+criterion and rule 30 say **"rather than an empty table"**.
+
+### The yen-formatter choice, taken rather than defaulted
+
+Checkpoint 13 handed it forward. **Decision: extract, and converge `/expenses` in the same change.**
+The design requires both screens' amount columns to match *field for field*, and two independent
+`Intl.NumberFormat` configurations satisfy that **only until somebody edits one**.
+
+**The cost was contained**: no constructor or `create()` signature changed, so the large
+`ExpensesPageContext` suite was undisturbed - all 747 baseline tests still pass, with one added
+import line.
+
+### Two library gaps compensated for in this project's code, not in `node_modules`
+
+- **An `id` on `FuroSelect` reaches no DOM element** - it spills onto a fragment, so a control
+  block's `<label for>` would resolve to nothing **silently**. The id goes on the trigger parcel,
+  which is also the only way either select gets an accessible name.
+- **A loading `FuroButton` has no accessible name**, so the retry button carries a durable
+  `aria-label`.
+
+**And one finding judged rather than patched:** furo's `--color-link` is **3.68:1**, under the 4.5:1
+floor. Rather than redefine a library token in a shared file, both links are drawn in the title
+foreground with an underline, **so the affordance is not carried by colour alone**. Recorded because
+the next screen reaching for `--color-link` meets the same thing.
+
+### Two documents corrected, both of which would have misled checkpoint 18
+
+- **`hof-cp-button` and `hof-cp-control-block` both asserted that this project imports no furo
+  stylesheet**, so *"every token resolves to nothing"* and the error text *"inherits the ambient
+  colour instead of rendering red"*. **`nuxt.config.js:57` loads `furo.css` first**, with a comment
+  saying it must. The premise is false and the conclusions do not follow. Corrected in both, with
+  what is still true kept: `variables.css` really does declare nothing, and the app really does
+  declare no `@layer` order.
+- **The design document still cited the old rule numbers 21-24** in eight places. Renumbered to
+  **27-30**. The unit implemented against the section and noticed the two disagreed.
+
+**The unit reported these as "every `hof-cp-*` digest".** Measured: **two**, not twenty - and my own
+first sweep found *one*, having matched a different "resolves to nothing" in `hof-cp-select` that is
+about `<label for>` and **is still true**. **Two wrong counts and one right one, for the same
+sentence.**
+
+### Two deviations from the binding design, both to keep the screens honest with each other
+
+**The table's field names are the derived ones.** `FuroTable` renders `row[field]`, so the design's
+nominal `expenseCategory` would print `[object Object]` and `amount` a bare integer - **failing the
+very sentence that lists them**, which requires the two screens to match field for field.
+
+**The date column is headed `Date paid`, as `/expenses` heads it.** A column headed differently on
+two screens is precisely *two lists of the same rows looking like different things*.
+
+## Checkpoint 16 - the read wired in, and the first brief that was right
+
+**No markup moved, and that was proved rather than asserted**: the template slice of `index.vue` is
+**byte-identical** to the committed one, 352 lines each, diff empty. **The whole change is inside
+`<script>`** - which is what checkpoint 15's seam existed for.
+
+One watcher on the chosen month with `immediate: true` covers **both** the opening read and every
+change. **A stale-response guard, not a disable**: the read snapshots the month and discards an
+answer for any other, so three quick Previous clicks land three months back. **Neither step button
+gained `disabled` or `loading`** - the design rejected that in writing, and rule 28 would make a
+greyed-out next-month button a finding in its own right.
+
+### Two of §12's six criteria have no frontend surface, and are not claimed
+
+| criterion | frontend surface |
+|---|---|
+| the month boundary | **none.** The screen names a month and never a date range. What is asserted instead is that the variables carry exactly `year` and `month` **and no date** |
+| another member of staff's rows | **none.** This screen sends no staff identifier at all and has no way to ask for anybody else's month |
+
+**Criterion 1 is backed as the frontend's half only**: the total shown is the figure the one
+operation returned, **never recomputed from the rows** - which is what makes the two unable to
+disagree. The arithmetic stays the backend's.
+
+**Criterion 6's refusal reaches a member of staff as a sentence** - *"Your session is no longer
+valid. Sign in again."* - and the dotted code never appears.
+
+### Checkpoint 16's own clause is half vacuous here, and the half that is checkable was done
+
+*"This is where the stub is left behind"* is not true for this operation - **the screen was never on
+the stub** (Q65). So it was not claimed. *"Confirm the stub is still intact"* **is** checkable and was
+done: the working-tree blob hashes identical to the blob at `HEAD`, the last commit to touch it is
+still the one that created it, and the backend tree is clean.
+
+### The defect it reported rather than invented a fix for
+
+**The launcher's hooks are per-request, so with two reads in flight the first answer back lowers the
+wait for both.** In that window the table says *"No expenses in October 2026"* **while October is
+still loading** - a screen briefly asserting a month is empty when it does not yet know.
+
+**Both cheap fixes are wrong**: re-raising the flag on a stale return sticks the spinner on forever
+when the current answer arrives first, and disabling the buttons is what the design and rule 28 both
+forbid. **A correct fix needs a request token, and nothing specifies one.** Raised as **Q66** - the
+shape is shared with `/expenses`, but the *exposure* is this screen's, because stepping months
+quickly is the gesture §12.2 names.
+
+### The eighth brief, and the first that was right
+
+**Nothing in it was wrong** - the seam, the launcher's interface, the renchan reading and Q65's
+framing all held, each re-verified rather than taken. **And a test caught what I missed anyway**: the
+constructor-spy test failed until `create()` forwarded the new client hash.
+
+## Checkpoint 17 - not applicable, with the environment established rather than inherited
+
+**Not applicable by the clause's own terms**: *"one already exists and this feature added no service,
+no role and no seed data it needs."* Both halves hold - no service, no role, and **checkpoint 5
+established that the `expenses` seeder already covers June 2026 with both boundary days and a second
+member of staff**, which is why no fixture was written.
+
+**But the environment's described state was wrong, and I did not accept it.** It was reported as
+still up with `live` seeded. Measured:
+
+```
+docker info                      -> daemon NOT answering
+docker ps -a                     -> expense-note-backend-mariadb-1   Exited (255) 20 minutes ago
+```
+
+Brought up, and then - **because a start command returning 0 having started nothing is one of Q58's
+own recorded instances** - the database was asked rather than the exit code:
+
+```
+docker exec ... mariadb -uroot -ppassword -e "SELECT 1 AS answering"   exit 0  ->  answering 1
+live: expenses 14, staff_members 13
+```
+
+**Two further corrections to what was believed.** Port 3306 is **free** locally - what `netstat`
+showed were *outbound* connections to a remote host, not a listener, which is the same port that
+blocked this before. And the container had been down about twenty minutes, so *"inherited rather than
+established"* was the right caveat to carry and the wrong state to assume.
+
+**Three times in this stretch my own `$?` read 0 over a failing command**, because the exit came from
+a piped `head` rather than from the command. Each was re-run capturing the status properly. **Q58's
+family, in the checks meant to establish the environment.**
+
+**The application itself still does not start on this machine** - Q24, plus this tree's Windows
+binaries under WSL - which is a platform limitation recorded at `#expense-entry`'s acceptance and not
+a property of this feature.
 
 ## Acceptance gate
 - [ ] 18. Acceptance (E2E and unit both)

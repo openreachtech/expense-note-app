@@ -26,8 +26,17 @@ eslint/ jest/       the config pieces
 is the base every page context extends, and shared logic is a class under the app's own folders —
 never a composable and never a bare function.
 
-Nuxt's component auto-registration is configured in `nuxt.config.js`, so a component dropped into
-`components/` is registered without an import.
+**Auto-import is OFF, and `nuxt.config.js` turns it off twice.** `components: { dirs: [] }` and
+`imports: { autoImport: false }`. **So a component dropped into `components/` is registered by
+nothing** - every component and every helper is imported explicitly, by name, in the file that uses
+it.
+
+**This paragraph previously said the opposite** - that auto-registration is configured, so a
+component needs no import. It was corrected at `#monthly-summary`'s checkpoint 10, after the unit
+opening the frontend read the config rather than this file. **Left uncorrected it was a trap laid
+directly in the path of checkpoints 12 and 15**, which build components and read this document: a
+page whose components silently resolve to nothing renders empty, and the config is the last place
+somebody would look when the document told them the opposite.
 
 ## How it calls the API
 
