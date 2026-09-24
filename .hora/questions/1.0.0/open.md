@@ -3767,3 +3767,194 @@ get at `validationRules`, and `server/index.js` cannot be imported on this machi
 
 **Either answer is legitimate. What is not legitimate is the current state**, where the next audit
 re-derives this from scratch and cannot tell whether anybody ever considered it.
+
+## Q64. Every icon this product draws is fetched from a third-party host at runtime
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: security -->
+
+Found at `#monthly-summary`'s checkpoint 12 by the unit designing the screen, and **pre-existing**:
+`/expenses` already mounts the components that do it. Verified independently by the main session.
+
+### What was measured
+
+| | |
+|---|---|
+| `@nuxt/icon` | **a configured module** (`nuxt.config.js:82`) and a declared devDependency |
+| `node_modules/@iconify-json/` | **absent** - it is a devDependency of `furo-vue`, not hoisted here |
+| `.nuxt/nuxt-icon-server-bundle.mjs` after a green build | `createRemoteCollection(fetchEndpoint)` |
+| the endpoint | **`api.iconify.design`** |
+| what furo-vue draws unasked | `ph:check`, `ph:circle-notch`, `ph:caret-down`, `ph:caret-up`, `ph:caret-right`, `ph:x`, `ph:minus-bold` |
+
+**Nobody has to write an icon for this to happen.** `FuroSelect` draws its own caret and its check
+indicator, `FuroTable` its spinner, `FuroEmptyState` its default icon slot. **This project has never
+asked for an icon and gets them anyway.**
+
+And `ssr: false`, so there is no server to resolve them: **the browser fetches them.**
+
+### Why it is worth a decision rather than a shrug
+
+**A dropdown's caret is now a third-party availability dependency.** For *"an ordinary internal
+business system"* (§7) used by twenty to fifty members of staff on a company network, the failure
+mode is a product that looks broken when an unrelated host is unreachable or blocked - and an
+internal network blocking an outbound CDN is ordinary rather than exotic.
+
+**It is also a request to a third party on every viewer's behalf, from a screen behind a login.**
+Nothing personal travels in it, so this is not a §7 personal-data matter - what leaves is which
+icons a signed-in member of staff's screen is drawing. **Worth naming precisely rather than
+inflating**: the risk is availability and third-party exposure, not disclosure of expense data.
+
+**`uiux-context.md` §5 says "Icon set: None installed", which is inaccurate in a way that hides
+this.** The module *is* installed and icons *are* drawn; what is missing is the local **collection**.
+A reader takes that line as "we draw no icons" and never looks.
+
+### The fix is one devDependency, which is why it is odd that it is missing
+
+Install `@iconify-json/ph` - furo-vue's own `^1.2.2` - so `@nuxt/icon` bundles the collection
+locally and `createRemoteCollection` is never reached. **No code changes, no design changes.**
+
+**Not done here**, and deliberately: checkpoint 12 designs, it does not install, and a dependency
+added to satisfy a finding belongs to whoever owns the decision rather than to the checkpoint that
+found it.
+
+**What this screen did instead** is avoid *depending* on it: its Previous and Next controls carry
+**text**, not icons. That does not fix the caret `FuroSelect` draws by itself, and it is not claimed
+to.
+
+### Where it lands
+
+Not a spec matter. §7 says nothing about third-party asset hosts, and arguably should not at this
+size.
+
+**The decision is: install the collection, or accept in writing that this product fetches its chrome
+from `api.iconify.design`.** Either is defensible for an internal tool. What is not defensible is the
+current state, where `uiux-context.md` tells the next reader no icons are installed and the build
+quietly reaches the network.
+
+**Removal condition:** if `@iconify-json/ph` is installed and
+`.nuxt/nuxt-icon-server-bundle.mjs` stops emitting `createRemoteCollection`, this entry is closed by
+measurement rather than by opinion.
+
+## Q65. The stub is unreachable by the time anything could build against it
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: process-finding -->
+
+Found at `#monthly-summary`'s checkpoint 14 by the unit building the API client, and **true of
+`#expense-entry` too** - that feature's own contract test had already reached the same conclusion for
+its five documents without the consequence being written down.
+
+### The mechanism, read out of renchan rather than assumed
+
+```js
+// GraphqlResolversBuilder.js
+this.actualResolverSchemaHash[it]
+  ?? this.stubResolverSchemaHash[it]
+```
+
+**The actual pool wins.** Checkpoint 6 lands the actual resolver; from that moment the stub for that
+operation is unreachable through the schema, though the file stays.
+
+### Why that empties three clauses rather than one
+
+**Checkpoint 4 states its own purpose**: *"This is placed before the real implementation on purpose,
+and it is why the frontend gate does not wait on the backend gate finishing. Checkpoints 12-14 build
+a client and a screen against the stub; checkpoint 16 swaps them onto the real thing."*
+
+**That purpose assumes the two gates overlap.** `/hora-build` runs its checkpoints **in order**, 3
+through 18, so the backend gate is finished before checkpoint 10 opens the frontend. By the time
+checkpoint 14 builds a client, the actual resolver has existed for eight checkpoints.
+
+| clause | what actually happens in a sequential run |
+|---|---|
+| 4 - *"so the frontend gate does not wait"* | nothing waited, because nothing overlapped |
+| 14 - *"works against the stub, not the real API"* | **cannot** be done over a socket; only in process, by feeding the stub's data through the contract's schema |
+| 16 - *"this is where the stub is left behind"* | **vacuous** - the operation was never on the stub |
+
+### What the stub is actually worth here, which is not nothing
+
+**Reframed rather than dismissed.** In this arrangement the stub is not a live endpoint. It is a
+**schema-accurate fixture, written independently of the resolver** - a second description of what the
+operation answers, by a different author at a different time. That is exactly what checkpoint 14's
+in-process test needs, and it is worth more than a fixture the client's own author invented, because
+it cannot drift toward the client by accident.
+
+**So the artefact earns its place and the clauses describing its purpose do not.**
+
+### Where it lands
+
+`/hora-build`'s, not `specs/`. Three candidate answers, and the choice is not this session's:
+
+- **Say what the stub is for in a sequential run** - a fixture, not an endpoint - and rewrite
+  checkpoint 14's *"works against the stub"* as the in-process contract execution that it must be.
+- **Or let the gates genuinely overlap**, which is what checkpoint 4's sentence describes, and would
+  need `/hora-build` to run 10-14 while 5-9 are in flight. **That is a much larger change** and it
+  would reintroduce Q62's window for the whole overlap rather than for two checkpoints.
+- **Or drop the stub for an operation whose actual lands in the same run**, and keep it only where a
+  frontend really is built ahead of a backend.
+
+**Checkpoint 16's clause should say something either way**, because *"confirm the stub is still
+intact"* is checkable and *"this is where the stub is left behind"* is not - and a checkpoint that
+reports having done the second one has reported something that did not happen.
+
+**Removal condition:** if renchan ever resolves the stub pool in preference, or the gates are made to
+overlap, this entry is answered by the change rather than by a decision.
+
+## Q66. Two reads in flight, and the first answer back clears the wait for both
+
+<!-- spec: none -->
+<!-- blocking: no -->
+<!-- category: ui-defect -->
+
+Found at `#monthly-summary`'s checkpoint 16 by the unit wiring the read - **reported rather than
+fixed**, which was the right call and is the reason this entry exists.
+
+### What happens
+
+The launcher's `beforeRequest` raises the wait and `afterRequest` lowers it, **per request**. So with
+two reads in flight, **the first answer to arrive lowers the flag** even though the second is still
+running.
+
+In that window the table renders zero rows with its `emptyText` - *"No expenses in October 2026"* -
+**while the read for October is still in flight**. It corrects itself the moment the real answer
+lands.
+
+**So the screen briefly says a month is empty when it does not yet know.** That is a truthfulness
+defect rather than a cosmetic one, and §8's own rules are about exactly this.
+
+### Why it was left rather than patched, and why that is not laziness
+
+**The obvious cheap fixes are wrong**, which is what makes it worth an entry instead of a commit:
+
+- **Re-raise the flag when a stale answer returns** - sticks the spinner on forever whenever the
+  *current* month's answer happens to arrive first.
+- **Disable the step buttons while reading** - the design rejected this in writing, and **rule 28
+  would make a greyed-out next-month button a finding in its own right**. §12.2's second use case is
+  somebody stepping months quickly; serialising it is a worse answer than a flicker.
+
+**A correct fix needs a request token** - a counter or an identity the `afterRequest` hook can check
+before lowering - and **nothing in the design or the spec specifies one.**
+
+### The shape is shared with `/expenses`, the exposure is not
+
+`ExpensesPageContext` has the **identical hook shape**, so this is not something this feature
+introduced. What this feature adds is a screen whose ordinary gesture is **stepping through months
+quickly** - the use case §12.2 names - so the two-in-flight window that is rare on a paginated list
+is ordinary here.
+
+**Changing it on one screen alone would make the two disagree**, which is the same argument that put
+the entry order in a shared constant.
+
+### Where it lands
+
+**Not a spec matter.** §12 says nothing about in-flight reads and should not.
+
+**It belongs in the UI/UX design document before it belongs in code**, which is the unit's own
+judgement and is right: what a screen shows while it does not yet know is a design decision, and
+this one currently has no stated answer at all. Then, if a token is wanted, it is one change applied
+to both screens rather than a patch to the newer one.
+
+**Removal condition:** if the launcher's hooks ever carry a request identity, or the design states
+what the screen shows between a month change and its answer, this closes.
